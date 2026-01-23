@@ -1,0 +1,48 @@
+## Backend
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+*.pidb
+*.log
+*.swp
+*.cache
+*.dll
+*.exe
+*.pdb
+TestResults/
+*.DotSettings
+
+## Frontend
+node_modules/
+dist/
+build/
+.cache/
+.vite/
+*.local
+.env.local
+.env.production.local
+
+## IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+## OS
+.DS_Store
+Thumbs.db
+
+## Azure
+*.pubxml
+*.azurePubxml
+PublishProfiles/
+
+## Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
