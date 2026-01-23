@@ -14,7 +14,8 @@ import {
   Settings,
   Bell,
   Sun,
-  Moon
+  Moon,
+  Sparkles
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Condominios', href: '/admin/condominiums', icon: Building2 },
   { name: 'Unidades', href: '/admin/units', icon: Home },
   { name: 'Residentes', href: '/admin/residents', icon: Users },
+  { name: 'Amenidades', href: '/admin/amenities', icon: Sparkles },
   { name: 'Facturación', href: '/admin/billing', icon: CreditCard },
   { name: 'Incidencias', href: '/admin/incidents', icon: AlertCircle },
   { name: 'Reportes', href: '/admin/reports', icon: FileText },

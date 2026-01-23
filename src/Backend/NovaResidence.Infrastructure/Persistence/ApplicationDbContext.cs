@@ -28,6 +28,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<CommonArea> CommonAreas => Set<CommonArea>();
     public DbSet<CommonAreaReservation> CommonAreaReservations => Set<CommonAreaReservation>();
     public DbSet<Resident> Residents => Set<Resident>();
+    public DbSet<Amenity> Amenities => Set<Amenity>();
+    public DbSet<Reservation> Reservations => Set<Reservation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +46,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<CommonArea>().HasQueryFilter(ca => !ca.IsDeleted);
         modelBuilder.Entity<CommonAreaReservation>().HasQueryFilter(r => !r.IsDeleted);
         modelBuilder.Entity<Resident>().HasQueryFilter(r => !r.IsDeleted);
+        modelBuilder.Entity<Amenity>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<Reservation>().HasQueryFilter(r => !r.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

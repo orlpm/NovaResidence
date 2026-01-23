@@ -18,6 +18,8 @@ public interface IApplicationDbContext
     DbSet<Domain.Entities.Condominiums.Unit> Units { get; }
     DbSet<Domain.Entities.Condominiums.CommonArea> CommonAreas { get; }
     DbSet<Domain.Entities.Condominiums.CommonAreaReservation> CommonAreaReservations { get; }
+    DbSet<Domain.Entities.Condominiums.Amenity> Amenities { get; }
+    DbSet<Domain.Entities.Condominiums.Reservation> Reservations { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

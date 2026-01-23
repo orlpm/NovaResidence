@@ -15,6 +15,7 @@ import CondominiumEdit from './pages/admin/CondominiumEdit'
 import CondominiumUnits from './pages/admin/CondominiumUnits'
 import Units from './pages/admin/Units'
 import Residents from './pages/admin/Residents'
+import Amenities from './pages/admin/Amenities'
 import Billing from './pages/admin/Billing'
 import Incidents from './pages/admin/Incidents'
 import Reports from './pages/admin/Reports'
@@ -71,6 +72,7 @@ function App() {
         <Route path="condominiums/:id/units" element={<CondominiumUnits />} />
         <Route path="units" element={<Units />} />
         <Route path="residents" element={<Residents />} />
+        <Route path="amenities" element={<Amenities />} />
         <Route path="billing" element={<Billing />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="reports" element={<Reports />} />
