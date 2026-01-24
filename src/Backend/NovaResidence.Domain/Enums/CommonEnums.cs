@@ -53,10 +53,11 @@ public enum PaymentStatus
 public enum IncidentStatus
 {
     Open = 0,
-    InProgress = 1,
-    Resolved = 2,
-    Closed = 3,
-    Cancelled = 4
+    Acknowledged = 1,
+    InProgress = 2,
+    Resolved = 3,
+    Closed = 4,
+    Cancelled = 5
 }
 
 public enum IncidentPriority
@@ -65,6 +66,58 @@ public enum IncidentPriority
     Medium = 1,
     High = 2,
     Critical = 3
+}
+
+public enum IncidentType
+{
+    Maintenance = 0,
+    Plumbing = 1,
+    Electrical = 2,
+    Security = 3,
+    Noise = 4,
+    Parking = 5,
+    CommonArea = 6,
+    Cleaning = 7,
+    Elevator = 8,
+    HVAC = 9,
+    Structural = 10,
+    Pest = 11,
+    Other = 99
+}
+
+public enum FeeType
+{
+    MonthlyMaintenance = 0,
+    ExtraordinaryFee = 1,
+    ParkingFee = 2,
+    ReservationFee = 3,
+    LateFee = 4,
+    Fine = 5,
+    Utility = 6,
+    Insurance = 7,
+    Other = 99
+}
+
+public enum ChargeStatus
+{
+    Pending = 0,
+    PartiallyPaid = 1,
+    Paid = 2,
+    Overdue = 3,
+    Cancelled = 4,
+    Forgiven = 5
+}
+
+public enum PaymentMethod
+{
+    Cash = 0,
+    BankTransfer = 1,
+    CreditCard = 2,
+    DebitCard = 3,
+    Check = 4,
+    SPEI = 5,
+    PayPal = 6,
+    Other = 99
 }
 
 public enum ReservationStatus

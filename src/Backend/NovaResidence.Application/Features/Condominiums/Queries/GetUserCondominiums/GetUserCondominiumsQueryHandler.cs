@@ -27,27 +27,38 @@ public class GetUserCondominiumsQueryHandler : IRequestHandler<GetUserCondominiu
 
         try
         {
-            // Get user with their condominium roles
-            var user = await _context.Users
-                .Include(u => u.CondominiumRoles)
-                .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+            IQueryable<Domain.Entities.Condominiums.Condominium> query;
 
-            // Get user's condominium IDs from their roles
-            var userCondominiumIds = user?.CondominiumRoles
-                .Select(cr => cr.CondominiumId)
-                .ToList() ?? new List<Guid>();
-
-            // Si el usuario no tiene roles de condominio, devolver lista vacía
-            // (para que se muestre el wizard de creación)
-            if (!userCondominiumIds.Any())
+            // If UserId is empty, return all active condominiums (for admin users)
+            if (request.UserId == Guid.Empty)
             {
-                _logger.LogInformation("User {UserId} has no condominium roles, returning empty list", request.UserId);
-                return Result.Success(new List<UserCondominiumDto>());
+                _logger.LogInformation("UserId is empty, returning all active condominiums");
+                query = _context.Condominiums.Where(c => !c.IsDeleted && c.IsActive);
             }
+            else
+            {
+                // Get user with their condominium roles
+                var user = await _context.Users
+                    .Include(u => u.CondominiumRoles)
+                    .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-            // Base query for active, non-deleted condominiums that belong to the user
-            var query = _context.Condominiums
-                .Where(c => !c.IsDeleted && c.IsActive && userCondominiumIds.Contains(c.Id));
+                // Get user's condominium IDs from their roles
+                var userCondominiumIds = user?.CondominiumRoles
+                    .Select(cr => cr.CondominiumId)
+                    .ToList() ?? new List<Guid>();
+
+                // Si el usuario no tiene roles de condominio, devolver lista vacía
+                // (para que se muestre el wizard de creación)
+                if (!userCondominiumIds.Any())
+                {
+                    _logger.LogInformation("User {UserId} has no condominium roles, returning empty list", request.UserId);
+                    return Result.Success(new List<UserCondominiumDto>());
+                }
+
+                // Base query for active, non-deleted condominiums that belong to the user
+                query = _context.Condominiums
+                    .Where(c => !c.IsDeleted && c.IsActive && userCondominiumIds.Contains(c.Id));
+            }
 
             var condominiums = await query
                 .Include(c => c.Buildings)

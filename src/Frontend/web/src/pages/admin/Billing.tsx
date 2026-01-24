@@ -1,5 +1,803 @@
-function Billing() {
-  return <div><h1 className="text-2xl font-bold">Facturación</h1></div>
-}
+import { useState, useEffect } from 'react'
+import { 
+  Plus, 
+  Search, 
+  MoreVertical, 
+  Eye,
+  AlertCircle,
+  CheckCircle,
+  DollarSign,
+  X,
+  Ban,
+  Gift,
+  CreditCard,
+  Settings,
+  FileText,
+  Calendar,
+  TrendingUp
+} from 'lucide-react'
+import { 
+  billingService, 
+  FeeType,
+  ChargeStatus,
+  PaymentMethod,
+  feeTypeNames,
+  chargeStatusNames,
+  paymentMethodNames,
+  type ChargeListDto,
+  type ChargeDetailDto,
+  type UnitBalanceDto,
+  type BillingSummaryDto,
+  type FeeConfigurationDto,
+  type CreateChargeRequest,
+  type RecordPaymentRequest,
+  type CreateFeeConfigurationRequest
+} from '../../lib/billingService'
+import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { useAuthStore } from '../../stores/authStore'
 
-export default Billing
+type TabType = 'charges' | 'balances' | 'summary' | 'config'
+
+export default function Billing() {
+  const { user } = useAuthStore()
+  const [activeTab, setActiveTab] = useState<TabType>('charges')
+  const [charges, setCharges] = useState<ChargeListDto[]>([])
+  const [balances, setBalances] = useState<UnitBalanceDto[]>([])
+  const [summary, setSummary] = useState<BillingSummaryDto | null>(null)
+  const [feeConfigs, setFeeConfigs] = useState<FeeConfigurationDto[]>([])
+  const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
+  const [selectedCondominium, setSelectedCondominium] = useState<string>('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterStatus, setFilterStatus] = useState<ChargeStatus | null>(null)
+  const [filterFeeType, setFilterFeeType] = useState<FeeType | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const [showCreateChargeModal, setShowCreateChargeModal] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showForgiveModal, setShowForgiveModal] = useState(false)
+  const [showCreateConfigModal, setShowCreateConfigModal] = useState(false)
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [selectedCharge, setSelectedCharge] = useState<ChargeListDto | null>(null)
+  const [chargeDetail, setChargeDetail] = useState<ChargeDetailDto | null>(null)
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+
+  const [chargeForm, setChargeForm] = useState<Partial<CreateChargeRequest>>({
+    feeType: FeeType.Maintenance,
+    amount: 0,
+    applyLateFee: true
+  })
+
+  const [paymentForm, setPaymentForm] = useState<Partial<RecordPaymentRequest>>({
+    amount: 0,
+    paymentMethod: PaymentMethod.BankTransfer
+  })
+
+  const [configForm, setConfigForm] = useState<Partial<CreateFeeConfigurationRequest>>({
+    feeType: FeeType.Maintenance,
+    defaultAmount: 0,
+    isRecurring: true,
+    recurringDay: 1,
+    dueDayOffset: 10,
+    applyLateFee: true,
+    lateFeePercentage: 5,
+    gracePeriodDays: 5
+  })
+
+  const [cancelReason, setCancelReason] = useState('')
+  const [forgiveReason, setForgiveReason] = useState('')
+
+  useEffect(() => { loadCondominiums() }, [])
+
+  useEffect(() => {
+    if (selectedCondominium) {
+      loadData()
+    }
+  }, [selectedCondominium, activeTab, filterStatus, filterFeeType, selectedMonth, selectedYear])
+
+  const loadCondominiums = async () => {
+    try {
+      const data = await condominiumService.getAllCondominiums(user?.id)
+      setCondominiums(data)
+      if (data.length > 0) setSelectedCondominium(data[0].id)
+    } catch { setError('Error al cargar condominios') }
+  }
+
+  const loadData = async () => {
+    if (!selectedCondominium) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      switch (activeTab) {
+        case 'charges':
+          const chargesData = await billingService.getCondominiumCharges(selectedCondominium, {
+            month: selectedMonth,
+            year: selectedYear,
+            status: filterStatus ?? undefined,
+            feeType: filterFeeType ?? undefined
+          })
+          setCharges(chargesData)
+          break
+        case 'balances':
+          const balancesData = await billingService.getCondominiumBalances(selectedCondominium)
+          setBalances(balancesData)
+          break
+        case 'summary':
+          const summaryData = await billingService.getBillingSummary(selectedCondominium, selectedMonth, selectedYear)
+          setSummary(summaryData)
+          break
+        case 'config':
+          const configsData = await billingService.getFeeConfigurations(selectedCondominium)
+          setFeeConfigs(configsData)
+          break
+      }
+    } catch { setError('Error al cargar datos') }
+    finally { setIsLoading(false) }
+  }
+
+  const loadChargeDetail = async (id: string) => {
+    try {
+      const detail = await billingService.getCharge(id)
+      setChargeDetail(detail)
+      setShowDetailModal(true)
+    } catch { setError('Error al cargar detalle de cargo') }
+  }
+
+  const handleCreateCharge = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await billingService.createCharge({
+        ...chargeForm as CreateChargeRequest,
+        condominiumId: selectedCondominium,
+        billingPeriodMonth: selectedMonth,
+        billingPeriodYear: selectedYear
+      })
+      setShowCreateChargeModal(false)
+      resetChargeForm()
+      loadData()
+      showSuccess('Cargo creado exitosamente')
+    } catch { setError('Error al crear cargo') }
+  }
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedCharge) return
+    try {
+      await billingService.recordPayment({
+        chargeId: selectedCharge.id,
+        amount: paymentForm.amount!,
+        paymentMethod: paymentForm.paymentMethod!,
+        referenceNumber: paymentForm.referenceNumber,
+        notes: paymentForm.notes
+      })
+      setShowPaymentModal(false)
+      resetPaymentForm()
+      loadData()
+      showSuccess('Pago registrado exitosamente')
+    } catch { setError('Error al registrar pago') }
+  }
+
+  const handleCancelCharge = async () => {
+    if (!selectedCharge) return
+    try {
+      await billingService.cancelCharge(selectedCharge.id, { reason: cancelReason })
+      setShowCancelModal(false)
+      setCancelReason('')
+      loadData()
+      showSuccess('Cargo cancelado exitosamente')
+    } catch { setError('Error al cancelar cargo') }
+  }
+
+  const handleForgiveCharge = async () => {
+    if (!selectedCharge) return
+    try {
+      await billingService.forgiveCharge(selectedCharge.id, { reason: forgiveReason })
+      setShowForgiveModal(false)
+      setForgiveReason('')
+      loadData()
+      showSuccess('Cargo condonado exitosamente')
+    } catch { setError('Error al condonar cargo') }
+  }
+
+  const handleCreateConfig = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      await billingService.createFeeConfiguration({
+        ...configForm as CreateFeeConfigurationRequest,
+        condominiumId: selectedCondominium
+      })
+      setShowCreateConfigModal(false)
+      resetConfigForm()
+      loadData()
+      showSuccess('Configuración creada exitosamente')
+    } catch { setError('Error al crear configuración') }
+  }
+
+  const handleToggleConfig = async (id: string) => {
+    try {
+      await billingService.toggleFeeConfiguration(id)
+      loadData()
+      showSuccess('Estado actualizado')
+    } catch { setError('Error al actualizar estado') }
+  }
+
+  const handleGenerateMonthly = async () => {
+    try {
+      const count = await billingService.generateMonthlyCharges({
+        condominiumId: selectedCondominium,
+        month: selectedMonth,
+        year: selectedYear
+      })
+      setShowGenerateModal(false)
+      loadData()
+      showSuccess(`Se generaron ${count} cargos exitosamente`)
+    } catch { setError('Error al generar cargos') }
+  }
+
+  const resetChargeForm = () => setChargeForm({ feeType: FeeType.Maintenance, amount: 0, applyLateFee: true })
+  const resetPaymentForm = () => setPaymentForm({ amount: 0, paymentMethod: PaymentMethod.BankTransfer })
+  const resetConfigForm = () => setConfigForm({ feeType: FeeType.Maintenance, defaultAmount: 0, isRecurring: true, recurringDay: 1, dueDayOffset: 10, applyLateFee: true, lateFeePercentage: 5, gracePeriodDays: 5 })
+
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message)
+    setTimeout(() => setSuccessMessage(null), 3000)
+  }
+
+  const openPaymentModal = (charge: ChargeListDto) => {
+    setSelectedCharge(charge)
+    setPaymentForm({ ...paymentForm, amount: charge.balance })
+    setShowPaymentModal(true)
+    setOpenDropdown(null)
+  }
+
+  const getStatusColor = (status: ChargeStatus) => {
+    switch (status) {
+      case ChargeStatus.Pending: return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+      case ChargeStatus.PartiallyPaid: return 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+      case ChargeStatus.Paid: return 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+      case ChargeStatus.Overdue: return 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+      case ChargeStatus.Cancelled: return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+      case ChargeStatus.Forgiven: return 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+      default: return 'bg-gray-100 text-gray-700'
+    }
+  }
+
+  const formatCurrency = (amount: number) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount)
+
+  const filteredCharges = charges.filter(charge =>
+    charge.unitNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    charge.concept.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const tabs = [
+    { id: 'charges' as TabType, label: 'Cargos', icon: FileText },
+    { id: 'balances' as TabType, label: 'Saldos', icon: DollarSign },
+    { id: 'summary' as TabType, label: 'Resumen', icon: TrendingUp },
+    { id: 'config' as TabType, label: 'Configuración', icon: Settings }
+  ]
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Facturación</h1>
+          <p className="text-gray-600 dark:text-gray-400">Gestiona cargos, pagos y configuración de cuotas</p>
+        </div>
+        <div className="flex gap-2">
+          {activeTab === 'charges' && (
+            <>
+              <button onClick={() => setShowGenerateModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <Calendar className="w-5 h-5" /> Generar Mensuales
+              </button>
+              <button onClick={() => setShowCreateChargeModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <Plus className="w-5 h-5" /> Nuevo Cargo
+              </button>
+            </>
+          )}
+          {activeTab === 'config' && (
+            <button onClick={() => setShowCreateConfigModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              <Plus className="w-5 h-5" /> Nueva Configuración
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500" />
+          <p className="text-red-700 dark:text-red-300">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto"><X className="w-5 h-5 text-red-500" /></button>
+        </div>
+      )}
+      
+      {successMessage && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-500" />
+          <p className="text-green-700 dark:text-green-300">{successMessage}</p>
+        </div>
+      )}
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Condominio</label>
+            <select value={selectedCondominium} onChange={(e) => setSelectedCondominium(e.target.value)} className="w-full md:w-96 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent">
+              <option value="">Selecciona un condominio</option>
+              {condominiums.map(condo => (<option key={condo.id} value={condo.id}>{condo.name}</option>))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Período</label>
+            <div className="flex gap-2">
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                {Array.from({ length: 12 }, (_, i) => (<option key={i + 1} value={i + 1}>{new Date(2000, i).toLocaleString('es', { month: 'long' })}</option>))}
+              </select>
+              <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                {Array.from({ length: 5 }, (_, i) => (<option key={selectedYear - 2 + i} value={selectedYear - 2 + i}>{selectedYear - 2 + i}</option>))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="flex -mb-px">
+            {tabs.map((tab) => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id ? 'border-sky-500 text-sky-600 dark:text-sky-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'}`}>
+                <tab.icon className="w-4 h-4" /> {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="p-6">
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full mx-auto"></div>
+              <p className="mt-4 text-gray-500 dark:text-gray-400">Cargando...</p>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'charges' && (
+                <>
+                  <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input type="text" placeholder="Buscar por unidad o concepto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent" />
+                    </div>
+                    <select value={filterStatus ?? ''} onChange={(e) => setFilterStatus(e.target.value ? Number(e.target.value) as ChargeStatus : null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                      <option value="">Todos los estados</option>
+                      {Object.entries(chargeStatusNames).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                    </select>
+                    <select value={filterFeeType ?? ''} onChange={(e) => setFilterFeeType(e.target.value ? Number(e.target.value) as FeeType : null)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                      <option value="">Todos los tipos</option>
+                      {Object.entries(feeTypeNames).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                    </select>
+                  </div>
+
+                  {filteredCharges.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No hay cargos para este período</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Unidad</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Concepto</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tipo</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Monto</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Pagado</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Saldo</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Estado</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Vencimiento</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                          {filteredCharges.map((charge) => (
+                            <tr key={charge.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{charge.unitNumber}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{charge.concept}</td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{charge.feeTypeName}</td>
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right">{formatCurrency(charge.amount)}</td>
+                              <td className="px-4 py-3 text-sm text-green-600 dark:text-green-400 text-right">{formatCurrency(charge.paidAmount)}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 text-right">{formatCurrency(charge.balance)}</td>
+                              <td className="px-4 py-3"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(charge.status)}`}>{charge.statusName}</span></td>
+                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{new Date(charge.dueDate).toLocaleDateString()}</td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="relative">
+                                  <button onClick={() => setOpenDropdown(openDropdown === charge.id ? null : charge.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><MoreVertical className="w-5 h-5 text-gray-400" /></button>
+                                  {openDropdown === charge.id && (
+                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                                      <button onClick={() => { loadChargeDetail(charge.id); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
+                                      {(charge.status === ChargeStatus.Pending || charge.status === ChargeStatus.PartiallyPaid || charge.status === ChargeStatus.Overdue) && (
+                                        <button onClick={() => openPaymentModal(charge)} className="w-full px-4 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Registrar Pago</button>
+                                      )}
+                                      {charge.status === ChargeStatus.Pending && (
+                                        <>
+                                          <button onClick={() => { setSelectedCharge(charge); setShowCancelModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Ban className="w-4 h-4" /> Cancelar</button>
+                                          <button onClick={() => { setSelectedCharge(charge); setShowForgiveModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-purple-600 dark:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Gift className="w-4 h-4" /> Condonar</button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeTab === 'balances' && (
+                <div className="overflow-x-auto">
+                  {balances.length === 0 ? (
+                    <div className="text-center py-8">
+                      <DollarSign className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No hay datos de saldos</p>
+                    </div>
+                  ) : (
+                    <table className="w-full">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Unidad</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total Cargado</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Total Pagado</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Saldo</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Vencido</th>
+                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Cargos Pend.</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {balances.map((balance) => (
+                          <tr key={balance.unitId} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{balance.unitNumber}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 text-right">{formatCurrency(balance.totalCharged)}</td>
+                            <td className="px-4 py-3 text-sm text-green-600 dark:text-green-400 text-right">{formatCurrency(balance.totalPaid)}</td>
+                            <td className="px-4 py-3 text-sm font-medium text-right">{balance.balance > 0 ? <span className="text-red-600 dark:text-red-400">{formatCurrency(balance.balance)}</span> : <span className="text-green-600">{formatCurrency(balance.balance)}</span>}</td>
+                            <td className="px-4 py-3 text-sm text-red-600 dark:text-red-400 text-right">{formatCurrency(balance.overdueAmount)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300 text-right">{balance.pendingCharges}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'summary' && summary && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4">
+                      <p className="text-sm text-blue-600 dark:text-blue-400">Total Cargado</p>
+                      <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{formatCurrency(summary.totalCharged)}</p>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4">
+                      <p className="text-sm text-green-600 dark:text-green-400">Total Cobrado</p>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatCurrency(summary.totalCollected)}</p>
+                    </div>
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4">
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400">Total Pendiente</p>
+                      <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{formatCurrency(summary.totalPending)}</p>
+                    </div>
+                    <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-4">
+                      <p className="text-sm text-red-600 dark:text-red-400">Total Vencido</p>
+                      <p className="text-2xl font-bold text-red-700 dark:text-red-300">{formatCurrency(summary.totalOverdue)}</p>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-sky-500 to-blue-600 rounded-xl p-6 text-white">
+                    <p className="text-lg">Tasa de Cobranza</p>
+                    <p className="text-4xl font-bold">{summary.collectionRate.toFixed(1)}%</p>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'config' && (
+                <>
+                  {feeConfigs.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 dark:text-gray-400">No hay configuraciones de cuotas</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {feeConfigs.map((config) => (
+                        <div key={config.id} className={`border rounded-xl p-4 ${config.isActive ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="font-semibold text-gray-900 dark:text-white">{config.name}</h3>
+                            <button onClick={() => handleToggleConfig(config.id)} className={`px-3 py-1 text-xs font-medium rounded-full ${config.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                              {config.isActive ? 'Activo' : 'Inactivo'}
+                            </button>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{config.feeTypeName}</p>
+                          <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(config.defaultAmount)}</p>
+                          {config.isRecurring && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Día de cobro: {config.recurringDay} | Vence: +{config.dueDayOffset} días</p>
+                          )}
+                          {config.applyLateFee && (
+                            <p className="text-xs text-orange-600 dark:text-orange-400">Recargo: {config.lateFeePercentage}% (gracia: {config.gracePeriodDays} días)</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Create Charge Modal */}
+      {showCreateChargeModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nuevo Cargo</h2>
+              <button onClick={() => { setShowCreateChargeModal(false); resetChargeForm(); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <form onSubmit={handleCreateCharge} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unidad ID *</label>
+                <input type="text" value={chargeForm.unitId || ''} onChange={(e) => setChargeForm({ ...chargeForm, unitId: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="ID de la unidad" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Concepto *</label>
+                <input type="text" value={chargeForm.concept || ''} onChange={(e) => setChargeForm({ ...chargeForm, concept: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo *</label>
+                  <select value={chargeForm.feeType} onChange={(e) => setChargeForm({ ...chargeForm, feeType: Number(e.target.value) as FeeType })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+                    {Object.entries(feeTypeNames).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Monto *</label>
+                  <input type="number" step="0.01" value={chargeForm.amount} onChange={(e) => setChargeForm({ ...chargeForm, amount: parseFloat(e.target.value) })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha de Vencimiento *</label>
+                <input type="date" value={chargeForm.dueDate || ''} onChange={(e) => setChargeForm({ ...chargeForm, dueDate: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="applyLateFee" checked={chargeForm.applyLateFee} onChange={(e) => setChargeForm({ ...chargeForm, applyLateFee: e.target.checked })} className="rounded border-gray-300" />
+                <label htmlFor="applyLateFee" className="text-sm text-gray-700 dark:text-gray-300">Aplicar recargo por mora</label>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setShowCreateChargeModal(false); resetChargeForm(); }} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg font-medium">Crear Cargo</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedCharge && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Registrar Pago</h2>
+              <button onClick={() => { setShowPaymentModal(false); resetPaymentForm(); setSelectedCharge(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <form onSubmit={handleRecordPayment} className="p-6 space-y-4">
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400">Cargo: {selectedCharge.concept}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Saldo pendiente: <span className="font-bold text-red-600">{formatCurrency(selectedCharge.balance)}</span></p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Monto del Pago *</label>
+                <input type="number" step="0.01" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: parseFloat(e.target.value) })} required max={selectedCharge.balance} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Método de Pago *</label>
+                <select value={paymentForm.paymentMethod} onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: Number(e.target.value) as PaymentMethod })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+                  {Object.entries(paymentMethodNames).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Referencia</label>
+                <input type="text" value={paymentForm.referenceNumber || ''} onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="Número de referencia" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas</label>
+                <textarea value={paymentForm.notes || ''} onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" rows={2} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setShowPaymentModal(false); resetPaymentForm(); setSelectedCharge(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600">Registrar Pago</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Modal */}
+      {showCancelModal && selectedCharge && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Cancelar Cargo</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">¿Estás seguro de cancelar el cargo "{selectedCharge.concept}"?</p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Razón de cancelación *</label>
+                <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" rows={3} />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setShowCancelModal(false); setCancelReason(''); setSelectedCharge(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">No, mantener</button>
+                <button onClick={handleCancelCharge} disabled={!cancelReason} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-medium disabled:opacity-50">Sí, cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forgive Modal */}
+      {showForgiveModal && selectedCharge && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Condonar Cargo</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">¿Estás seguro de condonar el cargo "{selectedCharge.concept}" por {formatCurrency(selectedCharge.amount)}?</p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Razón de condonación *</label>
+                <textarea value={forgiveReason} onChange={(e) => setForgiveReason(e.target.value)} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" rows={3} />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setShowForgiveModal(false); setForgiveReason(''); setSelectedCharge(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
+                <button onClick={handleForgiveCharge} disabled={!forgiveReason} className="flex-1 px-4 py-2 bg-purple-500 text-white rounded-lg font-medium disabled:opacity-50">Condonar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Monthly Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Generar Cargos Mensuales</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">Se generarán cargos para todas las unidades según las configuraciones activas para el período:</p>
+              <p className="text-lg font-bold text-center text-gray-900 dark:text-white mb-6">{new Date(selectedYear, selectedMonth - 1).toLocaleString('es', { month: 'long', year: 'numeric' })}</p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowGenerateModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
+                <button onClick={handleGenerateMonthly} className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg font-medium">Generar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Config Modal */}
+      {showCreateConfigModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nueva Configuración de Cuota</h2>
+              <button onClick={() => { setShowCreateConfigModal(false); resetConfigForm(); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <form onSubmit={handleCreateConfig} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
+                <input type="text" value={configForm.name || ''} onChange={(e) => setConfigForm({ ...configForm, name: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="Ej: Cuota de Mantenimiento" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo *</label>
+                  <select value={configForm.feeType} onChange={(e) => setConfigForm({ ...configForm, feeType: Number(e.target.value) as FeeType })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+                    {Object.entries(feeTypeNames).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Monto Default *</label>
+                  <input type="number" step="0.01" value={configForm.defaultAmount} onChange={(e) => setConfigForm({ ...configForm, defaultAmount: parseFloat(e.target.value) })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="isRecurring" checked={configForm.isRecurring} onChange={(e) => setConfigForm({ ...configForm, isRecurring: e.target.checked })} className="rounded border-gray-300" />
+                <label htmlFor="isRecurring" className="text-sm text-gray-700 dark:text-gray-300">Es recurrente (mensual)</label>
+              </div>
+              {configForm.isRecurring && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Día de cobro</label>
+                    <input type="number" min={1} max={28} value={configForm.recurringDay || 1} onChange={(e) => setConfigForm({ ...configForm, recurringDay: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Días para vencer</label>
+                    <input type="number" min={1} value={configForm.dueDayOffset || 10} onChange={(e) => setConfigForm({ ...configForm, dueDayOffset: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="applyLateFeeConfig" checked={configForm.applyLateFee} onChange={(e) => setConfigForm({ ...configForm, applyLateFee: e.target.checked })} className="rounded border-gray-300" />
+                <label htmlFor="applyLateFeeConfig" className="text-sm text-gray-700 dark:text-gray-300">Aplicar recargo por mora</label>
+              </div>
+              {configForm.applyLateFee && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">% de recargo</label>
+                    <input type="number" step="0.1" min={0} value={configForm.lateFeePercentage || 5} onChange={(e) => setConfigForm({ ...configForm, lateFeePercentage: parseFloat(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Días de gracia</label>
+                    <input type="number" min={0} value={configForm.gracePeriodDays || 5} onChange={(e) => setConfigForm({ ...configForm, gracePeriodDays: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                <textarea value={configForm.description || ''} onChange={(e) => setConfigForm({ ...configForm, description: e.target.value })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" rows={2} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setShowCreateConfigModal(false); resetConfigForm(); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg font-medium">Crear Configuración</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {showDetailModal && chargeDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Detalle de Cargo</h2>
+              <button onClick={() => { setShowDetailModal(false); setChargeDetail(null); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{chargeDetail.concept}</h3>
+                <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusColor(chargeDetail.status)}`}>{chargeDetail.statusName}</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div><p className="text-sm text-gray-500">Unidad</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.unitNumber}</p></div>
+                <div><p className="text-sm text-gray-500">Tipo</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.feeTypeName}</p></div>
+                <div><p className="text-sm text-gray-500">Período</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.billingPeriod}</p></div>
+                <div><p className="text-sm text-gray-500">Monto</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(chargeDetail.amount)}</p></div>
+                <div><p className="text-sm text-gray-500">Pagado</p><p className="font-medium text-green-600">{formatCurrency(chargeDetail.paidAmount)}</p></div>
+                <div><p className="text-sm text-gray-500">Saldo</p><p className="font-medium text-red-600">{formatCurrency(chargeDetail.balance)}</p></div>
+                <div><p className="text-sm text-gray-500">Vencimiento</p><p className="font-medium text-gray-900 dark:text-white">{new Date(chargeDetail.dueDate).toLocaleDateString()}</p></div>
+                {chargeDetail.lateFeeAmount && <div><p className="text-sm text-gray-500">Recargo</p><p className="font-medium text-orange-600">{formatCurrency(chargeDetail.lateFeeAmount)}</p></div>}
+              </div>
+              {chargeDetail.payments.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">Pagos Registrados</h4>
+                  <div className="space-y-2">
+                    {chargeDetail.payments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                        <div>
+                          <p className="font-medium text-green-600">{formatCurrency(payment.amount)}</p>
+                          <p className="text-sm text-gray-500">{payment.paymentMethodName} - {new Date(payment.paymentDate).toLocaleDateString()}</p>
+                          {payment.referenceNumber && <p className="text-xs text-gray-400">Ref: {payment.referenceNumber}</p>}
+                        </div>
+                        {payment.isVerified && <CheckCircle className="w-5 h-5 text-green-500" />}
+                        {payment.isRefunded && <span className="text-xs text-red-500">Reembolsado</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -13,6 +13,12 @@ export interface ResidentDto {
   moveOutDate?: string
 }
 
+export interface ResidentWithUnitDto extends ResidentDto {
+  unitId: string
+  unitNumber: string
+  buildingName: string
+}
+
 export interface CreateResidentRequest {
   unitId: string
   firstName: string
@@ -36,6 +42,14 @@ class ResidentService {
    */
   async getResidentsByUnit(unitId: string): Promise<ResidentDto[]> {
     const response = await apiClient.get<{ success: boolean; data: ResidentDto[] }>(`/residents/unit/${unitId}`)
+    return response.data.data || []
+  }
+
+  /**
+   * Get all residents for a condominium
+   */
+  async getResidentsByCondominium(condominiumId: string): Promise<ResidentWithUnitDto[]> {
+    const response = await apiClient.get<{ success: boolean; data: ResidentWithUnitDto[] }>(`/residents/condominium/${condominiumId}`)
     return response.data.data || []
   }
 

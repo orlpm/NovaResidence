@@ -3,7 +3,13 @@ using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Common;
 using NovaResidence.Domain.Entities.Authentication;
 using NovaResidence.Domain.Entities.Condominiums;
+using NovaResidence.Domain.Entities.Incidents;
+using NovaResidence.Domain.Entities.Billing;
 using System.Reflection;
+
+// Aliases for disambiguation
+using BillingPayment = NovaResidence.Domain.Entities.Billing.Payment;
+using IncidentEntity = NovaResidence.Domain.Entities.Incidents.Incident;
 
 namespace NovaResidence.Infrastructure.Persistence;
 
@@ -30,6 +36,17 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Resident> Residents => Set<Resident>();
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    
+    // Incidents Module
+    public DbSet<IncidentEntity> Incidents => Set<IncidentEntity>();
+    public DbSet<IncidentComment> IncidentComments => Set<IncidentComment>();
+    public DbSet<IncidentAttachment> IncidentAttachments => Set<IncidentAttachment>();
+    
+    // Billing Module
+    public DbSet<Charge> Charges => Set<Charge>();
+    public DbSet<BillingPayment> Payments => Set<BillingPayment>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<FeeConfiguration> FeeConfigurations => Set<FeeConfiguration>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +65,17 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Resident>().HasQueryFilter(r => !r.IsDeleted);
         modelBuilder.Entity<Amenity>().HasQueryFilter(a => !a.IsDeleted);
         modelBuilder.Entity<Reservation>().HasQueryFilter(r => !r.IsDeleted);
+        
+        // Incidents query filters
+        modelBuilder.Entity<IncidentEntity>().HasQueryFilter(i => !i.IsDeleted);
+        modelBuilder.Entity<IncidentComment>().HasQueryFilter(ic => !ic.IsDeleted);
+        modelBuilder.Entity<IncidentAttachment>().HasQueryFilter(ia => !ia.IsDeleted);
+        
+        // Billing query filters
+        modelBuilder.Entity<Charge>().HasQueryFilter(c => !c.IsDeleted);
+        modelBuilder.Entity<BillingPayment>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<Invoice>().HasQueryFilter(i => !i.IsDeleted);
+        modelBuilder.Entity<FeeConfiguration>().HasQueryFilter(fc => !fc.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

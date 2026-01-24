@@ -52,6 +52,33 @@ public class ResidentsController : ControllerBase
     }
 
     /// <summary>
+    /// Get all residents for a condominium
+    /// </summary>
+    [HttpGet("condominium/{condominiumId:guid}")]
+    public async Task<IActionResult> GetByCondominium(Guid condominiumId)
+    {
+        var residents = await _residentRepository.GetResidentsByCondominiumAsync(condominiumId);
+        
+        var result = residents.Select(r => new ResidentWithUnitDto(
+            r.Id,
+            r.FirstName,
+            r.LastName,
+            r.Email,
+            r.PhoneNumber,
+            r.Type.ToString(),
+            r.IsRegistered,
+            r.IsActive,
+            r.MoveInDate,
+            r.MoveOutDate,
+            r.UnitId,
+            r.Unit?.UnitNumber ?? "",
+            r.Unit?.Building?.Name ?? ""
+        )).ToList();
+
+        return Ok(ApiResponse<List<ResidentWithUnitDto>>.SuccessResponse(result));
+    }
+
+    /// <summary>
     /// Get resident by ID
     /// </summary>
     [HttpGet("{id:guid}")]
@@ -275,6 +302,22 @@ public record ResidentDto(
     bool IsActive,
     DateTime? MoveInDate,
     DateTime? MoveOutDate
+);
+
+public record ResidentWithUnitDto(
+    Guid Id,
+    string FirstName,
+    string LastName,
+    string Email,
+    string PhoneNumber,
+    string Type,
+    bool IsRegistered,
+    bool IsActive,
+    DateTime? MoveInDate,
+    DateTime? MoveOutDate,
+    Guid UnitId,
+    string UnitNumber,
+    string BuildingName
 );
 
 public record CreateResidentRequest(

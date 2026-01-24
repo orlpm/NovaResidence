@@ -170,6 +170,7 @@ public class ResidentRepository : Repository<Domain.Entities.Condominiums.Reside
     {
         return await _dbSet
             .Include(r => r.Unit)
+                .ThenInclude(u => u!.Building)
             .Where(r => r.IsActive && _context.Buildings
                 .Any(b => _context.Units
                     .Any(u => u.Id == r.UnitId && u.BuildingId == b.Id && b.CondominiumId == condominiumId)))

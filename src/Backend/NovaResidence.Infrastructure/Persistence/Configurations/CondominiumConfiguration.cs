@@ -103,6 +103,12 @@ public class UnitConfiguration : IEntityTypeConfiguration<Unit>
         builder.Property(u => u.MonthlyMaintenanceFee)
             .HasPrecision(18, 2);
 
+        // Configure the relationship with Building using the existing BuildingId
+        builder.HasOne(u => u.Building)
+            .WithMany(b => b.Units)
+            .HasForeignKey(u => u.BuildingId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.HasIndex(u => new { u.BuildingId, u.UnitNumber })
             .IsUnique();
 

@@ -21,6 +21,17 @@ public interface IApplicationDbContext
     DbSet<Domain.Entities.Condominiums.Amenity> Amenities { get; }
     DbSet<Domain.Entities.Condominiums.Reservation> Reservations { get; }
     
+    // Incidents Module
+    DbSet<Domain.Entities.Incidents.Incident> Incidents { get; }
+    DbSet<Domain.Entities.Incidents.IncidentComment> IncidentComments { get; }
+    DbSet<Domain.Entities.Incidents.IncidentAttachment> IncidentAttachments { get; }
+    
+    // Billing Module
+    DbSet<Domain.Entities.Billing.Charge> Charges { get; }
+    DbSet<Domain.Entities.Billing.Payment> Payments { get; }
+    DbSet<Domain.Entities.Billing.Invoice> Invoices { get; }
+    DbSet<Domain.Entities.Billing.FeeConfiguration> FeeConfigurations { get; }
+    
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

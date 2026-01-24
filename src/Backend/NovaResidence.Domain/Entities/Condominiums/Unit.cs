@@ -25,6 +25,9 @@ public class Unit : BaseEntity
     public decimal MonthlyMaintenanceFee { get; private set; }
     public bool IsExemptFromFees { get; private set; }
 
+    // Navigation property
+    public Building? Building { get; private set; }
+
     private Unit() { } // EF Core
 
     public static Unit Create(

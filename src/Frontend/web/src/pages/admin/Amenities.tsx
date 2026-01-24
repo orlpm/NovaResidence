@@ -58,12 +58,13 @@ export default function Amenities() {
 
   const loadCondominiums = async () => {
     try {
-      const data = await condominiumService.getUserCondominiums(user?.id || '')
+      const data = await condominiumService.getAllCondominiums(user?.id)
       setCondominiums(data)
       if (data.length > 0) {
         setSelectedCondominium(data[0].id)
       }
     } catch (err) {
+      console.error('Error loading condominiums:', err)
       setError('Error al cargar condominios')
     }
   }
