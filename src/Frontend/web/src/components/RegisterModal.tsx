@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Mail, Lock, User, Phone, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import Modal from './Modal'
 
+const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
+
 interface RegisterModalProps {
   isOpen: boolean
   onClose: () => void
@@ -51,7 +53,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
     setLoading(true)
 
     try {
-      const response = await fetch('https://localhost:7001/api/auth/register', {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

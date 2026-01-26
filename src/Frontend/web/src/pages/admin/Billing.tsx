@@ -14,7 +14,8 @@ import {
   Settings,
   FileText,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Edit2
 } from 'lucide-react'
 import { 
   billingService, 
@@ -47,6 +48,7 @@ export default function Billing() {
   const [feeConfigs, setFeeConfigs] = useState<FeeConfigurationDto[]>([])
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState<string>('')
+  const [units, setUnits] = useState<Array<{ id: string; unitNumber: string; buildingName: string }>>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<ChargeStatus | null>(null)
   const [filterFeeType, setFilterFeeType] = useState<FeeType | null>(null)
@@ -62,8 +64,12 @@ export default function Billing() {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [showForgiveModal, setShowForgiveModal] = useState(false)
   const [showCreateConfigModal, setShowCreateConfigModal] = useState(false)
+  const [showEditConfigModal, setShowEditConfigModal] = useState(false)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [showBulkCancelModal, setShowBulkCancelModal] = useState(false)
   const [selectedCharge, setSelectedCharge] = useState<ChargeListDto | null>(null)
+  const [selectedConfig, setSelectedConfig] = useState<FeeConfigurationDto | null>(null)
+  const [selectedCharges, setSelectedCharges] = useState<Set<string>>(new Set())
   const [chargeDetail, setChargeDetail] = useState<ChargeDetailDto | null>(null)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
@@ -97,6 +103,7 @@ export default function Billing() {
   useEffect(() => {
     if (selectedCondominium) {
       loadData()
+      loadUnits(selectedCondominium)
     }
   }, [selectedCondominium, activeTab, filterStatus, filterFeeType, selectedMonth, selectedYear])
 
@@ -104,8 +111,30 @@ export default function Billing() {
     try {
       const data = await condominiumService.getAllCondominiums(user?.id)
       setCondominiums(data)
-      if (data.length > 0) setSelectedCondominium(data[0].id)
+      if (data.length > 0) {
+        setSelectedCondominium(data[0].id)
+        await loadUnits(data[0].id)
+      }
     } catch { setError('Error al cargar condominios') }
+  }
+
+  const loadUnits = async (condominiumId: string) => {
+    try {
+      const condoDetails = await condominiumService.getCondominiumById(condominiumId)
+      const allUnits: Array<{ id: string; unitNumber: string; buildingName: string }> = []
+      
+      condoDetails.buildings.forEach(building => {
+        building.units.forEach(unit => {
+          allUnits.push({
+            id: unit.id,
+            unitNumber: unit.unitNumber,
+            buildingName: building.name
+          })
+        })
+      })
+      
+      setUnits(allUnits.sort((a, b) => a.unitNumber.localeCompare(b.unitNumber)))
+    } catch { setError('Error al cargar unidades') }
   }
 
   const loadData = async () => {
@@ -151,16 +180,35 @@ export default function Billing() {
   const handleCreateCharge = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await billingService.createCharge({
-        ...chargeForm as CreateChargeRequest,
-        condominiumId: selectedCondominium,
-        billingPeriodMonth: selectedMonth,
-        billingPeriodYear: selectedYear
-      })
+      // Si se seleccionó "all", crear cargo para todas las unidades
+      if (chargeForm.unitId === 'all') {
+        const promises = units.map(unit => 
+          billingService.createCharge({
+            unitId: unit.id,
+            concept: chargeForm.concept!,
+            feeType: chargeForm.feeType!,
+            amount: chargeForm.amount!,
+            dueDate: chargeForm.dueDate!,
+            condominiumId: selectedCondominium,
+            billingPeriodMonth: selectedMonth,
+            billingPeriodYear: selectedYear
+          })
+        )
+        await Promise.all(promises)
+        showSuccess(`${units.length} cargos creados exitosamente`)
+      } else {
+        // Crear cargo individual
+        await billingService.createCharge({
+          ...chargeForm as CreateChargeRequest,
+          condominiumId: selectedCondominium,
+          billingPeriodMonth: selectedMonth,
+          billingPeriodYear: selectedYear
+        })
+        showSuccess('Cargo creado exitosamente')
+      }
       setShowCreateChargeModal(false)
       resetChargeForm()
       loadData()
-      showSuccess('Cargo creado exitosamente')
     } catch { setError('Error al crear cargo') }
   }
 
@@ -191,6 +239,40 @@ export default function Billing() {
       loadData()
       showSuccess('Cargo cancelado exitosamente')
     } catch { setError('Error al cancelar cargo') }
+  }
+
+  const handleToggleChargeSelection = (chargeId: string) => {
+    setSelectedCharges(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(chargeId)) {
+        newSet.delete(chargeId)
+      } else {
+        newSet.add(chargeId)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAllCharges = () => {
+    if (selectedCharges.size === filteredCharges.length) {
+      setSelectedCharges(new Set())
+    } else {
+      setSelectedCharges(new Set(filteredCharges.map(c => c.id)))
+    }
+  }
+
+  const handleBulkCancel = async () => {
+    try {
+      const promises = Array.from(selectedCharges).map(chargeId => 
+        billingService.cancelCharge(chargeId, { reason: cancelReason || 'Cancelación masiva' })
+      )
+      await Promise.all(promises)
+      setShowBulkCancelModal(false)
+      setSelectedCharges(new Set())
+      setCancelReason('')
+      loadData()
+      showSuccess(`${promises.length} cargos cancelados exitosamente`)
+    } catch { setError('Error al cancelar cargos') }
   }
 
   const handleForgiveCharge = async () => {
@@ -226,17 +308,71 @@ export default function Billing() {
     } catch { setError('Error al actualizar estado') }
   }
 
+  const handleEditConfig = (config: FeeConfigurationDto) => {
+    setSelectedConfig(config)
+    setConfigForm({
+      name: config.name,
+      feeType: config.feeType,
+      defaultAmount: config.defaultAmount,
+      isRecurring: config.isRecurring,
+      recurringDay: config.recurringDay,
+      dueDayOffset: config.dueDayOffset,
+      applyLateFee: config.applyLateFee,
+      lateFeePercentage: config.lateFeePercentage,
+      gracePeriodDays: config.gracePeriodDays,
+      description: config.description
+    })
+    setShowEditConfigModal(true)
+  }
+
+  const handleUpdateConfig = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedConfig) return
+    try {
+      await billingService.updateFeeConfiguration(selectedConfig.id, configForm as UpdateFeeConfigurationRequest)
+      setShowEditConfigModal(false)
+      setSelectedConfig(null)
+      resetConfigForm()
+      loadData()
+      showSuccess('Configuración actualizada exitosamente')
+    } catch { setError('Error al actualizar configuración') }
+  }
+
   const handleGenerateMonthly = async () => {
     try {
+      // First check if there are any active recurring configs
+      if (feeConfigs.length === 0) {
+        setShowGenerateModal(false)
+        setError('No hay configuraciones de cuotas. Crea una configuración primero en la pestaña "Configuración".')
+        return
+      }
+      
+      const recurringConfigs = feeConfigs.filter(c => c.isRecurring && c.isActive)
+      if (recurringConfigs.length === 0) {
+        setShowGenerateModal(false)
+        setError('No hay configuraciones recurrentes activas. Asegúrate de marcar "Es recurrente (mensual)" al crear la configuración.')
+        return
+      }
+      
       const count = await billingService.generateMonthlyCharges({
         condominiumId: selectedCondominium,
         month: selectedMonth,
         year: selectedYear
       })
       setShowGenerateModal(false)
-      loadData()
+      
+      if (count === 0) {
+        setError('No se generaron cargos. Es posible que ya existan cargos para este período.')
+        return
+      }
+      
+      await loadData()
       showSuccess(`Se generaron ${count} cargos exitosamente`)
-    } catch { setError('Error al generar cargos') }
+    } catch (err: any) { 
+      console.error('Error generating charges:', err)
+      setShowGenerateModal(false)
+      setError(`Error al generar cargos: ${err.response?.data?.message || err.message || 'Error desconocido'}`) 
+    }
   }
 
   const resetChargeForm = () => setChargeForm({ feeType: FeeType.Maintenance, amount: 0, applyLateFee: true })
@@ -291,6 +427,11 @@ export default function Billing() {
         <div className="flex gap-2">
           {activeTab === 'charges' && (
             <>
+              {selectedCharges.size > 0 && (
+                <button onClick={() => setShowBulkCancelModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all">
+                  <Ban className="w-5 h-5" /> Cancelar ({selectedCharges.size})
+                </button>
+              )}
               <button onClick={() => setShowGenerateModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 <Calendar className="w-5 h-5" /> Generar Mensuales
               </button>
@@ -391,6 +532,14 @@ export default function Billing() {
                       <table className="w-full">
                         <thead className="bg-gray-50 dark:bg-gray-700">
                           <tr>
+                            <th className="px-4 py-3 text-left">
+                              <input 
+                                type="checkbox" 
+                                checked={selectedCharges.size === filteredCharges.length && filteredCharges.length > 0}
+                                onChange={handleSelectAllCharges}
+                                className="rounded border-gray-300 dark:border-gray-600"
+                              />
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Unidad</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Concepto</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Tipo</th>
@@ -405,6 +554,14 @@ export default function Billing() {
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {filteredCharges.map((charge) => (
                             <tr key={charge.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <td className="px-4 py-3">
+                                <input 
+                                  type="checkbox" 
+                                  checked={selectedCharges.has(charge.id)}
+                                  onChange={() => handleToggleChargeSelection(charge.id)}
+                                  className="rounded border-gray-300 dark:border-gray-600"
+                                />
+                              </td>
                               <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{charge.unitNumber}</td>
                               <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{charge.concept}</td>
                               <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{charge.feeTypeName}</td>
@@ -517,9 +674,14 @@ export default function Billing() {
                         <div key={config.id} className={`border rounded-xl p-4 ${config.isActive ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700'}`}>
                           <div className="flex items-center justify-between mb-3">
                             <h3 className="font-semibold text-gray-900 dark:text-white">{config.name}</h3>
-                            <button onClick={() => handleToggleConfig(config.id)} className={`px-3 py-1 text-xs font-medium rounded-full ${config.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
-                              {config.isActive ? 'Activo' : 'Inactivo'}
-                            </button>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleEditConfig(config)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Editar">
+                                <Edit2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                              </button>
+                              <button onClick={() => handleToggleConfig(config.id)} className={`px-3 py-1 text-xs font-medium rounded-full ${config.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+                                {config.isActive ? 'Activo' : 'Inactivo'}
+                              </button>
+                            </div>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{config.feeTypeName}</p>
                           <p className="text-xl font-bold text-gray-900 dark:text-white">{formatCurrency(config.defaultAmount)}</p>
@@ -550,8 +712,22 @@ export default function Billing() {
             </div>
             <form onSubmit={handleCreateCharge} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unidad ID *</label>
-                <input type="text" value={chargeForm.unitId || ''} onChange={(e) => setChargeForm({ ...chargeForm, unitId: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="ID de la unidad" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Unidad *</label>
+                <select 
+                  value={chargeForm.unitId || ''} 
+                  onChange={(e) => setChargeForm({ ...chargeForm, unitId: e.target.value })} 
+                  required 
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  <option value="">Selecciona una unidad</option>
+                  <option value="all" className="font-bold bg-blue-50 dark:bg-blue-900">🏢 Todas las unidades ({units.length})</option>
+                  <option disabled>―――――――――――――――</option>
+                  {units.map(unit => (
+                    <option key={unit.id} value={unit.id}>
+                      {unit.buildingName} - Unidad {unit.unitNumber}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Concepto *</label>
@@ -640,6 +816,26 @@ export default function Billing() {
               <div className="flex gap-3">
                 <button onClick={() => { setShowCancelModal(false); setCancelReason(''); setSelectedCharge(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">No, mantener</button>
                 <button onClick={handleCancelCharge} disabled={!cancelReason} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-medium disabled:opacity-50">Sí, cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Cancel Modal */}
+      {showBulkCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Cancelar Múltiples Cargos</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">¿Estás seguro de cancelar <span className="font-bold">{selectedCharges.size} cargo(s)</span>?</p>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Razón de cancelación</label>
+                <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Opcional" className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" rows={3} />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setShowBulkCancelModal(false); setCancelReason(''); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">No, mantener</button>
+                <button onClick={handleBulkCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-medium">Sí, cancelar todos</button>
               </div>
             </div>
           </div>
@@ -747,6 +943,76 @@ export default function Billing() {
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => { setShowCreateConfigModal(false); resetConfigForm(); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
                 <button type="submit" className="flex-1 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg font-medium">Crear Configuración</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Config Modal */}
+      {showEditConfigModal && selectedConfig && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Editar Configuración de Cuota</h2>
+              <button onClick={() => { setShowEditConfigModal(false); setSelectedConfig(null); resetConfigForm(); }} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <form onSubmit={handleUpdateConfig} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre *</label>
+                <input type="text" value={configForm.name || ''} onChange={(e) => setConfigForm({ ...configForm, name: e.target.value })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" placeholder="Ej: Cuota de Mantenimiento" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo *</label>
+                  <select value={configForm.feeType} onChange={(e) => setConfigForm({ ...configForm, feeType: Number(e.target.value) as FeeType })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg">
+                    {Object.entries(feeTypeNames).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Monto Default *</label>
+                  <input type="number" step="0.01" value={configForm.defaultAmount} onChange={(e) => setConfigForm({ ...configForm, defaultAmount: parseFloat(e.target.value) })} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="isRecurringEdit" checked={configForm.isRecurring} onChange={(e) => setConfigForm({ ...configForm, isRecurring: e.target.checked })} className="rounded border-gray-300" />
+                <label htmlFor="isRecurringEdit" className="text-sm text-gray-700 dark:text-gray-300">Es recurrente (mensual)</label>
+              </div>
+              {configForm.isRecurring && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Día de cobro</label>
+                    <input type="number" min={1} max={28} value={configForm.recurringDay || 1} onChange={(e) => setConfigForm({ ...configForm, recurringDay: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Días para vencer</label>
+                    <input type="number" min={1} value={configForm.dueDayOffset || 10} onChange={(e) => setConfigForm({ ...configForm, dueDayOffset: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="applyLateFeeConfigEdit" checked={configForm.applyLateFee} onChange={(e) => setConfigForm({ ...configForm, applyLateFee: e.target.checked })} className="rounded border-gray-300" />
+                <label htmlFor="applyLateFeeConfigEdit" className="text-sm text-gray-700 dark:text-gray-300">Aplicar recargo por mora</label>
+              </div>
+              {configForm.applyLateFee && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">% de recargo</label>
+                    <input type="number" step="0.1" min={0} value={configForm.lateFeePercentage || 5} onChange={(e) => setConfigForm({ ...configForm, lateFeePercentage: parseFloat(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Días de gracia</label>
+                    <input type="number" min={0} value={configForm.gracePeriodDays || 5} onChange={(e) => setConfigForm({ ...configForm, gracePeriodDays: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+                <textarea value={configForm.description || ''} onChange={(e) => setConfigForm({ ...configForm, description: e.target.value })} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg" rows={2} />
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => { setShowEditConfigModal(false); setSelectedConfig(null); resetConfigForm(); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancelar</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-lg font-medium">Guardar Cambios</button>
               </div>
             </form>
           </div>

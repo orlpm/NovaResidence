@@ -4,6 +4,8 @@ import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import Modal from './Modal'
 
+const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
+
 interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
@@ -25,7 +27,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
     setLoading(true)
 
     try {
-      const response = await fetch('https://localhost:7001/api/auth/login', {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
