@@ -32,7 +32,8 @@ import {
   type FeeConfigurationDto,
   type CreateChargeRequest,
   type RecordPaymentRequest,
-  type CreateFeeConfigurationRequest
+  type CreateFeeConfigurationRequest,
+  type UpdateFeeConfigurationRequest
 } from '../../lib/billingService'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'

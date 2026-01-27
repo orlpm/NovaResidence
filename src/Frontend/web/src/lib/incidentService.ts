@@ -169,28 +169,50 @@ export const incidentService = {
       priority?: IncidentPriority
     }
   ): Promise<IncidentListDto[]> {
-    const params = new URLSearchParams()
-    if (filters?.status !== undefined) params.append('status', filters.status.toString())
-    if (filters?.type !== undefined) params.append('type', filters.type.toString())
-    if (filters?.priority !== undefined) params.append('priority', filters.priority.toString())
+    try {
+      const params = new URLSearchParams()
+      if (filters?.status !== undefined) params.append('status', filters.status.toString())
+      if (filters?.type !== undefined) params.append('type', filters.type.toString())
+      if (filters?.priority !== undefined) params.append('priority', filters.priority.toString())
 
-    const query = params.toString() ? `?${params.toString()}` : ''
-    const response = await apiClient.get<IncidentListDto[]>(
-      `/incidents/condominium/${condominiumId}${query}`
-    )
-    return response.data
+      const query = params.toString() ? `?${params.toString()}` : ''
+      const response = await apiClient.get<IncidentListDto[]>(
+        `/incidents/condominium/${condominiumId}${query}`
+      )
+      return response.data || []
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return []
+      }
+      throw error
+    }
   },
 
   // Get incidents by unit
   async getByUnit(unitId: string): Promise<IncidentListDto[]> {
-    const response = await apiClient.get<IncidentListDto[]>(`/incidents/unit/${unitId}`)
-    return response.data
+    try {
+      const response = await apiClient.get<IncidentListDto[]>(`/incidents/unit/${unitId}`)
+      return response.data || []
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return []
+      }
+      throw error
+    }
   },
 
   // Get incidents reported by a user
   async getMyIncidents(userId: string): Promise<IncidentListDto[]> {
-    const response = await apiClient.get<IncidentListDto[]>(`/incidents/my/${userId}`)
-    return response.data
+    try {
+      const response = await apiClient.get<IncidentListDto[]>(`/incidents/my-incidents/${userId}`)
+      return response.data || []
+    } catch (error: any) {
+      // 404 means no incidents found - return empty array, not error
+      if (error.response?.status === 404) {
+        return []
+      }
+      throw error
+    }
   },
 
   // Get incidents assigned to a user

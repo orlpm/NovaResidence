@@ -178,4 +178,22 @@ public class ResidentRepository : Repository<Domain.Entities.Condominiums.Reside
             .ThenBy(r => r.FirstName)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<Domain.Entities.Condominiums.Resident?> GetByUserIdAsync(
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Include(r => r.Unit)
+                .ThenInclude(u => u!.Building)
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.IsActive, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Domain.Entities.Condominiums.Resident>> GetResidentsWithoutUserAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbSet
+            .Where(r => r.UserId == null && r.IsActive)
+            .ToListAsync(cancellationToken);
+    }
 }

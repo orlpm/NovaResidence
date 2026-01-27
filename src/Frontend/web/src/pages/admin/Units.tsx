@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Home, Search, Filter, ExternalLink, Edit, X, Save, Plus } from 'lucide-react'
+import { Building2, Home, Search, Filter, ExternalLink, Edit, X, Save } from 'lucide-react'
 import { condominiumService, CondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
 import ResidentsSection from '../../components/ResidentsSection'

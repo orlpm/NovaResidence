@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Building2, Plus, Trash2, Home, Layers, X, Check, Edit, Save } from 'lucide-react'
-import { condominiumService, CondominiumDetailDto, BuildingDto, UnitDto } from '../../lib/condominiumService'
+import { ArrowLeft, Building2, Plus, Trash2, Home, Layers, X, Save } from 'lucide-react'
+import { condominiumService, CondominiumDetailDto, UnitDto } from '../../lib/condominiumService'
 import ResidentsSection from '../../components/ResidentsSection'
 
 interface AddBuildingModalProps {

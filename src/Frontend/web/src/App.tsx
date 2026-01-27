@@ -26,6 +26,8 @@ import MyUnit from './pages/resident/MyUnit'
 import Payments from './pages/resident/Payments'
 import ReservationsPage from './pages/resident/Reservations'
 import MyIncidents from './pages/resident/MyIncidents'
+import NewReservation from './pages/resident/NewReservation'
+import NewIncident from './pages/resident/NewIncident'
 
 // Pages - Auth
 import Login from './pages/auth/Login'
@@ -89,7 +91,9 @@ function App() {
         <Route path="my-unit" element={<MyUnit />} />
         <Route path="payments" element={<Payments />} />
         <Route path="reservations" element={<ReservationsPage />} />
+        <Route path="reservations/new" element={<NewReservation />} />
         <Route path="incidents" element={<MyIncidents />} />
+        <Route path="incidents/new" element={<NewIncident />} />
       </Route>
 
       {/* Root redirect */}

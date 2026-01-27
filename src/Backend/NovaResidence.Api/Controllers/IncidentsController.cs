@@ -226,16 +226,17 @@ public class IncidentsController : ControllerBase
 }
 
 // Request DTOs
-public record CreateIncidentRequest(
-    Guid CondominiumId,
-    Guid UnitId,
-    Guid ReportedById,
-    string Title,
-    string Description,
-    IncidentType Type,
-    IncidentPriority Priority,
-    string? Location
-);
+public class CreateIncidentRequest
+{
+    public Guid CondominiumId { get; set; }
+    public Guid ReportedById { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public IncidentType Type { get; set; }
+    public IncidentPriority Priority { get; set; }
+    public Guid? UnitId { get; set; }
+    public string? Location { get; set; }
+}
 
 public record UpdateIncidentRequest(
     string Title,

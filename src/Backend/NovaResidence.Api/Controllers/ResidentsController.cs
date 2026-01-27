@@ -108,6 +108,45 @@ public class ResidentsController : ControllerBase
     }
 
     /// <summary>
+    /// Get resident information by User ID (for resident portal)
+    /// </summary>
+    [HttpGet("by-user/{userId:guid}")]
+    public async Task<IActionResult> GetByUserId(Guid userId)
+    {
+        var resident = await _residentRepository.GetByUserIdAsync(userId);
+        
+        if (resident == null)
+        {
+            return NotFound(ApiResponse<object>.FailureResponse("No se encontró información de residente para este usuario"));
+        }
+
+        // Get unit information with building
+        var unit = await _unitRepository.GetByIdAsync(resident.UnitId);
+        
+        // Get condominiumId from building
+        Guid? condominiumId = unit?.Building?.CondominiumId;
+        
+        var result = new ResidentWithUnitDto(
+            resident.Id,
+            resident.FirstName,
+            resident.LastName,
+            resident.Email,
+            resident.PhoneNumber,
+            resident.Type.ToString(),
+            resident.IsRegistered,
+            resident.IsActive,
+            resident.MoveInDate,
+            resident.MoveOutDate,
+            resident.UnitId,
+            unit?.UnitNumber ?? "N/A",
+            unit?.Building?.Name ?? "N/A",
+            condominiumId
+        );
+
+        return Ok(ApiResponse<ResidentWithUnitDto>.SuccessResponse(result));
+    }
+
+    /// <summary>
     /// Create a new resident
     /// </summary>
     [HttpPost]
@@ -289,6 +328,48 @@ public class ResidentsController : ControllerBase
             ResidentId = resident.Id
         }, "Token válido"));
     }
+
+    /// <summary>
+    /// Link all unlinked residents to their user accounts based on email match
+    /// </summary>
+    [HttpPost("link-users")]
+    public async Task<IActionResult> LinkUsersToResidents()
+    {
+        var linkedCount = 0;
+        var errors = new List<string>();
+        
+        try
+        {
+            // Get all residents without a linked user
+            var residents = await _residentRepository.GetResidentsWithoutUserAsync();
+
+            foreach (var resident in residents)
+            {
+                // Find user with matching email
+                var user = await _unitOfWork.Users.GetByEmailAsync(resident.Email);
+                if (user != null)
+                {
+                    resident.MarkAsRegistered(user.Id);
+                    linkedCount++;
+                    _logger.LogInformation("Linked resident {ResidentId} ({Email}) to user {UserId}", 
+                        resident.Id, resident.Email, user.Id);
+                }
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return Ok(ApiResponse<object>.SuccessResponse(new 
+            { 
+                LinkedCount = linkedCount,
+                Message = $"Se vincularon {linkedCount} residentes con sus cuentas de usuario"
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error linking users to residents");
+            return StatusCode(500, ApiResponse<object>.FailureResponse("Error al vincular usuarios"));
+        }
+    }
 }
 
 public record ResidentDto(
@@ -317,7 +398,8 @@ public record ResidentWithUnitDto(
     DateTime? MoveOutDate,
     Guid UnitId,
     string UnitNumber,
-    string BuildingName
+    string BuildingName,
+    Guid? CondominiumId = null
 );
 
 public record CreateResidentRequest(

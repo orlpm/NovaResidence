@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { User, UserPlus, Mail, Phone, Edit, Trash2, Send, X, Check, Copy } from 'lucide-react'
-import { residentService, ResidentDto, CreateResidentRequest } from '../lib/residentService'
+import { residentService, ResidentDto } from '../lib/residentService'
 
 interface ResidentsSectionProps {
   unitId: string
@@ -25,7 +25,7 @@ const RESIDENT_TYPE_COLORS: Record<ResidentType, string> = {
   Authorized: 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300'
 }
 
-export default function ResidentsSection({ unitId, unitNumber, buildingName, condominiumName }: ResidentsSectionProps) {
+export default function ResidentsSection({ unitId, unitNumber: _unitNumber, buildingName: _buildingName, condominiumName: _condominiumName }: ResidentsSectionProps) {
   const [residents, setResidents] = useState<ResidentDto[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)

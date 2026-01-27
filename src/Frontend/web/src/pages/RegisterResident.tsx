@@ -72,7 +72,7 @@ export default function RegisterResident() {
     setLoading(true);
 
     try {
-      const response = await apiClient.post('/auth/register', {
+      const response = await apiClient.post<{ success: boolean; message?: string }>('/auth/register', {
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,

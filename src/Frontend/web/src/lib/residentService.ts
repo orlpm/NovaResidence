@@ -17,6 +17,7 @@ export interface ResidentWithUnitDto extends ResidentDto {
   unitId: string
   unitNumber: string
   buildingName: string
+  condominiumId?: string
 }
 
 export interface CreateResidentRequest {
@@ -112,6 +113,20 @@ class ResidentService {
       return { success: response.data.success, data: response.data.data }
     } catch (error) {
       return { success: false, data: null }
+    }
+  }
+
+  /**
+   * Get resident information by user ID (for resident portal)
+   * Returns resident data with unit information
+   */
+  async getResidentInfo(userId: string): Promise<ResidentWithUnitDto | null> {
+    try {
+      const response = await apiClient.get<{ success: boolean; data: ResidentWithUnitDto }>(`/residents/by-user/${userId}`)
+      return response.data.data
+    } catch (error) {
+      console.error('Error getting resident info:', error)
+      return null
     }
   }
 }

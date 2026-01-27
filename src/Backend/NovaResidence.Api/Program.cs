@@ -83,6 +83,31 @@ if (!string.IsNullOrEmpty(builder.Configuration["ApplicationInsights:ConnectionS
 
 var app = builder.Build();
 
+// Apply migrations and ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<NovaResidence.Infrastructure.Persistence.ApplicationDbContext>();
+    var useSqlite = builder.Configuration.GetValue<bool>("UseSqlite");
+    
+    if (useSqlite)
+    {
+        // Ensure the data directory exists for SQLite
+        var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("Data Source="))
+        {
+            var dbPath = connectionString.Replace("Data Source=", "");
+            var directory = Path.GetDirectoryName(dbPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+        }
+        
+        // Ensure database is created (for SQLite)
+        context.Database.EnsureCreated();
+    }
+}
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {

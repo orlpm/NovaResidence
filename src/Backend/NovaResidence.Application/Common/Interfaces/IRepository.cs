@@ -49,4 +49,6 @@ public interface IResidentRepository : IRepository<Resident>
     Task<Resident?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<Resident?> GetByInvitationTokenAsync(string token, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Resident>> GetResidentsByCondominiumAsync(Guid condominiumId, CancellationToken cancellationToken = default);
+    Task<Resident?> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Resident>> GetResidentsWithoutUserAsync(CancellationToken cancellationToken = default);
 }

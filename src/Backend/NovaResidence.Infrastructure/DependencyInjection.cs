@@ -21,14 +21,29 @@ public static class DependencyInjection
         services.AddDbContext<ApplicationDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("DefaultConnection");
-            options.UseSqlServer(connectionString, sqlOptions =>
+            var useSqlite = configuration.GetValue<bool>("UseSqlite");
+            
+            if (useSqlite || connectionString?.Contains("Data Source=") == true)
             {
-                sqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 5,
-                    maxRetryDelay: TimeSpan.FromSeconds(30),
-                    errorNumbersToAdd: null);
-                sqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
-            });
+                // Use SQLite for Azure App Service (free tier)
+                var sqliteConnection = connectionString ?? "Data Source=novaresidence.db";
+                options.UseSqlite(sqliteConnection, sqliteOptions =>
+                {
+                    sqliteOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                });
+            }
+            else
+            {
+                // Use SQL Server for local development or production
+                options.UseSqlServer(connectionString, sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(30),
+                        errorNumbersToAdd: null);
+                    sqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                });
+            }
         });
 
         services.AddScoped<IApplicationDbContext>(provider => 

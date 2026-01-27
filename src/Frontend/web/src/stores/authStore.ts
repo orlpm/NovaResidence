@@ -55,14 +55,17 @@ export const useAuthStore = create<AuthState>()(
           // Handle wrapped response { success, data, message }
           const data = responseData.data || responseData
           
+          // El backend puede devolver User anidado o datos directos
+          const userData = data.User || data.user || data
+          
           const user: User = {
-            id: data.userId || data.id,
-            email: data.email || email,
-            firstName: data.firstName || '',
-            lastName: data.lastName || '',
-            role: (data.defaultRole || data.role || 'resident').toLowerCase() as 'admin' | 'resident' | 'provider',
-            defaultRole: data.defaultRole || data.role,
-            condominiumId: data.condominiumId
+            id: userData.Id || userData.id || data.userId,
+            email: userData.Email || userData.email || email,
+            firstName: userData.FirstName || userData.firstName || '',
+            lastName: userData.LastName || userData.lastName || '',
+            role: ((userData.Role || userData.role || data.defaultRole || 'resident').toLowerCase()) as 'admin' | 'resident' | 'provider',
+            defaultRole: userData.Role || userData.role || data.defaultRole,
+            condominiumId: userData.CondominiumId || userData.condominiumId || data.condominiumId
           }
 
           set({

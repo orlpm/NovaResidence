@@ -1,4 +1,10 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
+import { residentService } from '../../lib/residentService';
+import { billingService } from '../../lib/billingService';
+import { reservationService, ReservationStatus } from '../../lib/reservationService';
+import { incidentService } from '../../lib/incidentService';
 import { 
   CreditCardIcon, 
   CalendarIcon, 
@@ -8,12 +14,123 @@ import {
   ClockIcon
 } from '@heroicons/react/24/outline';
 
+interface DashboardData {
+  balance: number;
+  overdueAmount: number;
+  nextDueDate: string | null;
+  reservationsCount: number;
+  nextReservation: string | null;
+  openIncidentsCount: number;
+  unitNumber: string;
+  buildingName: string;
+}
+
 function ResidentDashboard() {
+  const { user } = useAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<DashboardData>({
+    balance: 0,
+    overdueAmount: 0,
+    nextDueDate: null,
+    reservationsCount: 0,
+    nextReservation: null,
+    openIncidentsCount: 0,
+    unitNumber: '',
+    buildingName: ''
+  });
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [user?.id]);
+
+  const loadDashboardData = async () => {
+    if (!user?.id) return;
+    
+    try {
+      // Obtener información del residente
+      const resident = await residentService.getResidentInfo(user.id);
+      
+      if (!resident || !resident.unitId) {
+        setLoading(false);
+        return;
+      }
+
+      let dashboardData: DashboardData = {
+        balance: 0,
+        overdueAmount: 0,
+        nextDueDate: null,
+        reservationsCount: 0,
+        nextReservation: null,
+        openIncidentsCount: 0,
+        unitNumber: resident.unitNumber || '',
+        buildingName: resident.buildingName || ''
+      };
+
+      // Cargar balance
+      try {
+        const balanceData = await billingService.getUnitBalance(resident.unitId);
+        // Handle both camelCase and PascalCase from backend
+        dashboardData.balance = balanceData.balance ?? (balanceData as any).Balance ?? 0;
+        // Backend returns OverdueCharges (count) not overdueAmount
+        const overdueCharges = (balanceData as any).OverdueCharges ?? balanceData.overdueAmount ?? 0;
+        // If there are overdue charges, the balance is the overdue amount
+        dashboardData.overdueAmount = overdueCharges > 0 ? dashboardData.balance : 0;
+      } catch (e) {
+        console.warn('Error loading balance:', e);
+      }
+
+      // Cargar reservaciones
+      try {
+        const reservations = await reservationService.getByUnit(resident.unitId);
+        const confirmedReservations = reservations.filter(
+          (r: any) => r.status === ReservationStatus.Confirmed && new Date(r.reservationDate) >= new Date()
+        );
+        dashboardData.reservationsCount = confirmedReservations.length;
+        if (confirmedReservations.length > 0) {
+          const next = confirmedReservations.sort((a: any, b: any) => 
+            new Date(a.reservationDate).getTime() - new Date(b.reservationDate).getTime()
+          )[0];
+          dashboardData.nextReservation = `${next.amenityName} - ${new Date(next.reservationDate).toLocaleDateString('es-ES')}`;
+        }
+      } catch (e) {
+        console.warn('Error loading reservations:', e);
+      }
+
+      // Cargar incidentes
+      try {
+        const incidents = await incidentService.getMyIncidents(user.id);
+        dashboardData.openIncidentsCount = incidents.filter(
+          (i: any) => i.status !== 'Resolved' && i.status !== 'Closed'
+        ).length;
+      } catch (e) {
+        console.warn('Error loading incidents:', e);
+      }
+
+      setData(dashboardData);
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-900 dark:text-white">Mi Dashboard</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">Bienvenido a tu panel de residente</p>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">
+          {data.unitNumber ? `Unidad ${data.unitNumber} - ${data.buildingName}` : 'Bienvenido a tu panel de residente'}
+        </p>
       </div>
 
       {/* Summary Cards */}
@@ -23,8 +140,12 @@ function ResidentDashboard() {
             <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold">Saldo Pendiente</h3>
             <CreditCardIcon className="h-6 w-6 text-red-500" />
           </div>
-          <p className="text-4xl font-black text-red-600 dark:text-red-400">$2,500</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Vence: 15 Enero 2026</p>
+          <p className={`text-4xl font-black ${data.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+            ${data.balance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {data.overdueAmount > 0 ? `Vencido: $${data.overdueAmount.toLocaleString('es-MX')}` : 'Al corriente'}
+          </p>
         </Link>
 
         <Link to="/resident/reservations" className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 dark:border-gray-700 transition-all duration-300">
@@ -32,8 +153,10 @@ function ResidentDashboard() {
             <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold">Reservaciones Activas</h3>
             <CalendarIcon className="h-6 w-6 text-blue-500" />
           </div>
-          <p className="text-4xl font-black text-gray-900 dark:text-white">2</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Próxima: Piscina - Mañana</p>
+          <p className="text-4xl font-black text-gray-900 dark:text-white">{data.reservationsCount}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {data.nextReservation || 'Sin reservaciones próximas'}
+          </p>
         </Link>
 
         <Link to="/resident/incidents" className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 dark:border-gray-700 transition-all duration-300">
@@ -41,8 +164,10 @@ function ResidentDashboard() {
             <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold">Incidentes Abiertos</h3>
             <ExclamationTriangleIcon className="h-6 w-6 text-yellow-500" />
           </div>
-          <p className="text-4xl font-black text-gray-900 dark:text-white">1</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">En progreso</p>
+          <p className="text-4xl font-black text-gray-900 dark:text-white">{data.openIncidentsCount}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {data.openIncidentsCount > 0 ? 'En progreso' : 'Sin incidentes'}
+          </p>
         </Link>
       </div>
 
