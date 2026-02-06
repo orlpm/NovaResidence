@@ -80,13 +80,9 @@ export default function MyPayments() {
     
     setLoading(true)
     try {
-      const result = await billingService.getUnitCharges(unitId, {
-        // Get all non-paid charges
-        pageNumber: 1,
-        pageSize: 50
-      })
+      const result = await billingService.getUnitCharges(unitId)
       // Filter to show only pending/overdue charges
-      const pendingCharges = result.items.filter(c => 
+      const pendingCharges = result.filter(c => 
         c.status === ChargeStatus.Pending || 
         c.status === ChargeStatus.Overdue ||
         c.status === ChargeStatus.PartiallyPaid
