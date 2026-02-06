@@ -1,20 +1,25 @@
 using MediatR;
 using Ardalis.Result;
 using NovaResidence.Application.Common.Interfaces;
+using NovaResidence.Domain.Entities.Condominiums;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 
 namespace NovaResidence.Application.Features.Condominiums.Queries.GetCondominium;
 
 public class GetCondominiumQueryHandler : IRequestHandler<GetCondominiumQuery, Result<CondominiumDetailDto>>
 {
     private readonly ICondominiumRepository _condominiumRepository;
+    private readonly IApplicationDbContext _context;
     private readonly ILogger<GetCondominiumQueryHandler> _logger;
 
     public GetCondominiumQueryHandler(
         ICondominiumRepository condominiumRepository,
+        IApplicationDbContext context,
         ILogger<GetCondominiumQueryHandler> logger)
     {
         _condominiumRepository = condominiumRepository;
+        _context = context;
         _logger = logger;
     }
 
@@ -31,6 +36,22 @@ public class GetCondominiumQueryHandler : IRequestHandler<GetCondominiumQuery, R
         {
             return Result.NotFound($"Condominium with ID {request.CondominiumId} not found");
         }
+
+        // Get all unit IDs for this condominium
+        var unitIds = condominium.Buildings.SelectMany(b => b.Units).Select(u => u.Id).ToList();
+        
+        // Query residents info for all units in one query
+        var residentsInfo = await _context.Residents
+            .Where(r => unitIds.Contains(r.UnitId) && !r.IsDeleted && r.IsActive)
+            .GroupBy(r => r.UnitId)
+            .Select(g => new 
+            {
+                UnitId = g.Key,
+                HasOwner = g.Any(r => r.Type == ResidentType.Owner),
+                HasRegistered = g.Any(r => r.IsRegistered),
+                TotalResidents = g.Count()
+            })
+            .ToDictionaryAsync(x => x.UnitId, cancellationToken);
 
         var dto = new CondominiumDetailDto(
             condominium.Id,
@@ -51,15 +72,22 @@ public class GetCondominiumQueryHandler : IRequestHandler<GetCondominiumQuery, R
                 b.Name,
                 b.Description,
                 b.TotalFloors,
+                b.StartsAtGroundFloor,
                 b.Units.Count,
-                b.Units.Select(u => new UnitDetailDto(
-                    u.Id,
-                    u.UnitNumber,
-                    u.Floor,
-                    u.Area,
-                    u.Bedrooms,
-                    u.Bathrooms
-                )).ToList()
+                b.Units.Select(u => {
+                    var info = residentsInfo.GetValueOrDefault(u.Id);
+                    return new UnitDetailDto(
+                        u.Id,
+                        u.UnitNumber,
+                        u.Floor,
+                        u.Area,
+                        u.Bedrooms,
+                        u.Bathrooms,
+                        info?.HasOwner ?? false,
+                        info?.HasRegistered ?? false,
+                        info?.TotalResidents ?? 0
+                    );
+                }).ToList()
             )).ToList());
 
         return Result.Success(dto);

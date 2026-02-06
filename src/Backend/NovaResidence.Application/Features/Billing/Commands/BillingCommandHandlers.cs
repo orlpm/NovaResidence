@@ -2,6 +2,7 @@ using MediatR;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
+using NovaResidence.Application.Features.Notifications.Commands;
 using NovaResidence.Domain.Entities.Billing;
 using NovaResidence.Domain.Enums;
 using Microsoft.Extensions.Logging;
@@ -11,11 +12,13 @@ namespace NovaResidence.Application.Features.Billing.Commands;
 public class CreateChargeCommandHandler : IRequestHandler<CreateChargeCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMediator _mediator;
     private readonly ILogger<CreateChargeCommandHandler> _logger;
 
-    public CreateChargeCommandHandler(IApplicationDbContext context, ILogger<CreateChargeCommandHandler> logger)
+    public CreateChargeCommandHandler(IApplicationDbContext context, IMediator mediator, ILogger<CreateChargeCommandHandler> logger)
     {
         _context = context;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -42,6 +45,56 @@ public class CreateChargeCommandHandler : IRequestHandler<CreateChargeCommand, R
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Created charge {ChargeId} for unit {UnitId}", charge.Id, request.UnitId);
+
+            // Get the unit with residents to send notification
+            var unit = await _context.Units
+                .Include(u => u.Building)
+                .FirstOrDefaultAsync(u => u.Id == request.UnitId, cancellationToken);
+
+            if (unit != null)
+            {
+                // Get registered residents for this unit to send notifications
+                var residents = await _context.Residents
+                    .Where(r => r.UnitId == request.UnitId && r.IsRegistered && r.UserId != null)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var resident in residents)
+                {
+                    if (resident.UserId.HasValue)
+                    {
+                        var notificationType = request.FeeType == FeeType.LateFee 
+                            ? NotificationType.PaymentReminder 
+                            : NotificationType.PaymentReminder;
+                        
+                        var priority = request.FeeType == FeeType.LateFee 
+                            ? NotificationPriority.High 
+                            : NotificationPriority.Normal;
+
+                        var title = request.FeeType == FeeType.LateFee 
+                            ? "Nuevo recargo aplicado" 
+                            : "Nuevo cargo generado";
+
+                        var message = $"Se ha generado un cargo de ${request.Amount:N2} por concepto de {request.Concept}. " +
+                                    $"Fecha de vencimiento: {request.DueDate:dd/MM/yyyy}. Unidad: {unit.UnitNumber}";
+
+                        await _mediator.Send(new CreateNotificationCommand(
+                            CondominiumId: request.CondominiumId,
+                            UserId: resident.UserId.Value,
+                            Type: notificationType,
+                            Title: title,
+                            Message: message,
+                            Priority: priority,
+                            UnitId: request.UnitId,
+                            RelatedEntityType: "Charge",
+                            RelatedEntityId: charge.Id,
+                            ActionUrl: $"/resident/payments"
+                        ), cancellationToken);
+
+                        _logger.LogInformation("Notification sent to user {UserId} for charge {ChargeId}", resident.UserId, charge.Id);
+                    }
+                }
+            }
+
             return Result.Success(charge.Id);
         }
         catch (Exception ex)
@@ -55,11 +108,13 @@ public class CreateChargeCommandHandler : IRequestHandler<CreateChargeCommand, R
 public class CreateBulkChargesCommandHandler : IRequestHandler<CreateBulkChargesCommand, Result<int>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMediator _mediator;
     private readonly ILogger<CreateBulkChargesCommandHandler> _logger;
 
-    public CreateBulkChargesCommandHandler(IApplicationDbContext context, ILogger<CreateBulkChargesCommandHandler> logger)
+    public CreateBulkChargesCommandHandler(IApplicationDbContext context, IMediator mediator, ILogger<CreateBulkChargesCommandHandler> logger)
     {
         _context = context;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -67,8 +122,9 @@ public class CreateBulkChargesCommandHandler : IRequestHandler<CreateBulkCharges
     {
         try
         {
-            // Get all units in the condominium
+            // Get all units in the condominium with building info
             var units = await _context.Units
+                .Include(u => u.Building)
                 .Where(u => _context.Buildings
                     .Any(b => b.Id == u.BuildingId && b.CondominiumId == request.CondominiumId && !b.IsDeleted))
                 .Where(u => !u.IsDeleted && u.Status == UnitStatus.Occupied)
@@ -93,6 +149,48 @@ public class CreateBulkChargesCommandHandler : IRequestHandler<CreateBulkCharges
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Created {Count} charges for condominium {CondominiumId}", charges.Count, request.CondominiumId);
+
+            // Send notifications to all residents
+            var unitIds = units.Select(u => u.Id).ToList();
+            var residents = await _context.Residents
+                .Where(r => unitIds.Contains(r.UnitId) && r.IsRegistered && r.UserId != null)
+                .ToListAsync(cancellationToken);
+
+            var priority = request.FeeType == FeeType.LateFee 
+                ? NotificationPriority.High 
+                : NotificationPriority.Normal;
+
+            var title = request.FeeType == FeeType.LateFee 
+                ? "Nuevo recargo aplicado" 
+                : "Nuevo cargo de mantenimiento";
+
+            foreach (var resident in residents)
+            {
+                if (resident.UserId.HasValue)
+                {
+                    var unit = units.FirstOrDefault(u => u.Id == resident.UnitId);
+                    var charge = charges.FirstOrDefault(c => c.UnitId == resident.UnitId);
+                    
+                    var message = $"Se ha generado un cargo de ${request.Amount:N2} por concepto de {request.Concept}. " +
+                                $"Fecha de vencimiento: {request.DueDate:dd/MM/yyyy}. Unidad: {unit?.UnitNumber ?? "N/A"}";
+
+                    await _mediator.Send(new CreateNotificationCommand(
+                        CondominiumId: request.CondominiumId,
+                        UserId: resident.UserId.Value,
+                        Type: NotificationType.PaymentReminder,
+                        Title: title,
+                        Message: message,
+                        Priority: priority,
+                        UnitId: resident.UnitId,
+                        RelatedEntityType: "Charge",
+                        RelatedEntityId: charge?.Id,
+                        ActionUrl: "/resident/payments"
+                    ), cancellationToken);
+                }
+            }
+
+            _logger.LogInformation("Sent {Count} notifications for bulk charges", residents.Count);
+
             return Result.Success(charges.Count);
         }
         catch (Exception ex)
@@ -106,15 +204,21 @@ public class CreateBulkChargesCommandHandler : IRequestHandler<CreateBulkCharges
 public class CancelChargeCommandHandler : IRequestHandler<CancelChargeCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMediator _mediator;
 
-    public CancelChargeCommandHandler(IApplicationDbContext context)
+    public CancelChargeCommandHandler(IApplicationDbContext context, IMediator mediator)
     {
         _context = context;
+        _mediator = mediator;
     }
 
     public async Task<Result> Handle(CancelChargeCommand request, CancellationToken cancellationToken)
     {
-        var charge = await _context.Charges.FindAsync(new object[] { request.ChargeId }, cancellationToken);
+        var charge = await _context.Charges
+            .Include(c => c.Unit)
+            .ThenInclude(u => u!.Building)
+            .FirstOrDefaultAsync(c => c.Id == request.ChargeId, cancellationToken);
+            
         if (charge == null)
             return Result.NotFound(new string[] { "Charge not found" });
 
@@ -122,6 +226,34 @@ public class CancelChargeCommandHandler : IRequestHandler<CancelChargeCommand, R
         {
             charge.Cancel(request.Reason);
             await _context.SaveChangesAsync(cancellationToken);
+
+            // Send notification to residents of the unit
+            var residents = await _context.Residents
+                .Where(r => r.UnitId == charge.UnitId && r.IsRegistered && r.UserId != null)
+                .ToListAsync(cancellationToken);
+
+            foreach (var resident in residents)
+            {
+                if (resident.UserId.HasValue)
+                {
+                    var message = $"Se ha cancelado el cargo de ${charge.Amount:N2} por concepto de {charge.Concept}. " +
+                                $"Razón: {request.Reason}. Unidad: {charge.Unit?.UnitNumber ?? "N/A"}";
+
+                    await _mediator.Send(new CreateNotificationCommand(
+                        CondominiumId: charge.CondominiumId,
+                        UserId: resident.UserId.Value,
+                        Type: NotificationType.PaymentReceived,
+                        Title: "Cargo cancelado",
+                        Message: message,
+                        Priority: NotificationPriority.Normal,
+                        UnitId: charge.UnitId,
+                        RelatedEntityType: "Charge",
+                        RelatedEntityId: charge.Id,
+                        ActionUrl: "/resident/payments"
+                    ), cancellationToken);
+                }
+            }
+
             return Result.Success();
         }
         catch (InvalidOperationException ex)
@@ -134,20 +266,54 @@ public class CancelChargeCommandHandler : IRequestHandler<CancelChargeCommand, R
 public class ForgiveChargeCommandHandler : IRequestHandler<ForgiveChargeCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMediator _mediator;
 
-    public ForgiveChargeCommandHandler(IApplicationDbContext context)
+    public ForgiveChargeCommandHandler(IApplicationDbContext context, IMediator mediator)
     {
         _context = context;
+        _mediator = mediator;
     }
 
     public async Task<Result> Handle(ForgiveChargeCommand request, CancellationToken cancellationToken)
     {
-        var charge = await _context.Charges.FindAsync(new object[] { request.ChargeId }, cancellationToken);
+        var charge = await _context.Charges
+            .Include(c => c.Unit)
+            .ThenInclude(u => u!.Building)
+            .FirstOrDefaultAsync(c => c.Id == request.ChargeId, cancellationToken);
+            
         if (charge == null)
             return Result.NotFound(new string[] { "Charge not found" });
 
         charge.Forgive(request.Reason);
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Send notification to residents of the unit
+        var residents = await _context.Residents
+            .Where(r => r.UnitId == charge.UnitId && r.IsRegistered && r.UserId != null)
+            .ToListAsync(cancellationToken);
+
+        foreach (var resident in residents)
+        {
+            if (resident.UserId.HasValue)
+            {
+                var message = $"Se ha condonado el cargo de ${charge.Amount:N2} por concepto de {charge.Concept}. " +
+                            $"Razón: {request.Reason}. Unidad: {charge.Unit?.UnitNumber ?? "N/A"}";
+
+                await _mediator.Send(new CreateNotificationCommand(
+                    CondominiumId: charge.CondominiumId,
+                    UserId: resident.UserId.Value,
+                    Type: NotificationType.PaymentReceived,
+                    Title: "Cargo condonado",
+                    Message: message,
+                    Priority: NotificationPriority.Normal,
+                    UnitId: charge.UnitId,
+                    RelatedEntityType: "Charge",
+                    RelatedEntityId: charge.Id,
+                    ActionUrl: "/resident/payments"
+                ), cancellationToken);
+            }
+        }
+
         return Result.Success();
     }
 }
@@ -185,14 +351,78 @@ public class ApplyLateFeeCommandHandler : IRequestHandler<ApplyLateFeeCommand, R
     }
 }
 
+public class DeleteChargeCommandHandler : IRequestHandler<DeleteChargeCommand, Result>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ILogger<DeleteChargeCommandHandler> _logger;
+
+    public DeleteChargeCommandHandler(IApplicationDbContext context, ILogger<DeleteChargeCommandHandler> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<Result> Handle(DeleteChargeCommand request, CancellationToken cancellationToken)
+    {
+        var charge = await _context.Charges.FindAsync(new object[] { request.ChargeId }, cancellationToken);
+        if (charge == null)
+            return Result.NotFound(new string[] { "Charge not found" });
+
+        // Soft delete - the SaveChangesAsync interceptor will handle it
+        _context.Charges.Remove(charge);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted charge {ChargeId}", request.ChargeId);
+        return Result.Success();
+    }
+}
+
+public class DeleteChargesByCondominiumCommandHandler : IRequestHandler<DeleteChargesByCondominiumCommand, Result<int>>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ILogger<DeleteChargesByCondominiumCommandHandler> _logger;
+
+    public DeleteChargesByCondominiumCommandHandler(IApplicationDbContext context, ILogger<DeleteChargesByCondominiumCommandHandler> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<Result<int>> Handle(DeleteChargesByCondominiumCommand request, CancellationToken cancellationToken)
+    {
+        var query = _context.Charges.Where(c => c.CondominiumId == request.CondominiumId);
+        
+        if (request.Month.HasValue)
+            query = query.Where(c => c.BillingPeriodMonth == request.Month.Value);
+        
+        if (request.Year.HasValue)
+            query = query.Where(c => c.BillingPeriodYear == request.Year.Value);
+
+        var charges = await query.ToListAsync(cancellationToken);
+        var count = charges.Count;
+
+        if (count == 0)
+            return Result.Success(0);
+
+        // Soft delete all matching charges
+        _context.Charges.RemoveRange(charges);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted {Count} charges for condominium {CondominiumId}", count, request.CondominiumId);
+        return Result.Success(count);
+    }
+}
+
 public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMediator _mediator;
     private readonly ILogger<RecordPaymentCommandHandler> _logger;
 
-    public RecordPaymentCommandHandler(IApplicationDbContext context, ILogger<RecordPaymentCommandHandler> logger)
+    public RecordPaymentCommandHandler(IApplicationDbContext context, IMediator mediator, ILogger<RecordPaymentCommandHandler> logger)
     {
         _context = context;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -222,6 +452,41 @@ public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand,
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Recorded payment {PaymentId} for charge {ChargeId}", payment.Id, request.ChargeId);
+
+            // Get unit info and send notification to residents
+            var unit = await _context.Units
+                .Include(u => u.Building)
+                .FirstOrDefaultAsync(u => u.Id == charge.UnitId, cancellationToken);
+
+            if (unit != null)
+            {
+                var residents = await _context.Residents
+                    .Where(r => r.UnitId == charge.UnitId && r.IsRegistered && r.UserId != null)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var resident in residents)
+                {
+                    if (resident.UserId.HasValue)
+                    {
+                        var message = $"Se ha registrado un pago de ${request.Amount:N2} para el cargo de {charge.Concept}. " +
+                                    $"Unidad: {unit.UnitNumber}. Estado: {(charge.Status == ChargeStatus.Paid ? "Pagado" : "Pago parcial")}";
+
+                        await _mediator.Send(new CreateNotificationCommand(
+                            CondominiumId: charge.CondominiumId,
+                            UserId: resident.UserId.Value,
+                            Type: NotificationType.PaymentReceived,
+                            Title: "Pago registrado",
+                            Message: message,
+                            Priority: NotificationPriority.Normal,
+                            UnitId: charge.UnitId,
+                            RelatedEntityType: "Payment",
+                            RelatedEntityId: payment.Id,
+                            ActionUrl: "/resident/payments"
+                        ), cancellationToken);
+                    }
+                }
+            }
+
             return Result.Success(payment.Id);
         }
         catch (InvalidOperationException ex)
@@ -365,6 +630,60 @@ public class ToggleFeeConfigurationCommandHandler : IRequestHandler<ToggleFeeCon
 
         await _context.SaveChangesAsync(cancellationToken);
         return Result.Success();
+    }
+}
+
+public class DeleteFeeConfigurationCommandHandler : IRequestHandler<DeleteFeeConfigurationCommand, Result>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ILogger<DeleteFeeConfigurationCommandHandler> _logger;
+
+    public DeleteFeeConfigurationCommandHandler(IApplicationDbContext context, ILogger<DeleteFeeConfigurationCommandHandler> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<Result> Handle(DeleteFeeConfigurationCommand request, CancellationToken cancellationToken)
+    {
+        var feeConfig = await _context.FeeConfigurations.FindAsync(new object[] { request.FeeConfigurationId }, cancellationToken);
+        if (feeConfig == null)
+            return Result.NotFound(new string[] { "Fee configuration not found" });
+
+        _context.FeeConfigurations.Remove(feeConfig);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted fee configuration {FeeConfigurationId}", request.FeeConfigurationId);
+        return Result.Success();
+    }
+}
+
+public class DeleteAllFeeConfigurationsCommandHandler : IRequestHandler<DeleteAllFeeConfigurationsCommand, Result<int>>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ILogger<DeleteAllFeeConfigurationsCommandHandler> _logger;
+
+    public DeleteAllFeeConfigurationsCommandHandler(IApplicationDbContext context, ILogger<DeleteAllFeeConfigurationsCommandHandler> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
+
+    public async Task<Result<int>> Handle(DeleteAllFeeConfigurationsCommand request, CancellationToken cancellationToken)
+    {
+        var feeConfigs = await _context.FeeConfigurations
+            .Where(f => f.CondominiumId == request.CondominiumId)
+            .ToListAsync(cancellationToken);
+
+        var count = feeConfigs.Count;
+        if (count == 0)
+            return Result.Success(0);
+
+        _context.FeeConfigurations.RemoveRange(feeConfigs);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Deleted {Count} fee configurations for condominium {CondominiumId}", count, request.CondominiumId);
+        return Result.Success(count);
     }
 }
 

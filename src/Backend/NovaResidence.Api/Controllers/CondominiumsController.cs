@@ -103,6 +103,7 @@ public class CondominiumsController : ControllerBase
                 Type: b.Type,
                 Section: b.Section,
                 TotalFloors: b.TotalFloors,
+                StartsAtGroundFloor: b.StartsAtGroundFloor,
                 Units: b.Units.Select(u => new CreateUnitDto(
                     UnitNumber: u.UnitNumber,
                     Floor: u.Floor,
@@ -189,6 +190,7 @@ public record BuildingRequest(
     string Type,
     string? Section,
     int TotalFloors,
+    bool StartsAtGroundFloor,
     List<UnitRequest> Units
 );
 

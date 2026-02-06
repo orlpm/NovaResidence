@@ -3,6 +3,7 @@ using NovaResidence.Application;
 using NovaResidence.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -87,6 +88,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<NovaResidence.Infrastructure.Persistence.ApplicationDbContext>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<NovaResidence.Application.Common.Interfaces.IApplicationDbContext>();
     var useSqlite = builder.Configuration.GetValue<bool>("UseSqlite");
     
     if (useSqlite)
@@ -106,6 +108,18 @@ using (var scope = app.Services.CreateScope())
         // Ensure database is created (for SQLite)
         context.Database.EnsureCreated();
     }
+    else
+    {
+        // Apply migrations for SQL Server
+        context.Database.Migrate();
+    }
+    
+    // Seed permissions and role permissions
+    var permissionSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.PermissionSeeder(dbContext);
+    await permissionSeeder.SeedAsync();
+    
+    var rolePermissionSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.RolePermissionSeeder(dbContext);
+    await rolePermissionSeeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline

@@ -94,6 +94,12 @@ public class Amenity : BaseEntity
         UpdatedAt = DateTime.UtcNow;
     }
     
+    public void SetRequiresReservation(bool requiresReservation)
+    {
+        RequiresReservation = requiresReservation;
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
     public void Activate()
     {
         IsActive = true;
@@ -178,6 +184,15 @@ public class Reservation : BaseEntity
     public void Approve()
     {
         Status = ReservationStatus.Confirmed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
+    public void Reject(string reason)
+    {
+        Guard.Against.NullOrWhiteSpace(reason, nameof(reason));
+        
+        Status = ReservationStatus.Rejected;
+        CancellationReason = reason;
         UpdatedAt = DateTime.UtcNow;
     }
     

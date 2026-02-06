@@ -7,26 +7,56 @@ import ResidentsSection from '../../components/ResidentsSection'
 interface AddBuildingModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: { name: string; totalFloors: number }) => void
+  onSubmit: (data: { 
+    name: string
+    totalFloors: number
+    startsAtGroundFloor: boolean
+    autoGenerateUnits: boolean
+    unitsPerFloor: number
+  }) => void
 }
 
 function AddBuildingModal({ isOpen, onClose, onSubmit }: AddBuildingModalProps) {
   const [name, setName] = useState('')
   const [totalFloors, setTotalFloors] = useState(1)
+  const [startsAtGroundFloor, setStartsAtGroundFloor] = useState(false)
+  const [autoGenerateUnits, setAutoGenerateUnits] = useState(true)
+  const [unitsPerFloor, setUnitsPerFloor] = useState(4)
 
   if (!isOpen) return null
 
+  // Calcular total de unidades
+  const totalUnits = autoGenerateUnits ? totalFloors * unitsPerFloor : 0
+  
+  // Generar preview de unidades
+  const getPreviewUnits = () => {
+    if (!autoGenerateUnits) return []
+    const units: string[] = []
+    const startFloor = startsAtGroundFloor ? 0 : 1
+    const endFloor = startsAtGroundFloor ? totalFloors - 1 : totalFloors
+    
+    for (let floor = startFloor; floor <= endFloor && units.length < 12; floor++) {
+      for (let u = 1; u <= unitsPerFloor && units.length < 12; u++) {
+        units.push(`${floor}${u.toString().padStart(2, '0')}`)
+      }
+    }
+    return units
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({ name, totalFloors })
+    onSubmit({ name, totalFloors, startsAtGroundFloor, autoGenerateUnits, unitsPerFloor })
     setName('')
     setTotalFloors(1)
+    setStartsAtGroundFloor(false)
+    setAutoGenerateUnits(true)
+    setUnitsPerFloor(4)
     onClose()
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Nuevo Edificio</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
@@ -47,25 +77,98 @@ function AddBuildingModal({ isOpen, onClose, onSubmit }: AddBuildingModalProps) 
               className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Número de Pisos <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              required
-              min={1}
-              value={totalFloors}
-              onChange={(e) => setTotalFloors(parseInt(e.target.value) || 1)}
-              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Número de Pisos <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                required
+                min={1}
+                value={totalFloors}
+                onChange={(e) => setTotalFloors(parseInt(e.target.value) || 1)}
+                className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            {autoGenerateUnits && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Unidades por Piso <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  max={20}
+                  value={unitsPerFloor}
+                  onChange={(e) => setUnitsPerFloor(parseInt(e.target.value) || 1)}
+                  className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            )}
           </div>
+
+          <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+            <input
+              type="checkbox"
+              id="startsAtGroundFloor"
+              checked={startsAtGroundFloor}
+              onChange={(e) => setStartsAtGroundFloor(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <div>
+              <label htmlFor="startsAtGroundFloor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Incluye Planta Baja (PB)
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Activa si las unidades empiezan en planta baja (ej: 001, 002..., 101, 102...)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <input
+              type="checkbox"
+              id="autoGenerateUnits"
+              checked={autoGenerateUnits}
+              onChange={(e) => setAutoGenerateUnits(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <label htmlFor="autoGenerateUnits" className="block text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                Auto-generar unidades
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {autoGenerateUnits 
+                  ? `Se crearán ${totalUnits} unidades automáticamente` 
+                  : 'Podrás agregar unidades manualmente después'}
+              </p>
+              {autoGenerateUnits && totalUnits > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Vista previa:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {getPreviewUnits().map(unit => (
+                      <span key={unit} className="px-2 py-0.5 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-xs text-gray-700 dark:text-gray-300">
+                        {unit}
+                      </span>
+                    ))}
+                    {totalUnits > 12 && (
+                      <span className="px-2 py-0.5 text-xs text-gray-500">...+{totalUnits - 12} más</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-4">
             <button type="button" onClick={onClose} className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium">
               Cancelar
             </button>
             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
-              Crear Edificio
+              Crear Edificio {autoGenerateUnits && totalUnits > 0 && `(${totalUnits} unidades)`}
             </button>
           </div>
         </form>
@@ -189,10 +292,47 @@ export default function CondominiumUnits() {
     }
   }
 
-  const handleAddBuilding = async (data: { name: string; totalFloors: number }) => {
+  const handleAddBuilding = async (data: { 
+    name: string
+    totalFloors: number
+    startsAtGroundFloor: boolean
+    autoGenerateUnits: boolean
+    unitsPerFloor: number
+  }) => {
     try {
-      await condominiumService.addBuilding(id!, data)
+      // Crear el edificio
+      await condominiumService.addBuilding(id!, {
+        name: data.name,
+        totalFloors: data.totalFloors,
+        startsAtGroundFloor: data.startsAtGroundFloor
+      })
+      
+      // Recargar para obtener el ID del nuevo edificio
+      const updatedData = await condominiumService.getCondominiumById(id!)
+      const newBuilding = updatedData.buildings.find(b => b.name === data.name)
+      
+      // Si se debe auto-generar unidades
+      if (data.autoGenerateUnits && newBuilding) {
+        const startFloor = data.startsAtGroundFloor ? 0 : 1
+        const endFloor = data.startsAtGroundFloor ? data.totalFloors - 1 : data.totalFloors
+        
+        for (let floor = startFloor; floor <= endFloor; floor++) {
+          for (let u = 1; u <= data.unitsPerFloor; u++) {
+            const unitNumber = `${floor}${u.toString().padStart(2, '0')}`
+            await condominiumService.addUnit(newBuilding.id, {
+              unitNumber,
+              floor
+            })
+          }
+        }
+      }
+      
       await loadData()
+      
+      // Seleccionar el nuevo edificio
+      if (newBuilding) {
+        setSelectedBuildingId(newBuilding.id)
+      }
     } catch (error) {
       console.error(error)
       alert("Error creando edificio")

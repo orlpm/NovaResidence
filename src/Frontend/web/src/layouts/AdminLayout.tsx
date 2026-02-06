@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -12,13 +12,19 @@ import {
   X,
   LogOut,
   Settings,
-  Bell,
   Sun,
   Moon,
-  Sparkles
+  Sparkles,
+  CalendarCheck,
+  MessageSquare,
+  Shield
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
+import { NotificationBell } from '../components/NotificationBell'
+import { condominiumService } from '../lib/condominiumService'
+import { PermissionGate } from '../components/shared/PermissionGate'
+import { PERMISSIONS } from '../config/permissions'
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -26,17 +32,49 @@ const navigation = [
   { name: 'Unidades', href: '/admin/units', icon: Home },
   { name: 'Residentes', href: '/admin/residents', icon: Users },
   { name: 'Amenidades', href: '/admin/amenities', icon: Sparkles },
+  { name: 'Reservaciones', href: '/admin/reservations', icon: CalendarCheck },
   { name: 'Facturación', href: '/admin/billing', icon: CreditCard },
   { name: 'Incidencias', href: '/admin/incidents', icon: AlertCircle },
+  { name: 'Comunicaciones', href: '/admin/communications', icon: MessageSquare },
   { name: 'Reportes', href: '/admin/reports', icon: FileText },
+  { 
+    name: 'Permisos', 
+    href: '/admin/permissions', 
+    icon: Shield,
+    permission: PERMISSIONS.PLATFORM_MANAGE_PERMISSIONS
+  },
 ]
 
 function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [selectedCondominiumId, setSelectedCondominiumId] = useState<string | null>(null)
   const { user, logout } = useAuthStore()
   const { effectiveTheme, setTheme } = useTheme()
   const navigate = useNavigate()
+
+  // Get the first condominium ID for notifications
+  useEffect(() => {
+    const fetchCondominiumId = async () => {
+      try {
+        // Use user's condominiumId if available
+        if (user?.condominiumId) {
+          setSelectedCondominiumId(user.condominiumId)
+          return
+        }
+        // Otherwise fetch user's condominiums
+        if (user?.id) {
+          const condos = await condominiumService.getUserCondominiums(user.id)
+          if (condos.length > 0) {
+            setSelectedCondominiumId(condos[0].id)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching condominium:', error)
+      }
+    }
+    fetchCondominiumId()
+  }, [user])
 
   const handleLogout = () => {
     logout()
@@ -63,32 +101,44 @@ function AdminLayout() {
           </div>
           <nav className="flex flex-1 flex-col px-4">
             <ul role="list" className="flex flex-1 flex-col gap-y-1">
-              {navigation.map((item) => (
-                <li key={item.name}>
-                  <NavLink
-                    to={item.href}
-                    end={item.href === '/admin'}
-                    className={({ isActive }) =>
-                      `group flex gap-x-3 rounded-xl p-3 text-sm font-semibold transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/25'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                      }`
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <item.icon
-                          className={`h-5 w-5 shrink-0 ${
-                            isActive ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-sky-600 dark:group-hover:text-sky-400'
-                          }`}
-                        />
-                        {item.name}
-                      </>
-                    )}
-                  </NavLink>
-                </li>
-              ))}
+              {navigation.map((item) => {
+                const NavItem = (
+                  <li key={item.name}>
+                    <NavLink
+                      to={item.href}
+                      end={item.href === '/admin'}
+                      className={({ isActive }) =>
+                        `group flex gap-x-3 rounded-xl p-3 text-sm font-semibold transition-all ${
+                          isActive
+                            ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/25'
+                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <item.icon
+                            className={`h-5 w-5 shrink-0 ${
+                              isActive ? 'text-white' : 'text-gray-500 dark:text-gray-400 group-hover:text-sky-600 dark:group-hover:text-sky-400'
+                            }`}
+                          />
+                          {item.name}
+                        </>
+                      )}
+                    </NavLink>
+                  </li>
+                );
+
+                if ('permission' in item && item.permission) {
+                  return (
+                    <PermissionGate key={item.name} permissions={item.permission}>
+                      {NavItem}
+                    </PermissionGate>
+                  );
+                }
+
+                return NavItem;
+              })}
             </ul>
           </nav>
           
@@ -130,33 +180,45 @@ function AdminLayout() {
             </div>
             <nav className="px-4 mt-4">
               <ul role="list" className="space-y-1">
-                {navigation.map((item) => (
-                  <li key={item.name}>
-                    <NavLink
-                      to={item.href}
-                      end={item.href === '/admin'}
-                      onClick={() => setSidebarOpen(false)}
-                      className={({ isActive }) =>
-                        `group flex gap-x-3 rounded-xl p-3 text-sm font-semibold transition-all ${
-                          isActive
-                            ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/25'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                        }`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <item.icon
-                            className={`h-5 w-5 ${
-                              isActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'
-                            }`}
-                          />
-                          {item.name}
-                        </>
-                      )}
-                    </NavLink>
-                  </li>
-                ))}
+                {navigation.map((item) => {
+                  const NavItem = (
+                    <li key={item.name}>
+                      <NavLink
+                        to={item.href}
+                        end={item.href === '/admin'}
+                        onClick={() => setSidebarOpen(false)}
+                        className={({ isActive }) =>
+                          `group flex gap-x-3 rounded-xl p-3 text-sm font-semibold transition-all ${
+                            isActive
+                              ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/25'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <item.icon
+                              className={`h-5 w-5 ${
+                                isActive ? 'text-white' : 'text-gray-500 dark:text-gray-400'
+                              }`}
+                            />
+                            {item.name}
+                          </>
+                        )}
+                      </NavLink>
+                    </li>
+                  );
+
+                  if ('permission' in item && item.permission) {
+                    return (
+                      <PermissionGate key={item.name} permissions={item.permission}>
+                        {NavItem}
+                      </PermissionGate>
+                    );
+                  }
+
+                  return NavItem;
+                })}
               </ul>
             </nav>
           </div>
@@ -192,10 +254,12 @@ function AdminLayout() {
                 )}
               </button>
 
-              <button className="relative p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
+              {selectedCondominiumId && (
+                <NotificationBell 
+                  condominiumId={selectedCondominiumId} 
+                  isAdmin={true} 
+                />
+              )}
 
               <div className="relative">
                 <button

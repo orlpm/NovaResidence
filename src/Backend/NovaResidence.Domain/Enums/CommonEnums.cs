@@ -152,3 +152,201 @@ public enum DocumentType
     MeetingMinutes = 6,
     Other = 7
 }
+
+#region Communications Enums
+
+/// <summary>
+/// Types of announcements
+/// </summary>
+public enum AnnouncementType
+{
+    /// <summary>General announcement/notice</summary>
+    General = 0,
+    
+    /// <summary>Official circular</summary>
+    Circular = 1,
+    
+    /// <summary>Meeting minutes/record</summary>
+    MeetingMinutes = 2,
+    
+    /// <summary>Emergency notification</summary>
+    Emergency = 3,
+    
+    /// <summary>Maintenance notice</summary>
+    Maintenance = 4,
+    
+    /// <summary>Event announcement</summary>
+    Event = 5,
+    
+    /// <summary>Rule/policy change</summary>
+    PolicyChange = 6
+}
+
+/// <summary>
+/// Priority levels for announcements
+/// </summary>
+public enum AnnouncementPriority
+{
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Urgent = 3
+}
+
+/// <summary>
+/// Types of polls/surveys
+/// </summary>
+public enum PollType
+{
+    /// <summary>Standard voting (single choice)</summary>
+    SingleChoice = 0,
+    
+    /// <summary>Multiple choice allowed</summary>
+    MultipleChoice = 1,
+    
+    /// <summary>Survey/questionnaire</summary>
+    Survey = 2,
+    
+    /// <summary>Assembly voting with quorum</summary>
+    AssemblyVote = 3
+}
+
+/// <summary>
+/// Status of a poll
+/// </summary>
+public enum PollStatus
+{
+    Draft = 0,
+    Active = 1,
+    Closed = 2,
+    Cancelled = 3
+}
+
+/// <summary>
+/// Types of meetings
+/// </summary>
+public enum MeetingType
+{
+    /// <summary>Regular/ordinary assembly</summary>
+    OrdinaryAssembly = 0,
+    
+    /// <summary>Extraordinary assembly</summary>
+    ExtraordinaryAssembly = 1,
+    
+    /// <summary>Board meeting</summary>
+    BoardMeeting = 2,
+    
+    /// <summary>Committee meeting</summary>
+    CommitteeMeeting = 3,
+    
+    /// <summary>Virtual meeting</summary>
+    VirtualMeeting = 4,
+    
+    /// <summary>Informational session</summary>
+    InformationalSession = 5
+}
+
+/// <summary>
+/// Status of a meeting
+/// </summary>
+public enum MeetingStatus
+{
+    Scheduled = 0,
+    InProgress = 1,
+    Completed = 2,
+    Cancelled = 3,
+    Postponed = 4
+}
+
+/// <summary>
+/// Status of a meeting attendee
+/// </summary>
+public enum AttendeeStatus
+{
+    Invited = 0,
+    Confirmed = 1,
+    Declined = 2,
+    Attended = 3,
+    Absent = 4
+}
+
+/// <summary>
+/// Categories for forum posts
+/// </summary>
+public enum ForumCategory
+{
+    General = 0,
+    BuySell = 1,
+    Services = 2,
+    Events = 3,
+    LostAndFound = 4,
+    Suggestions = 5,
+    Questions = 6,
+    Recommendations = 7
+}
+
+/// <summary>
+/// Status of a forum post
+/// </summary>
+public enum ForumPostStatus
+{
+    Active = 0,
+    Archived = 1,
+    Hidden = 2
+}
+
+#endregion
+
+#region Notification Enums
+
+/// <summary>
+/// Types of notifications
+/// </summary>
+public enum NotificationType
+{
+    /// <summary>New announcement published</summary>
+    Announcement = 0,
+    
+    /// <summary>New poll/vote available</summary>
+    Poll = 1,
+    
+    /// <summary>Meeting scheduled or updated</summary>
+    Meeting = 2,
+    
+    /// <summary>New forum post</summary>
+    ForumPost = 3,
+    
+    /// <summary>New comment on forum</summary>
+    ForumComment = 4,
+    
+    /// <summary>Payment reminder</summary>
+    PaymentReminder = 5,
+    
+    /// <summary>Payment received confirmation</summary>
+    PaymentReceived = 6,
+    
+    /// <summary>Incident status update</summary>
+    IncidentUpdate = 7,
+    
+    /// <summary>Reservation confirmed/updated</summary>
+    Reservation = 8,
+    
+    /// <summary>System alert</summary>
+    SystemAlert = 9,
+    
+    /// <summary>General information</summary>
+    General = 10
+}
+
+/// <summary>
+/// Priority of notification
+/// </summary>
+public enum NotificationPriority
+{
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Urgent = 3
+}
+
+#endregion

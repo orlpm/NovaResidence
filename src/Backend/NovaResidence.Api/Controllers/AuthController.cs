@@ -14,17 +14,20 @@ public class AuthController : ControllerBase
     private readonly ILogger<AuthController> _logger;
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IJwtService _jwtService;
 
     public AuthController(
         IMediator mediator, 
         ILogger<AuthController> logger,
         IUserRepository userRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        IJwtService jwtService)
     {
         _mediator = mediator;
         _logger = logger;
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
+        _jwtService = jwtService;
     }
 
     /// <summary>
@@ -78,9 +81,20 @@ public class AuthController : ControllerBase
         // Actualizar último login
         user.UpdateLastLogin();
 
-        // Generar token (por ahora un placeholder, después implementar JWT real)
-        var accessToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-        var refreshToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+        // Generar JWT tokens
+        var role = user.DefaultRole.ToLower() == "admin" ? "admin" : 
+                   user.DefaultRole.ToLower() == "superadmin" ? "superadmin" :
+                   user.DefaultRole.ToLower() == "resident" ? "resident" : "admin";
+        
+        var accessToken = _jwtService.GenerateAccessToken(
+            user.Id, 
+            user.Email, 
+            role, 
+            user.FirstName, 
+            user.LastName);
+        
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        var expiresIn = _jwtService.GetAccessTokenExpirationSeconds();
 
         _logger.LogInformation("Login successful for user {UserId}", user.Id);
 
@@ -88,15 +102,14 @@ public class AuthController : ControllerBase
         {
             AccessToken = accessToken,
             RefreshToken = refreshToken,
-            ExpiresIn = 3600,
+            ExpiresIn = expiresIn,
             User = new
             {
                 Id = user.Id,
                 Email = user.Email,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Role = user.DefaultRole.ToLower() == "admin" ? "admin" : 
-                       user.DefaultRole.ToLower() == "resident" ? "resident" : "admin"
+                Role = role
             }
         });
     }
@@ -109,12 +122,17 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        // TODO: Implement refresh token command
+        // TODO: Validate refresh token against stored tokens
+        // For now, generate new tokens (should validate stored refresh token in production)
+        var newAccessToken = _jwtService.GenerateRefreshToken(); // Temporary - should regenerate from user data
+        var newRefreshToken = _jwtService.GenerateRefreshToken();
+        var expiresIn = _jwtService.GetAccessTokenExpirationSeconds();
+
         return Ok(new
         {
-            AccessToken = "new-jwt-token-here",
-            RefreshToken = "new-refresh-token-here",
-            ExpiresIn = 3600
+            AccessToken = newAccessToken,
+            RefreshToken = newRefreshToken,
+            ExpiresIn = expiresIn
         });
     }
 

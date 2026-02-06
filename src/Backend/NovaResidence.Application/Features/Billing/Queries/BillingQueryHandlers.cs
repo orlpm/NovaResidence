@@ -6,6 +6,54 @@ using NovaResidence.Domain.Enums;
 
 namespace NovaResidence.Application.Features.Billing.Queries;
 
+// Helper class for enum display names
+public static class BillingEnumNames
+{
+    public static readonly Dictionary<FeeType, string> FeeTypeNames = new()
+    {
+        { FeeType.MonthlyMaintenance, "Mantenimiento" },
+        { FeeType.ExtraordinaryFee, "Extraordinaria" },
+        { FeeType.ParkingFee, "Estacionamiento" },
+        { FeeType.ReservationFee, "Reservación" },
+        { FeeType.LateFee, "Recargo" },
+        { FeeType.Fine, "Multa" },
+        { FeeType.Utility, "Servicios" },
+        { FeeType.Insurance, "Seguro" },
+        { FeeType.Other, "Otro" }
+    };
+
+    public static readonly Dictionary<ChargeStatus, string> ChargeStatusNames = new()
+    {
+        { ChargeStatus.Pending, "Pendiente" },
+        { ChargeStatus.PartiallyPaid, "Pago Parcial" },
+        { ChargeStatus.Paid, "Pagado" },
+        { ChargeStatus.Overdue, "Vencido" },
+        { ChargeStatus.Cancelled, "Cancelado" },
+        { ChargeStatus.Forgiven, "Condonado" }
+    };
+
+    public static string GetFeeTypeName(FeeType feeType) =>
+        FeeTypeNames.TryGetValue(feeType, out var name) ? name : feeType.ToString();
+
+    public static string GetStatusName(ChargeStatus status) =>
+        ChargeStatusNames.TryGetValue(status, out var name) ? name : status.ToString();
+
+    public static (ChargeStatus status, string statusName, bool isOverdue) ComputeStatus(ChargeStatus currentStatus, DateTime dueDate, decimal balance)
+    {
+        // If already paid, cancelled, or forgiven, use that status
+        if (currentStatus == ChargeStatus.Paid || currentStatus == ChargeStatus.Cancelled || currentStatus == ChargeStatus.Forgiven)
+            return (currentStatus, GetStatusName(currentStatus), false);
+
+        // Check if overdue based on due date
+        var isOverdue = DateTime.UtcNow.Date > dueDate.Date && balance > 0;
+        
+        if (isOverdue)
+            return (ChargeStatus.Overdue, "Vencido", true);
+
+        return (currentStatus, GetStatusName(currentStatus), false);
+    }
+}
+
 public class GetChargeQueryHandler : IRequestHandler<GetChargeQuery, Result<ChargeDetailDto>>
 {
     private readonly IApplicationDbContext _context;
@@ -95,25 +143,34 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
         if (request.FeeType.HasValue)
             query = query.Where(c => c.FeeType == request.FeeType.Value);
 
-        var charges = await query
-            .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new ChargeListDto(
+        var rawCharges = await query
+            .OrderBy(c => c.Unit.UnitNumber)
+            .ThenByDescending(c => c.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var charges = rawCharges.Select(c =>
+        {
+            var (status, statusName, isOverdue) = BillingEnumNames.ComputeStatus(c.Status, c.DueDate, c.Balance);
+            return new ChargeListDto(
                 c.Id,
                 c.UnitId,
                 c.Unit.UnitNumber,
-                c.Unit.Building.Name,
+                c.Unit.Building!.Name,
                 c.Concept,
                 c.FeeType,
+                BillingEnumNames.GetFeeTypeName(c.FeeType),
                 c.Amount,
                 c.PaidAmount,
                 c.Balance,
-                c.Status,
+                status,
+                statusName,
+                isOverdue,
                 c.DueDate,
                 c.BillingPeriodMonth,
                 c.BillingPeriodYear,
                 c.CreatedAt
-            ))
-            .ToListAsync(cancellationToken);
+            );
+        }).ToList();
 
         return Result.Success(charges);
     }
@@ -144,25 +201,33 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
         if (request.Status.HasValue)
             query = query.Where(c => c.Status == request.Status.Value);
 
-        var charges = await query
+        var rawCharges = await query
             .OrderByDescending(c => c.DueDate)
-            .Select(c => new ChargeListDto(
+            .ToListAsync(cancellationToken);
+
+        var charges = rawCharges.Select(c =>
+        {
+            var (status, statusName, isOverdue) = BillingEnumNames.ComputeStatus(c.Status, c.DueDate, c.Balance);
+            return new ChargeListDto(
                 c.Id,
                 c.UnitId,
                 c.Unit.UnitNumber,
-                c.Unit.Building.Name,
+                c.Unit.Building!.Name,
                 c.Concept,
                 c.FeeType,
+                BillingEnumNames.GetFeeTypeName(c.FeeType),
                 c.Amount,
                 c.PaidAmount,
                 c.Balance,
-                c.Status,
+                status,
+                statusName,
+                isOverdue,
                 c.DueDate,
                 c.BillingPeriodMonth,
                 c.BillingPeriodYear,
                 c.CreatedAt
-            ))
-            .ToListAsync(cancellationToken);
+            );
+        }).ToList();
 
         return Result.Success(charges);
     }
@@ -346,30 +411,39 @@ public class GetOverdueChargesQueryHandler : IRequestHandler<GetOverdueChargesQu
 
     public async Task<Result<List<ChargeListDto>>> Handle(GetOverdueChargesQuery request, CancellationToken cancellationToken)
     {
-        var charges = await _context.Charges
+        // Get charges that are either marked as overdue OR are past due date with balance > 0
+        var now = DateTime.UtcNow.Date;
+        var rawCharges = await _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
             .Where(c => c.CondominiumId == request.CondominiumId 
-                && c.Status == ChargeStatus.Overdue 
-                && !c.IsDeleted)
-            .OrderBy(c => c.DueDate)
-            .Select(c => new ChargeListDto(
-                c.Id,
-                c.UnitId,
-                c.Unit.UnitNumber,
-                c.Unit.Building.Name,
-                c.Concept,
-                c.FeeType,
-                c.Amount,
-                c.PaidAmount,
-                c.Balance,
-                c.Status,
-                c.DueDate,
-                c.BillingPeriodMonth,
-                c.BillingPeriodYear,
-                c.CreatedAt
-            ))
+                && !c.IsDeleted
+                && c.Balance > 0
+                && (c.Status == ChargeStatus.Overdue || c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid)
+                && c.DueDate < now)
+            .OrderBy(c => c.Unit.UnitNumber)
+            .ThenBy(c => c.DueDate)
             .ToListAsync(cancellationToken);
+
+        var charges = rawCharges.Select(c => new ChargeListDto(
+            c.Id,
+            c.UnitId,
+            c.Unit.UnitNumber,
+            c.Unit.Building!.Name,
+            c.Concept,
+            c.FeeType,
+            BillingEnumNames.GetFeeTypeName(c.FeeType),
+            c.Amount,
+            c.PaidAmount,
+            c.Balance,
+            ChargeStatus.Overdue,
+            "Vencido",
+            true,
+            c.DueDate,
+            c.BillingPeriodMonth,
+            c.BillingPeriodYear,
+            c.CreatedAt
+        )).ToList();
 
         return Result.Success(charges);
     }

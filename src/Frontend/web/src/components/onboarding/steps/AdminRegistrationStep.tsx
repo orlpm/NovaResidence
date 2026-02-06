@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Mail, Lock, User, Phone, Eye, EyeOff, AlertCircle } from 'lucide-react'
 
+interface AdminData {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  phoneNumber: string
+}
+
 interface AdminRegistrationStepProps {
-  data: {
-    email: string
-    password: string
-    firstName: string
-    lastName: string
-    phoneNumber: string
-  }
-  onUpdate: (data: any) => void
-  onNext: () => void
+  data: AdminData
+  onUpdate: (data: AdminData) => void
+  onNext: (data?: AdminData) => void
 }
 
 export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminRegistrationStepProps) {
@@ -44,7 +46,8 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
     e.preventDefault()
     if (validate()) {
       onUpdate(formData)
-      onNext()
+      // Pasar los datos directamente a onNext para evitar problemas de sincronización de estado
+      onNext(formData)
     }
   }
 

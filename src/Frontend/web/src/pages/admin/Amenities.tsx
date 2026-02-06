@@ -435,6 +435,13 @@ function AmenityFormModal({ isOpen, onClose, onSuccess, condominiumId, amenity, 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate condominiumId before submitting
+    if (!isEditing && !condominiumId) {
+      setError('Debes seleccionar un condominio antes de crear una amenidad')
+      return
+    }
+    
     setIsSubmitting(true)
     setError(null)
 
@@ -471,8 +478,20 @@ function AmenityFormModal({ isOpen, onClose, onSuccess, condominiumId, amenity, 
         await amenityService.create(createRequest)
       }
       onSuccess()
-    } catch (err) {
-      setError(isEditing ? 'Error al actualizar amenidad' : 'Error al crear amenidad')
+    } catch (err: any) {
+      console.error('Error creating/updating amenity:', err)
+      console.error('Error response:', err.response)
+      console.error('Error response data:', err.response?.data)
+      
+      let errorMessage = isEditing ? 'Error al actualizar amenidad' : 'Error al crear amenidad'
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.response?.data?.errors?.length > 0) {
+        errorMessage = err.response.data.errors[0]
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      setError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }

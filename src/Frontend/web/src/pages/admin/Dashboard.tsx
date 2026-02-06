@@ -4,18 +4,8 @@ import { AlertCircle, CheckCircle2, Clock, Home, Users, CreditCard, TrendingUp, 
 import OnboardingWizard from '../../components/onboarding/OnboardingWizard'
 import type { OnboardingData } from '../../types/onboarding'
 import { condominiumService, UserCondominiumDto } from '../../lib/condominiumService'
+import { dashboardService, DashboardStatsDto, RecentActivityDto } from '../../lib/dashboardService'
 import { useAuthStore } from '../../stores/authStore'
-
-interface DashboardStats {
-  totalUnits: number
-  occupiedUnits: number
-  pendingInvitations: number
-  totalResidents: number
-  pendingPayments: number
-  overduePayments: number
-  openIncidents: number
-  documentsManagement: number
-}
 
 interface RecentActivity {
   id: string
@@ -33,54 +23,12 @@ function AdminDashboard() {
   const [showOnboardingSuccess, setShowOnboardingSuccess] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const [isLoadingCondominiums, setIsLoadingCondominiums] = useState(true)
+  const [_isLoadingStats, setIsLoadingStats] = useState(true)
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [_wizardData, setWizardData] = useState<OnboardingData | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
-  const [stats] = useState<DashboardStats>({
-    totalUnits: 248,
-    occupiedUnits: 192,
-    pendingInvitations: 12,
-    totalResidents: 532,
-    pendingPayments: 85,
-    overduePayments: 18,
-    openIncidents: 15,
-    documentsManagement: 234
-  })
-
-  const [recentActivities] = useState<RecentActivity[]>([
-    {
-      id: '1',
-      type: 'resident',
-      title: 'Nuevo residente agregado',
-      description: 'Juan Pérez - Apto 301',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      status: 'completed'
-    },
-    {
-      id: '2',
-      type: 'payment',
-      title: 'Pago recibido',
-      description: 'María García - Apto 102 - $150',
-      timestamp: new Date(Date.now() - 1000 * 60 * 120),
-      status: 'completed'
-    },
-    {
-      id: '3',
-      type: 'incident',
-      title: 'Incidencia reportada',
-      description: 'Problema con elevador - Bloque A',
-      timestamp: new Date(Date.now() - 1000 * 60 * 240),
-      status: 'pending'
-    },
-    {
-      id: '4',
-      type: 'payment',
-      title: 'Pago vencido',
-      description: 'Carlos López - Apto 405 - Desde hace 15 días',
-      timestamp: new Date(Date.now() - 1000 * 60 * 360),
-      status: 'overdue'
-    }
-  ])
+  const [stats, setStats] = useState<DashboardStatsDto | null>(null)
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
 
   useEffect(() => {
     if (location.state?.onboardingComplete) {
@@ -95,9 +43,51 @@ function AdminDashboard() {
       setUserPlan(data.selectedPlan || null)
     }
 
-    // Cargar condominios desde el backend
+    // Cargar condominios desde el backend (esto también cargará las stats)
     loadCondominiums()
   }, [location])
+
+  const loadDashboardStats = async (condominiumIds?: string[]) => {
+    setIsLoadingStats(true)
+    try {
+      const dashboardStats = await dashboardService.getStats(undefined, condominiumIds)
+      setStats(dashboardStats)
+      
+      // Convertir actividades recientes del backend al formato del frontend
+      const activities: RecentActivity[] = dashboardStats.recentActivities.map((activity: RecentActivityDto) => ({
+        id: activity.id,
+        type: activity.type as RecentActivity['type'],
+        title: activity.title,
+        description: activity.description,
+        timestamp: new Date(activity.timestamp),
+        status: activity.status as RecentActivity['status']
+      }))
+      setRecentActivities(activities)
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error)
+      // Fallback a datos por defecto si hay error
+      setStats({
+        totalUnits: 0,
+        occupiedUnits: 0,
+        vacantUnits: 0,
+        occupancyPercentage: 0,
+        totalResidents: 0,
+        activeResidents: 0,
+        pendingInvitations: 0,
+        openIncidents: 0,
+        inProgressIncidents: 0,
+        resolvedIncidentsThisMonth: 0,
+        totalPendingPayments: 0,
+        totalOverduePayments: 0,
+        pendingPaymentsCount: 0,
+        overduePaymentsCount: 0,
+        collectionRatePercentage: 0,
+        recentActivities: []
+      })
+    } finally {
+      setIsLoadingStats(false)
+    }
+  }
 
   const loadCondominiums = async () => {
     setIsLoadingCondominiums(true)
@@ -105,6 +95,10 @@ function AdminDashboard() {
       const userId = _user?.id
       const userCondominiums = await condominiumService.getAllCondominiums(userId)
       setCondominiums(userCondominiums)
+      
+      // Cargar stats filtradas por los condominios del usuario
+      const condominiumIds = userCondominiums.map(c => c.id)
+      await loadDashboardStats(condominiumIds)
       
       // Si no hay condominios, mostrar el wizard
       if (userCondominiums.length === 0) {
@@ -127,6 +121,8 @@ function AdminDashboard() {
       } else {
         setShowWizard(true)
       }
+      // Cargar stats sin filtro como fallback
+      await loadDashboardStats()
     } finally {
       setIsLoadingCondominiums(false)
     }
@@ -147,11 +143,8 @@ function AdminDashboard() {
     setShowWizard(true)
   }
 
-  const occupancyPercentage = Math.round((stats.occupiedUnits / stats.totalUnits) * 100)
-  const paymentPercentage = Math.round((
-    (stats.totalResidents * 150 - stats.pendingPayments * 150) / 
-    (stats.totalResidents * 150)
-  ) * 100) // Assuming $150 per resident
+  const occupancyPercentage = stats?.occupancyPercentage ?? 0
+  const collectionPercentage = stats?.collectionRatePercentage ?? 0
 
   const getActivityIcon = (type: RecentActivity['type']) => {
     switch (type) {
@@ -346,7 +339,7 @@ function AdminDashboard() {
               <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{occupancyPercentage}%</span>
             </div>
             <h3 className="text-gray-600 dark:text-gray-400 text-sm font-semibold mb-1">Ocupación</h3>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.occupiedUnits}/{stats.totalUnits}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.occupiedUnits ?? 0}/{stats?.totalUnits ?? 0}</p>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">unidades ocupadas</p>
           </div>
 
@@ -356,11 +349,11 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center">
                 <Users className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
-              <span className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.pendingInvitations}</span>
+              <span className="text-2xl font-bold text-green-600 dark:text-green-400">{stats?.totalResidents ?? 0}</span>
             </div>
             <h3 className="text-gray-600 dark:text-gray-400 text-sm font-semibold mb-1">Residentes</h3>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalResidents}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">invitaciones pendientes</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.activeResidents ?? 0} activos</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{stats?.pendingInvitations ?? 0} invitaciones pendientes</p>
           </div>
 
           {/* Payments */}
@@ -369,11 +362,11 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
               </div>
-              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{paymentPercentage}%</span>
+              <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{collectionPercentage}%</span>
             </div>
             <h3 className="text-gray-600 dark:text-gray-400 text-sm font-semibold mb-1">Cobranza</h3>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">${stats.totalResidents * 150 - stats.pendingPayments * 150}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">de ${stats.totalResidents * 150} esperado</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">${(stats?.totalPendingPayments ?? 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{stats?.pendingPaymentsCount ?? 0} pagos pendientes</p>
           </div>
 
           {/* Incidents */}
@@ -382,11 +375,11 @@ function AdminDashboard() {
               <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-xl flex items-center justify-center">
                 <AlertCircle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
               </div>
-              <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.openIncidents}</span>
+              <span className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats?.openIncidents ?? 0}</span>
             </div>
             <h3 className="text-gray-600 dark:text-gray-400 text-sm font-semibold mb-1">Incidencias Abiertas</h3>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.overduePayments} urgentes</p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">que requieren atención</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats?.inProgressIncidents ?? 0} en progreso</p>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">{stats?.resolvedIncidentsThisMonth ?? 0} resueltas este mes</p>
           </div>
         </div>
 
@@ -450,11 +443,11 @@ function AdminDashboard() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 animate-in fade-in-50">
               <div className="flex items-center gap-4 mb-3">
                 <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center">
-                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">{stats.documentsManagement}</span>
+                  <span className="text-indigo-600 dark:text-indigo-400 font-bold">{stats?.overduePaymentsCount ?? 0}</span>
                 </div>
               </div>
-              <h4 className="font-bold text-gray-900 dark:text-white mb-1">Documentos</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Archivos bajo gestión</p>
+              <h4 className="font-bold text-gray-900 dark:text-white mb-1">Pagos Vencidos</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">${(stats?.totalOverduePayments ?? 0).toLocaleString()} total</p>
             </div>
           </div>
         </div>

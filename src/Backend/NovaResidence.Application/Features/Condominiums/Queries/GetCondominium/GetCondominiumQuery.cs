@@ -28,6 +28,7 @@ public record BuildingDetailDto(
     string Name,
     string? Description,
     int TotalFloors,
+    bool StartsAtGroundFloor,
     int TotalUnits,
     List<UnitDetailDto> Units);
 
@@ -37,4 +38,7 @@ public record UnitDetailDto(
     int Floor,
     decimal? Area,
     int? Bedrooms,
-    int? Bathrooms);
+    int? Bathrooms,
+    bool HasOwner,
+    bool HasRegisteredResident,
+    int TotalResidents);

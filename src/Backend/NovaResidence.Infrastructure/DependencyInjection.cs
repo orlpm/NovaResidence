@@ -1,6 +1,9 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Infrastructure.Persistence;
 using NovaResidence.Infrastructure.Persistence.Repositories;
@@ -60,6 +63,12 @@ public static class DependencyInjection
         // Password Hasher
         services.AddScoped<IPasswordHasher, SimplePasswordHasher>();
 
+        // JWT Service
+        services.AddScoped<IJwtService, JwtService>();
+
+        // Configure JWT Authentication
+        AddJwtAuthentication(services, configuration);
+
         // Azure Services
         AddAzureServices(services, configuration);
 
@@ -70,8 +79,61 @@ public static class DependencyInjection
         services.AddScoped<IEventBusService, AzureServiceBusService>();
         services.AddScoped<IPaymentGatewayService, PaymentGatewayService>();
         services.AddScoped<ICacheService, RedisCacheService>();
+        
+        // Permission Service
+        services.AddMemoryCache(); // For permission caching
+        services.AddScoped<IPermissionService, PermissionService>();
 
         return services;
+    }
+
+    private static void AddJwtAuthentication(IServiceCollection services, IConfiguration configuration)
+    {
+        var jwtSettings = configuration.GetSection("Jwt");
+        var secretKey = jwtSettings["SecretKey"] ?? "NovaResidence-Super-Secret-Key-2024-Min32Chars!@#";
+        var issuer = jwtSettings["Issuer"] ?? "NovaResidence";
+        var audience = jwtSettings["Audience"] ?? "NovaResidenceApp";
+
+        // Ensure minimum key length
+        if (secretKey.Length < 32)
+        {
+            secretKey = secretKey.PadRight(32, '!');
+        }
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = issuer,
+                ValidAudience = audience,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                ClockSkew = TimeSpan.Zero
+            };
+
+            options.Events = new JwtBearerEvents
+            {
+                OnAuthenticationFailed = context =>
+                {
+                    if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+                    {
+                        context.Response.Headers["Token-Expired"] = "true";
+                    }
+                    return Task.CompletedTask;
+                }
+            };
+        });
+
+        services.AddAuthorization();
     }
 
     private static void AddAzureServices(IServiceCollection services, IConfiguration configuration)

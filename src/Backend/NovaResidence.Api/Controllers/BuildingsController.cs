@@ -46,6 +46,7 @@ public class BuildingsController : ControllerBase
             building.Name,
             building.Description,
             building.TotalFloors,
+            building.StartsAtGroundFloor,
             TotalUnits = building.Units.Count,
             Units = building.Units.Select(u => new
             {
@@ -76,7 +77,8 @@ public class BuildingsController : ControllerBase
             request.CondominiumId,
             request.Name,
             request.TotalFloors,
-            request.Description
+            request.Description,
+            request.StartsAtGroundFloor
         );
 
         await _buildingRepository.AddAsync(building);
@@ -113,5 +115,6 @@ public record CreateBuildingRequest(
     Guid CondominiumId,
     string Name,
     int TotalFloors,
-    string? Description = null
+    string? Description = null,
+    bool StartsAtGroundFloor = false
 );

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import { residentService } from '../../lib/residentService'
 import { billingService } from '../../lib/billingService'
+import { unitService, unitStatusNames } from '../../lib/unitService'
 import { HomeIcon, MapPinIcon, CurrencyDollarIcon, UserGroupIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 
@@ -43,21 +44,39 @@ function MyUnit() {
       const resident = await residentService.getResidentInfo(user.id)
       
       if (resident && resident.unitId) {
-        // Obtener información de la unidad
-        const unitData: Unit = {
-          id: resident.unitId,
-          unitNumber: resident.unitNumber || 'N/A',
-          floor: parseInt(resident.unitNumber?.match(/\d+/)?.[0] || '1') || 1,
-          area: 85.5,
-          bedrooms: 2,
-          bathrooms: 2,
-          status: 'Ocupada',
-          monthlyMaintenanceFee: 2500,
-          building: {
-            name: resident.buildingName || 'Torre Principal'
-          }
+        // Obtener información detallada de la unidad
+        try {
+          const unitData = await unitService.getById(resident.unitId)
+          setUnit({
+            id: resident.unitId,
+            unitNumber: unitData.unitNumber || resident.unitNumber || 'N/A',
+            floor: unitData.floor || 1,
+            area: unitData.area || 0,
+            bedrooms: unitData.bedrooms || 0,
+            bathrooms: unitData.bathrooms || 0,
+            status: unitStatusNames[unitData.status] || 'Desconocido',
+            monthlyMaintenanceFee: unitData.monthlyMaintenanceFee || 0,
+            building: {
+              name: resident.buildingName || 'Edificio Principal'
+            }
+          })
+        } catch (err) {
+          // Fallback con datos básicos si falla obtener la unidad
+          console.warn('Error getting unit details, using basic info:', err)
+          setUnit({
+            id: resident.unitId,
+            unitNumber: resident.unitNumber || 'N/A',
+            floor: 1,
+            area: 0,
+            bedrooms: 0,
+            bathrooms: 0,
+            status: 'Ocupada',
+            monthlyMaintenanceFee: 0,
+            building: {
+              name: resident.buildingName || 'Edificio Principal'
+            }
+          })
         }
-        setUnit(unitData)
 
         // Obtener balance
         try {

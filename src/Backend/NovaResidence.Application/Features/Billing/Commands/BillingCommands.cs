@@ -38,6 +38,14 @@ public record ForgiveChargeCommand(Guid ChargeId, string Reason) : IRequest<Resu
 
 public record ApplyLateFeeCommand(Guid ChargeId) : IRequest<Result>;
 
+public record DeleteChargeCommand(Guid ChargeId) : IRequest<Result>;
+
+public record DeleteChargesByCondominiumCommand(
+    Guid CondominiumId,
+    int? Month = null,
+    int? Year = null
+) : IRequest<Result<int>>; // Returns count of deleted charges
+
 // Payments
 public record RecordPaymentCommand(
     Guid ChargeId,
@@ -81,6 +89,10 @@ public record UpdateFeeConfigurationCommand(
 ) : IRequest<Result>;
 
 public record ToggleFeeConfigurationCommand(Guid FeeConfigurationId) : IRequest<Result>;
+
+public record DeleteFeeConfigurationCommand(Guid FeeConfigurationId) : IRequest<Result>;
+
+public record DeleteAllFeeConfigurationsCommand(Guid CondominiumId) : IRequest<Result<int>>;
 
 // Generate monthly charges
 public record GenerateMonthlyChargesCommand(

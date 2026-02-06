@@ -138,14 +138,27 @@ function ResidentDashboard() {
         <Link to="/resident/payments" className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 dark:border-gray-700 transition-all duration-300">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-gray-500 dark:text-gray-400 text-sm font-semibold">Saldo Pendiente</h3>
-            <CreditCardIcon className="h-6 w-6 text-red-500" />
+            <CreditCardIcon className={`h-6 w-6 ${data.overdueAmount > 0 ? 'text-red-500' : 'text-green-500'}`} />
           </div>
           <p className={`text-4xl font-black ${data.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
             ${data.balance.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {data.overdueAmount > 0 ? `Vencido: $${data.overdueAmount.toLocaleString('es-MX')}` : 'Al corriente'}
-          </p>
+          {data.overdueAmount > 0 ? (
+            <div className="flex items-center gap-2 mt-2">
+              <ExclamationTriangleIcon className="h-4 w-4 text-red-500" />
+              <p className="text-sm text-red-500 font-medium">
+                ¡Pago vencido! ${data.overdueAmount.toLocaleString('es-MX')}
+              </p>
+            </div>
+          ) : data.balance > 0 ? (
+            <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-2">
+              Pago pendiente
+            </p>
+          ) : (
+            <p className="text-sm text-green-500 dark:text-green-400 mt-2">
+              ✓ Al corriente
+            </p>
+          )}
         </Link>
 
         <Link to="/resident/reservations" className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 dark:border-gray-700 transition-all duration-300">

@@ -52,10 +52,15 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
     setRegistrationData(prev => ({ ...prev, ...data }))
   }
 
-  const handleNext = () => {
+  const handleNext = (data?: any) => {
     // Si debe saltar la selección de plan, finalizar directamente después del registro
     if (shouldSkipPlan && currentStep === 1) {
-      handleFinish()
+      // Si recibimos datos, usarlos directamente para evitar problemas de sincronización de estado
+      if (data) {
+        handleFinishWithData(data)
+      } else {
+        handleFinish()
+      }
       return
     }
     if (currentStep < steps.length) {
@@ -66,6 +71,56 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+    }
+  }
+
+  // Versión que acepta datos directamente (para evitar problemas de sincronización de estado)
+  const handleFinishWithData = async (adminData: typeof registrationData.admin) => {
+    try {
+      console.log('Enviando datos de registro:', adminData)
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: adminData.email,
+          password: adminData.password,
+          firstName: adminData.firstName,
+          lastName: adminData.lastName,
+          phoneNumber: adminData.phoneNumber,
+          role: 'Admin',
+          selectedPlan: registrationData.selectedPlan
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        const errorMessage = data.message || data.errors?.[0] || 'Error al registrar'
+        throw new Error(errorMessage)
+      }
+
+      console.log('Usuario administrador creado:', data)
+      
+      localStorage.setItem('admin_registration_data', JSON.stringify({
+        admin: adminData,
+        selectedPlan: registrationData.selectedPlan,
+        userId: data.data?.userId || data.userId
+      }))
+      
+      if (data.data?.token || data.token) {
+        localStorage.setItem('auth_token', data.data?.token || data.token)
+      }
+      
+      onClose()
+      
+      setTimeout(() => {
+        navigate('/admin/dashboard')
+      }, 300)
+    } catch (error: any) {
+      console.error('Error al crear usuario administrador:', error)
+      alert(error.message || 'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.')
     }
   }
 

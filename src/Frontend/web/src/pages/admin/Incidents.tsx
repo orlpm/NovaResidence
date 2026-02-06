@@ -110,17 +110,31 @@ export default function Incidents() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate required fields
+    if (!selectedCondominium) {
+      setError('Debes seleccionar un condominio antes de crear una incidencia')
+      return
+    }
+    if (!user?.id) {
+      setError('Error de autenticación. Por favor, inicia sesión de nuevo.')
+      return
+    }
+    
     try {
       await incidentService.create({
         ...formData,
         condominiumId: selectedCondominium,
-        reportedById: user?.id || ''
+        reportedById: user.id
       })
       setShowCreateModal(false)
       resetForm()
       loadIncidents()
       showSuccess('Incidencia creada exitosamente')
-    } catch { setError('Error al crear incidencia') }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.response?.data?.errors?.[0] || 'Error al crear incidencia'
+      setError(errorMessage)
+    }
   }
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -360,7 +374,9 @@ export default function Incidents() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredIncidents.map((incident) => (
+                {filteredIncidents.map((incident, index) => {
+                  const isLastRows = index >= filteredIncidents.length - 2
+                  return (
                   <tr key={incident.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">{incident.title}</div>
@@ -375,7 +391,7 @@ export default function Incidents() {
                       <div className="relative">
                         <button onClick={() => setOpenDropdown(openDropdown === incident.id ? null : incident.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><MoreVertical className="w-5 h-5 text-gray-400" /></button>
                         {openDropdown === incident.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                          <div className={`absolute right-0 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10 ${isLastRows ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
                             <button onClick={() => { loadIncidentDetail(incident.id); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
                             {incident.status === IncidentStatus.Open && <button onClick={() => handleAcknowledge(incident)} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Recibir</button>}
                             {incident.status === IncidentStatus.Acknowledged && <button onClick={() => handleStartProgress(incident)} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Play className="w-4 h-4" /> Iniciar Progreso</button>}
@@ -393,7 +409,7 @@ export default function Incidents() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>

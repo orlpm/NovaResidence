@@ -37,6 +37,8 @@ public class UpdateAmenityCommandHandler : IRequestHandler<UpdateAmenityCommand,
             request.MaxReservationHours,
             request.ReservationFee
         );
+        
+        amenity.SetRequiresReservation(request.RequiresReservation);
 
         await _context.SaveChangesAsync(cancellationToken);
 

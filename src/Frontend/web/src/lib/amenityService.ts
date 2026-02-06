@@ -68,6 +68,10 @@ export interface CreateAmenityResponse {
 export const amenityService = {
   // Get all amenities for a condominium
   async getByCondominium(condominiumId: string): Promise<AmenityListDto[]> {
+    if (!condominiumId) {
+      console.warn('getByCondominium called without condominiumId')
+      return []
+    }
     const response = await apiClient.get<{ data: AmenityListDto[] }>(
       `/amenities/condominium/${condominiumId}`
     )
@@ -76,6 +80,9 @@ export const amenityService = {
 
   // Get amenity by ID
   async getById(id: string): Promise<AmenityDetailDto> {
+    if (!id) {
+      throw new Error('Amenity ID is required')
+    }
     const response = await apiClient.get<{ data: AmenityDetailDto }>(
       `/amenities/${id}`
     )
@@ -84,6 +91,9 @@ export const amenityService = {
 
   // Create a new amenity
   async create(request: CreateAmenityRequest): Promise<CreateAmenityResponse> {
+    if (!request.condominiumId || !request.name) {
+      throw new Error('Condominium ID and name are required')
+    }
     const response = await apiClient.post<{ data: CreateAmenityResponse }>(
       '/amenities',
       request

@@ -1,16 +1,16 @@
 import { apiClient } from './apiClient'
 
-// Enums
+// Enums - Must match backend NovaResidence.Domain.Enums.FeeType
 export enum FeeType {
-  Maintenance = 0,
-  Extraordinary = 1,
-  Penalty = 2,
-  Reserve = 3,
-  Insurance = 4,
-  Utilities = 5,
-  Parking = 6,
-  Amenity = 7,
-  Other = 8
+  MonthlyMaintenance = 0,
+  ExtraordinaryFee = 1,
+  ParkingFee = 2,
+  ReservationFee = 3,
+  LateFee = 4,
+  Fine = 5,
+  Utility = 6,
+  Insurance = 7,
+  Other = 99
 }
 
 export enum ChargeStatus {
@@ -42,14 +42,14 @@ export enum InvoiceStatus {
 
 // Type display names for UI
 export const feeTypeNames: Record<FeeType, string> = {
-  [FeeType.Maintenance]: 'Mantenimiento',
-  [FeeType.Extraordinary]: 'Extraordinaria',
-  [FeeType.Penalty]: 'Penalización',
-  [FeeType.Reserve]: 'Fondo de Reserva',
+  [FeeType.MonthlyMaintenance]: 'Mantenimiento Mensual',
+  [FeeType.ExtraordinaryFee]: 'Cuota Extraordinaria',
+  [FeeType.ParkingFee]: 'Estacionamiento',
+  [FeeType.ReservationFee]: 'Reservación',
+  [FeeType.LateFee]: 'Recargo por Mora',
+  [FeeType.Fine]: 'Penalización/Multa',
+  [FeeType.Utility]: 'Servicios',
   [FeeType.Insurance]: 'Seguro',
-  [FeeType.Utilities]: 'Servicios',
-  [FeeType.Parking]: 'Estacionamiento',
-  [FeeType.Amenity]: 'Amenidad',
   [FeeType.Other]: 'Otro'
 }
 
@@ -97,7 +97,9 @@ export interface PaymentDto {
 
 export interface ChargeListDto {
   id: string
+  unitId: string
   unitNumber: string
+  buildingName: string
   concept: string
   feeType: FeeType
   feeTypeName: string
@@ -106,8 +108,11 @@ export interface ChargeListDto {
   balance: number
   status: ChargeStatus
   statusName: string
+  isOverdue: boolean
   dueDate: string
-  billingPeriod: string
+  billingPeriodMonth: number
+  billingPeriodYear: number
+  createdAt: string
 }
 
 export interface ChargeDetailDto extends ChargeListDto {
@@ -330,6 +335,27 @@ export const billingService = {
     await apiClient.post(`/billing/charges/${id}/forgive`, request)
   },
 
+  // Delete a single charge
+  async deleteCharge(id: string): Promise<void> {
+    await apiClient.delete(`/billing/charges/${id}`)
+  },
+
+  // Delete multiple charges by condominium (optionally filtered by month/year)
+  async deleteChargesByCondominium(
+    condominiumId: string,
+    filters?: { month?: number; year?: number }
+  ): Promise<number> {
+    const params = new URLSearchParams()
+    if (filters?.month !== undefined) params.append('month', filters.month.toString())
+    if (filters?.year !== undefined) params.append('year', filters.year.toString())
+
+    const query = params.toString() ? `?${params.toString()}` : ''
+    const response = await apiClient.delete<number>(
+      `/billing/charges/condominium/${condominiumId}${query}`
+    )
+    return response.data
+  },
+
   // Apply late fee to a charge
   async applyLateFee(id: string): Promise<void> {
     await apiClient.post(`/billing/charges/${id}/apply-late-fee`)
@@ -408,6 +434,19 @@ export const billingService = {
   // Toggle fee configuration active status
   async toggleFeeConfiguration(id: string): Promise<void> {
     await apiClient.post(`/billing/fee-configurations/${id}/toggle`)
+  },
+
+  // Delete a fee configuration
+  async deleteFeeConfiguration(id: string): Promise<void> {
+    await apiClient.delete(`/billing/fee-configurations/${id}`)
+  },
+
+  // Delete all fee configurations for a condominium
+  async deleteAllFeeConfigurations(condominiumId: string): Promise<number> {
+    const response = await apiClient.delete<number>(
+      `/billing/fee-configurations/condominium/${condominiumId}`
+    )
+    return response.data
   },
 
   // Generate monthly charges

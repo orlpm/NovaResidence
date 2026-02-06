@@ -58,7 +58,8 @@ public class CreateCondominiumCommandHandler : IRequestHandler<CreateCondominium
                     condominiumId: condominium.Id,
                     name: buildingDto.Name,
                     totalFloors: buildingDto.TotalFloors,
-                    description: buildingDto.Section
+                    description: buildingDto.Section,
+                    startsAtGroundFloor: buildingDto.StartsAtGroundFloor
                 );
 
                 // Add units to building

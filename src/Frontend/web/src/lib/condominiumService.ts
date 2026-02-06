@@ -20,6 +20,7 @@ export interface BuildingRequest {
   type?: string
   section?: string
   totalFloors: number
+  startsAtGroundFloor?: boolean
   units: UnitRequest[]
 }
 
@@ -62,6 +63,9 @@ export interface UnitDto {
   area?: number
   bedrooms?: number
   bathrooms?: number
+  hasOwner?: boolean
+  hasRegisteredResident?: boolean
+  totalResidents?: number
 }
 
 export interface BuildingDto {
@@ -69,6 +73,7 @@ export interface BuildingDto {
   name: string
   description?: string
   totalFloors: number
+  startsAtGroundFloor: boolean
   totalUnits: number
   units: UnitDto[]
 }
@@ -142,6 +147,7 @@ export function transformWizardDataToRequest(
       totalFloors: building.type === 'vertical' 
         ? Math.max(...building.units.map(u => u.floor || 1), 1)
         : 1,
+      startsAtGroundFloor: building.startsAtGroundFloor || false,
       units: building.units.map((unit) => ({
         unitNumber: unit.number,
         floor: unit.floor || 1,
@@ -256,12 +262,13 @@ class CondominiumService {
 
   // --- Building Management ---
 
-  async addBuilding(condominiumId: string, data: { name: string; totalFloors: number; description?: string }): Promise<void> {
+  async addBuilding(condominiumId: string, data: { name: string; totalFloors: number; description?: string; startsAtGroundFloor?: boolean }): Promise<void> {
     await apiClient.post(`/buildings`, {
       condominiumId,
       name: data.name,
       totalFloors: data.totalFloors,
-      description: data.description
+      description: data.description,
+      startsAtGroundFloor: data.startsAtGroundFloor ?? false
     })
   }
 

@@ -23,6 +23,7 @@ public record CreateBuildingDto(
     string Type, // "vertical" or "horizontal"
     string? Section,
     int TotalFloors,
+    bool StartsAtGroundFloor,
     List<CreateUnitDto> Units
 );
 

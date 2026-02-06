@@ -15,7 +15,8 @@ import {
   FileText,
   Calendar,
   TrendingUp,
-  Edit2
+  Edit2,
+  Trash2
 } from 'lucide-react'
 import { 
   billingService, 
@@ -68,6 +69,11 @@ export default function Billing() {
   const [showEditConfigModal, setShowEditConfigModal] = useState(false)
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [showBulkCancelModal, setShowBulkCancelModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
+  const [showDeleteConfigModal, setShowDeleteConfigModal] = useState(false)
+  const [showDeleteAllConfigsModal, setShowDeleteAllConfigsModal] = useState(false)
   const [selectedCharge, setSelectedCharge] = useState<ChargeListDto | null>(null)
   const [selectedConfig, setSelectedConfig] = useState<FeeConfigurationDto | null>(null)
   const [selectedCharges, setSelectedCharges] = useState<Set<string>>(new Set())
@@ -75,7 +81,7 @@ export default function Billing() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const [chargeForm, setChargeForm] = useState<Partial<CreateChargeRequest>>({
-    feeType: FeeType.Maintenance,
+    feeType: FeeType.MonthlyMaintenance,
     amount: 0,
     applyLateFee: true
   })
@@ -86,7 +92,7 @@ export default function Billing() {
   })
 
   const [configForm, setConfigForm] = useState<Partial<CreateFeeConfigurationRequest>>({
-    feeType: FeeType.Maintenance,
+    feeType: FeeType.MonthlyMaintenance,
     defaultAmount: 0,
     isRecurring: true,
     recurringDay: 1,
@@ -276,6 +282,42 @@ export default function Billing() {
     } catch { setError('Error al cancelar cargos') }
   }
 
+  const handleDeleteCharge = async () => {
+    if (!selectedCharge) return
+    try {
+      await billingService.deleteCharge(selectedCharge.id)
+      setShowDeleteModal(false)
+      setSelectedCharge(null)
+      loadData()
+      showSuccess('Cargo eliminado exitosamente')
+    } catch { setError('Error al eliminar cargo') }
+  }
+
+  const handleBulkDelete = async () => {
+    try {
+      const promises = Array.from(selectedCharges).map(chargeId => 
+        billingService.deleteCharge(chargeId)
+      )
+      await Promise.all(promises)
+      setShowBulkDeleteModal(false)
+      setSelectedCharges(new Set())
+      loadData()
+      showSuccess(`${promises.length} cargos eliminados exitosamente`)
+    } catch { setError('Error al eliminar cargos') }
+  }
+
+  const handleDeleteAllCharges = async () => {
+    try {
+      const count = await billingService.deleteChargesByCondominium(selectedCondominium, {
+        month: selectedMonth,
+        year: selectedYear
+      })
+      setShowDeleteAllModal(false)
+      loadData()
+      showSuccess(`${count} cargos eliminados exitosamente`)
+    } catch { setError('Error al eliminar cargos') }
+  }
+
   const handleForgiveCharge = async () => {
     if (!selectedCharge) return
     try {
@@ -339,6 +381,26 @@ export default function Billing() {
     } catch { setError('Error al actualizar configuración') }
   }
 
+  const handleDeleteConfig = async () => {
+    if (!selectedConfig) return
+    try {
+      await billingService.deleteFeeConfiguration(selectedConfig.id)
+      setShowDeleteConfigModal(false)
+      setSelectedConfig(null)
+      loadData()
+      showSuccess('Configuración eliminada exitosamente')
+    } catch { setError('Error al eliminar configuración') }
+  }
+
+  const handleDeleteAllConfigs = async () => {
+    try {
+      const count = await billingService.deleteAllFeeConfigurations(selectedCondominium)
+      setShowDeleteAllConfigsModal(false)
+      loadData()
+      showSuccess(`${count} configuraciones eliminadas exitosamente`)
+    } catch { setError('Error al eliminar configuraciones') }
+  }
+
   const handleGenerateMonthly = async () => {
     try {
       // First check if there are any active recurring configs
@@ -376,9 +438,9 @@ export default function Billing() {
     }
   }
 
-  const resetChargeForm = () => setChargeForm({ feeType: FeeType.Maintenance, amount: 0, applyLateFee: true })
+  const resetChargeForm = () => setChargeForm({ feeType: FeeType.MonthlyMaintenance, amount: 0, applyLateFee: true })
   const resetPaymentForm = () => setPaymentForm({ amount: 0, paymentMethod: PaymentMethod.BankTransfer })
-  const resetConfigForm = () => setConfigForm({ feeType: FeeType.Maintenance, defaultAmount: 0, isRecurring: true, recurringDay: 1, dueDayOffset: 10, applyLateFee: true, lateFeePercentage: 5, gracePeriodDays: 5 })
+  const resetConfigForm = () => setConfigForm({ feeType: FeeType.MonthlyMaintenance, defaultAmount: 0, isRecurring: true, recurringDay: 1, dueDayOffset: 10, applyLateFee: true, lateFeePercentage: 5, gracePeriodDays: 5 })
 
   const showSuccess = (message: string) => {
     setSuccessMessage(message)
@@ -429,10 +491,18 @@ export default function Billing() {
           {activeTab === 'charges' && (
             <>
               {selectedCharges.size > 0 && (
-                <button onClick={() => setShowBulkCancelModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all">
-                  <Ban className="w-5 h-5" /> Cancelar ({selectedCharges.size})
-                </button>
+                <>
+                  <button onClick={() => setShowBulkDeleteModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-all">
+                    <Trash2 className="w-5 h-5" /> Eliminar ({selectedCharges.size})
+                  </button>
+                  <button onClick={() => setShowBulkCancelModal(true)} className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-all">
+                    <Ban className="w-5 h-5" /> Cancelar ({selectedCharges.size})
+                  </button>
+                </>
               )}
+              <button onClick={() => setShowDeleteAllModal(true)} disabled={!selectedCondominium || charges.length === 0} className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <Trash2 className="w-5 h-5" /> Eliminar Todos
+              </button>
               <button onClick={() => setShowGenerateModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                 <Calendar className="w-5 h-5" /> Generar Mensuales
               </button>
@@ -442,9 +512,14 @@ export default function Billing() {
             </>
           )}
           {activeTab === 'config' && (
-            <button onClick={() => setShowCreateConfigModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-              <Plus className="w-5 h-5" /> Nueva Configuración
-            </button>
+            <>
+              <button onClick={() => setShowDeleteAllConfigsModal(true)} disabled={!selectedCondominium || feeConfigs.length === 0} className="inline-flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <Trash2 className="w-5 h-5" /> Eliminar Todas
+              </button>
+              <button onClick={() => setShowCreateConfigModal(true)} disabled={!selectedCondominium} className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <Plus className="w-5 h-5" /> Nueva Configuración
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -554,7 +629,7 @@ export default function Billing() {
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {filteredCharges.map((charge) => (
-                            <tr key={charge.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <tr key={charge.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/50 ${charge.isOverdue ? 'bg-red-50 dark:bg-red-900/10' : ''}`}>
                               <td className="px-4 py-3">
                                 <input 
                                   type="checkbox" 
@@ -569,23 +644,31 @@ export default function Billing() {
                               <td className="px-4 py-3 text-sm text-gray-900 dark:text-white text-right">{formatCurrency(charge.amount)}</td>
                               <td className="px-4 py-3 text-sm text-green-600 dark:text-green-400 text-right">{formatCurrency(charge.paidAmount)}</td>
                               <td className="px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 text-right">{formatCurrency(charge.balance)}</td>
-                              <td className="px-4 py-3"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(charge.status)}`}>{charge.statusName}</span></td>
-                              <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{new Date(charge.dueDate).toLocaleDateString()}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-1">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(charge.status)}`}>{charge.statusName}</span>
+                                  {charge.isOverdue && <span title="Vencido"><AlertCircle className="w-4 h-4 text-red-500" /></span>}
+                                </div>
+                              </td>
+                              <td className={`px-4 py-3 text-sm ${charge.isOverdue ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-600 dark:text-gray-300'}`}>
+                                {new Date(charge.dueDate).toLocaleDateString()}
+                              </td>
                               <td className="px-4 py-3 text-right">
                                 <div className="relative">
                                   <button onClick={() => setOpenDropdown(openDropdown === charge.id ? null : charge.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><MoreVertical className="w-5 h-5 text-gray-400" /></button>
                                   {openDropdown === charge.id && (
                                     <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
                                       <button onClick={() => { loadChargeDetail(charge.id); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
-                                      {(charge.status === ChargeStatus.Pending || charge.status === ChargeStatus.PartiallyPaid || charge.status === ChargeStatus.Overdue) && (
+                                      {(charge.status === ChargeStatus.Pending || charge.status === ChargeStatus.PartiallyPaid || charge.status === ChargeStatus.Overdue || charge.isOverdue) && (
                                         <button onClick={() => openPaymentModal(charge)} className="w-full px-4 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Registrar Pago</button>
                                       )}
-                                      {charge.status === ChargeStatus.Pending && (
+                                      {(charge.status === ChargeStatus.Pending || charge.isOverdue) && (
                                         <>
                                           <button onClick={() => { setSelectedCharge(charge); setShowCancelModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Ban className="w-4 h-4" /> Cancelar</button>
                                           <button onClick={() => { setSelectedCharge(charge); setShowForgiveModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-purple-600 dark:text-purple-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Gift className="w-4 h-4" /> Condonar</button>
                                         </>
                                       )}
+                                      <button onClick={() => { setSelectedCharge(charge); setShowDeleteModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Eliminar</button>
                                     </div>
                                   )}
                                 </div>
@@ -678,6 +761,9 @@ export default function Billing() {
                             <div className="flex gap-2">
                               <button onClick={() => handleEditConfig(config)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Editar">
                                 <Edit2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                              </button>
+                              <button onClick={() => { setSelectedConfig(config); setShowDeleteConfigModal(true); }} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Eliminar">
+                                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
                               </button>
                               <button onClick={() => handleToggleConfig(config.id)} className={`px-3 py-1 text-xs font-medium rounded-full ${config.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
                                 {config.isActive ? 'Activo' : 'Inactivo'}
@@ -1036,7 +1122,7 @@ export default function Billing() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div><p className="text-sm text-gray-500">Unidad</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.unitNumber}</p></div>
                 <div><p className="text-sm text-gray-500">Tipo</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.feeTypeName}</p></div>
-                <div><p className="text-sm text-gray-500">Período</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.billingPeriod}</p></div>
+                <div><p className="text-sm text-gray-500">Período</p><p className="font-medium text-gray-900 dark:text-white">{chargeDetail.billingPeriodMonth}/{chargeDetail.billingPeriodYear}</p></div>
                 <div><p className="text-sm text-gray-500">Monto</p><p className="font-medium text-gray-900 dark:text-white">{formatCurrency(chargeDetail.amount)}</p></div>
                 <div><p className="text-sm text-gray-500">Pagado</p><p className="font-medium text-green-600">{formatCurrency(chargeDetail.paidAmount)}</p></div>
                 <div><p className="text-sm text-gray-500">Saldo</p><p className="font-medium text-red-600">{formatCurrency(chargeDetail.balance)}</p></div>
@@ -1061,6 +1147,126 @@ export default function Billing() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Single Charge Modal */}
+      {showDeleteModal && selectedCharge && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Eliminar Cargo</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+                <p className="text-red-700 dark:text-red-300">Esta acción no se puede deshacer.</p>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                ¿Estás seguro de que deseas eliminar el cargo <span className="font-semibold">"{selectedCharge.concept}"</span> de la unidad <span className="font-semibold">{selectedCharge.unitNumber}</span>?
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => { setShowDeleteModal(false); setSelectedCharge(null); }} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
+                <button onClick={handleDeleteCharge} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Modal */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Eliminar Cargos Seleccionados</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+                <p className="text-red-700 dark:text-red-300">Esta acción no se puede deshacer.</p>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                ¿Estás seguro de que deseas eliminar <span className="font-semibold">{selectedCharges.size} cargos</span> seleccionados?
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setShowBulkDeleteModal(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
+                <button onClick={handleBulkDelete} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Eliminar Todos</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Charges Modal */}
+      {showDeleteAllModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Eliminar Todos los Cargos</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+                <p className="text-red-700 dark:text-red-300">¡Advertencia! Esta acción es irreversible.</p>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                ¿Estás seguro de que deseas eliminar <span className="font-semibold">todos los cargos ({charges.length})</span> del período <span className="font-semibold">{new Date(2000, selectedMonth - 1).toLocaleString('es', { month: 'long' })} {selectedYear}</span>?
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setShowDeleteAllModal(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
+                <button onClick={handleDeleteAllCharges} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Eliminar Todos</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Single Config Modal */}
+      {showDeleteConfigModal && selectedConfig && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Eliminar Configuración</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+                <p className="text-red-700 dark:text-red-300">Esta acción no se puede deshacer.</p>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                ¿Estás seguro de que deseas eliminar la configuración <span className="font-semibold">"{selectedConfig.name}"</span>?
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => { setShowDeleteConfigModal(false); setSelectedConfig(null); }} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
+                <button onClick={handleDeleteConfig} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Configs Modal */}
+      {showDeleteAllConfigsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Eliminar Todas las Configuraciones</h2>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-red-500" />
+                <p className="text-red-700 dark:text-red-300">¡Advertencia! Esta acción es irreversible.</p>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300">
+                ¿Estás seguro de que deseas eliminar <span className="font-semibold">todas las configuraciones ({feeConfigs.length})</span> de este condominio?
+              </p>
+              <div className="flex gap-3 pt-4">
+                <button onClick={() => setShowDeleteAllConfigsModal(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancelar</button>
+                <button onClick={handleDeleteAllConfigs} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Eliminar Todas</button>
+              </div>
             </div>
           </div>
         </div>

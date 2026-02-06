@@ -4,18 +4,22 @@ import { apiClient } from './apiClient'
 export enum ReservationStatus {
   Pending = 0,
   Confirmed = 1,
-  Cancelled = 2,
-  NoShow = 3,
-  Completed = 4
+  InProgress = 2,
+  Rejected = 3,
+  Cancelled = 4,
+  Completed = 5,
+  NoShow = 6
 }
 
 // Type display names for UI
 export const reservationStatusNames: Record<ReservationStatus, string> = {
   [ReservationStatus.Pending]: 'Pendiente',
   [ReservationStatus.Confirmed]: 'Confirmada',
+  [ReservationStatus.InProgress]: 'En progreso',
+  [ReservationStatus.Rejected]: 'Rechazada',
   [ReservationStatus.Cancelled]: 'Cancelada',
-  [ReservationStatus.NoShow]: 'No Presentado',
-  [ReservationStatus.Completed]: 'Completada'
+  [ReservationStatus.Completed]: 'Completada',
+  [ReservationStatus.NoShow]: 'No Presentado'
 }
 
 // DTOs
@@ -59,6 +63,15 @@ export interface CreateReservationRequest {
 }
 
 export interface CancelReservationRequest {
+  reason: string
+}
+
+export interface ApproveReservationRequest {
+  approvedByUserId: string
+}
+
+export interface RejectReservationRequest {
+  rejectedByUserId: string
   reason: string
 }
 
@@ -120,6 +133,16 @@ export const reservationService = {
   // Cancel a reservation
   async cancel(id: string, request: CancelReservationRequest): Promise<void> {
     await apiClient.post(`/reservations/${id}/cancel`, request)
+  },
+
+  // Approve a reservation
+  async approve(id: string, request: ApproveReservationRequest): Promise<void> {
+    await apiClient.post(`/reservations/${id}/approve`, request)
+  },
+
+  // Reject a reservation
+  async reject(id: string, request: RejectReservationRequest): Promise<void> {
+    await apiClient.post(`/reservations/${id}/reject`, request)
   },
 
   // Delete a reservation

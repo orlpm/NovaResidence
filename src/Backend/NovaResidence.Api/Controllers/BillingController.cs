@@ -164,6 +164,33 @@ public class BillingController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("charges/{id:guid}")]
+    public async Task<ActionResult> DeleteCharge(Guid id)
+    {
+        var result = await _mediator.Send(new DeleteChargeCommand(id));
+        
+        if (!result.IsSuccess)
+            return result.Status == ResultStatus.NotFound 
+                ? NotFound(result.Errors) 
+                : BadRequest(result.Errors);
+        
+        return NoContent();
+    }
+
+    [HttpDelete("charges/condominium/{condominiumId:guid}")]
+    public async Task<ActionResult<int>> DeleteChargesByCondominium(
+        Guid condominiumId,
+        [FromQuery] int? month = null,
+        [FromQuery] int? year = null)
+    {
+        var result = await _mediator.Send(new DeleteChargesByCondominiumCommand(condominiumId, month, year));
+        
+        if (!result.IsSuccess)
+            return BadRequest(result.Errors);
+        
+        return Ok(result.Value);
+    }
+
     #endregion
 
     #region Payments
@@ -335,6 +362,30 @@ public class BillingController : ControllerBase
                 : BadRequest(result.Errors);
         
         return NoContent();
+    }
+
+    [HttpDelete("fee-configurations/{id:guid}")]
+    public async Task<ActionResult> DeleteFeeConfiguration(Guid id)
+    {
+        var result = await _mediator.Send(new DeleteFeeConfigurationCommand(id));
+        
+        if (!result.IsSuccess)
+            return result.Status == ResultStatus.NotFound 
+                ? NotFound(result.Errors) 
+                : BadRequest(result.Errors);
+        
+        return NoContent();
+    }
+
+    [HttpDelete("fee-configurations/condominium/{condominiumId:guid}")]
+    public async Task<ActionResult<int>> DeleteAllFeeConfigurations(Guid condominiumId)
+    {
+        var result = await _mediator.Send(new DeleteAllFeeConfigurationsCommand(condominiumId));
+        
+        if (!result.IsSuccess)
+            return BadRequest(result.Errors);
+        
+        return Ok(result.Value);
     }
 
     [HttpPost("generate-monthly")]

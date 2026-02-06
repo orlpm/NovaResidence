@@ -7,6 +7,7 @@ interface Building {
   type: 'vertical' | 'horizontal'
   section?: string
   numberOfUnits: number
+  startsAtGroundFloor?: boolean
   units: Array<{
     number: string
     floor?: number
@@ -41,7 +42,8 @@ export default function UnitsSetupStep({
     type: (buildingTypes.vertical ? 'vertical' : 'horizontal') as 'vertical' | 'horizontal',
     section: sections.length > 0 ? sections[0] : '',
     numberOfUnits: 10,
-    floorsForVertical: 5
+    floorsForVertical: 5,
+    startsAtGroundFloor: false
   })
 
   const addBuilding = () => {
@@ -56,8 +58,10 @@ export default function UnitsSetupStep({
       // Generate units for vertical building
       const unitsPerFloor = Math.ceil(newBuilding.numberOfUnits / newBuilding.floorsForVertical)
       let unitCounter = 1
+      const startFloor = newBuilding.startsAtGroundFloor ? 0 : 1
+      const endFloor = newBuilding.startsAtGroundFloor ? newBuilding.floorsForVertical - 1 : newBuilding.floorsForVertical
       
-      for (let floor = 1; floor <= newBuilding.floorsForVertical; floor++) {
+      for (let floor = startFloor; floor <= endFloor; floor++) {
         for (let u = 1; u <= unitsPerFloor && unitCounter <= newBuilding.numberOfUnits; u++) {
           units.push({
             number: `${floor}${u.toString().padStart(2, '0')}`,
@@ -83,6 +87,7 @@ export default function UnitsSetupStep({
       type: newBuilding.type,
       section: sections.length > 0 ? newBuilding.section : undefined,
       numberOfUnits: newBuilding.numberOfUnits,
+      startsAtGroundFloor: newBuilding.startsAtGroundFloor,
       units
     }
 
@@ -93,7 +98,8 @@ export default function UnitsSetupStep({
       type: buildingTypes.vertical ? 'vertical' : 'horizontal',
       section: sections.length > 0 ? sections[0] : '',
       numberOfUnits: 10,
-      floorsForVertical: 5
+      floorsForVertical: 5,
+      startsAtGroundFloor: false
     })
   }
 
@@ -287,6 +293,26 @@ export default function UnitsSetupStep({
               </div>
             )}
           </div>
+
+          {newBuilding.type === 'vertical' && (
+            <div className="flex items-start gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+              <input
+                type="checkbox"
+                id="startsAtGroundFloor"
+                checked={newBuilding.startsAtGroundFloor}
+                onChange={(e) => setNewBuilding({ ...newBuilding, startsAtGroundFloor: e.target.checked })}
+                className="mt-0.5 w-4 h-4 text-sky-600 border-gray-300 rounded focus:ring-sky-500"
+              />
+              <div>
+                <label htmlFor="startsAtGroundFloor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                  Incluye Planta Baja (PB)
+                </label>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Activa si la numeración empieza en 0 (ej: 001, 002..., 101, 102...)
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button

@@ -5,6 +5,8 @@ using NovaResidence.Domain.Entities.Authentication;
 using NovaResidence.Domain.Entities.Condominiums;
 using NovaResidence.Domain.Entities.Incidents;
 using NovaResidence.Domain.Entities.Billing;
+using NovaResidence.Domain.Entities.Communications;
+using NovaResidence.Domain.Entities.Notifications;
 using System.Reflection;
 
 // Aliases for disambiguation
@@ -26,6 +28,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
 
     // Authentication Module
     public DbSet<User> Users => Set<User>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
+    public DbSet<CondominiumRolePermission> CondominiumRolePermissions => Set<CondominiumRolePermission>();
 
     // Condominium Module
     public DbSet<Condominium> Condominiums => Set<Condominium>();
@@ -47,6 +53,22 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BillingPayment> Payments => Set<BillingPayment>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<FeeConfiguration> FeeConfigurations => Set<FeeConfiguration>();
+    
+    // Communications Module
+    public DbSet<Announcement> Announcements => Set<Announcement>();
+    public DbSet<AnnouncementAttachment> AnnouncementAttachments => Set<AnnouncementAttachment>();
+    public DbSet<AnnouncementRecipient> AnnouncementRecipients => Set<AnnouncementRecipient>();
+    public DbSet<Poll> Polls => Set<Poll>();
+    public DbSet<PollOption> PollOptions => Set<PollOption>();
+    public DbSet<PollVote> PollVotes => Set<PollVote>();
+    public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<MeetingAttendee> MeetingAttendees => Set<MeetingAttendee>();
+    public DbSet<ForumPost> ForumPosts => Set<ForumPost>();
+    public DbSet<ForumComment> ForumComments => Set<ForumComment>();
+    public DbSet<ForumPostAttachment> ForumPostAttachments => Set<ForumPostAttachment>();
+    
+    // Notifications Module
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -76,6 +98,19 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<BillingPayment>().HasQueryFilter(p => !p.IsDeleted);
         modelBuilder.Entity<Invoice>().HasQueryFilter(i => !i.IsDeleted);
         modelBuilder.Entity<FeeConfiguration>().HasQueryFilter(fc => !fc.IsDeleted);
+        
+        // Communications query filters
+        modelBuilder.Entity<Announcement>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<AnnouncementAttachment>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<AnnouncementRecipient>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<Poll>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<PollOption>().HasQueryFilter(o => !o.IsDeleted);
+        modelBuilder.Entity<PollVote>().HasQueryFilter(v => !v.IsDeleted);
+        modelBuilder.Entity<Meeting>().HasQueryFilter(m => !m.IsDeleted);
+        modelBuilder.Entity<MeetingAttendee>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<ForumPost>().HasQueryFilter(f => !f.IsDeleted);
+        modelBuilder.Entity<ForumComment>().HasQueryFilter(c => !c.IsDeleted);
+        modelBuilder.Entity<ForumPostAttachment>().HasQueryFilter(a => !a.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

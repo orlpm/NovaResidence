@@ -48,6 +48,7 @@ export interface OnboardingData {
     type: 'vertical' | 'horizontal'
     section?: string
     numberOfUnits: number
+    startsAtGroundFloor?: boolean
     units: Array<{
       number: string
       floor?: number

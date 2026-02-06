@@ -16,6 +16,9 @@ interface UnitWithCondo {
   buildingId: string
   condominiumId: string
   condominiumName: string
+  hasOwner?: boolean
+  hasRegisteredResident?: boolean
+  totalResidents?: number
 }
 
 function Units() {
@@ -252,6 +255,33 @@ function Units() {
         </div>
       </div>
 
+      {/* Leyenda de colores */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Leyenda:</p>
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600"></div>
+            <span className="text-gray-600 dark:text-gray-400">Sin residentes</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700"></div>
+            <span className="text-gray-600 dark:text-gray-400">Pendiente de registro</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700"></div>
+            <span className="text-gray-600 dark:text-gray-400">Con propietario</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700"></div>
+            <span className="text-gray-600 dark:text-gray-400">Registrado</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded bg-teal-100 dark:bg-teal-900/30 border border-teal-300 dark:border-teal-700"></div>
+            <span className="text-gray-600 dark:text-gray-400">Propietario + Registrado</span>
+          </div>
+        </div>
+      </div>
+
       {/* Units by Condominium */}
       {Object.keys(unitsByCondo).length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
@@ -297,22 +327,66 @@ function Units() {
                       if (a.floor !== b.floor) return a.floor - b.floor
                       return a.unitNumber.localeCompare(b.unitNumber, undefined, { numeric: true })
                     })
-                    .map(unit => (
-                      <div
-                        key={unit.id}
-                        className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all cursor-pointer"
-                        onClick={() => openUnitDetails(unit)}
-                      >
-                        <div className="text-center">
-                          <div className="text-xl font-bold text-gray-900 dark:text-white">{unit.unitNumber}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{unit.buildingName}</div>
-                          <div className="text-xs text-gray-400 dark:text-gray-500">Piso {unit.floor}</div>
-                          {unit.area && (
-                            <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{unit.area} m²</div>
-                          )}
+                    .map(unit => {
+                      // Determinar colores según estado de residentes
+                      const hasOwner = unit.hasOwner
+                      const hasRegistered = unit.hasRegisteredResident
+                      const hasResidents = (unit.totalResidents ?? 0) > 0
+                      
+                      let bgColor = 'bg-gray-50 dark:bg-gray-700'
+                      let borderColor = 'border-gray-200 dark:border-gray-600'
+                      let hoverBorder = 'hover:border-gray-300 dark:hover:border-gray-500'
+                      
+                      if (hasOwner && hasRegistered) {
+                        // Tiene propietario Y está registrado - azul + verde = teal
+                        bgColor = 'bg-teal-50 dark:bg-teal-900/30'
+                        borderColor = 'border-teal-300 dark:border-teal-700'
+                        hoverBorder = 'hover:border-teal-400 dark:hover:border-teal-500'
+                      } else if (hasOwner) {
+                        // Solo tiene propietario - azul
+                        bgColor = 'bg-blue-50 dark:bg-blue-900/30'
+                        borderColor = 'border-blue-300 dark:border-blue-700'
+                        hoverBorder = 'hover:border-blue-400 dark:hover:border-blue-500'
+                      } else if (hasRegistered) {
+                        // Solo tiene residente registrado (no propietario) - verde
+                        bgColor = 'bg-green-50 dark:bg-green-900/30'
+                        borderColor = 'border-green-300 dark:border-green-700'
+                        hoverBorder = 'hover:border-green-400 dark:hover:border-green-500'
+                      } else if (hasResidents) {
+                        // Tiene residentes pero no registrados - amarillo/pendiente
+                        bgColor = 'bg-yellow-50 dark:bg-yellow-900/30'
+                        borderColor = 'border-yellow-300 dark:border-yellow-700'
+                        hoverBorder = 'hover:border-yellow-400 dark:hover:border-yellow-500'
+                      }
+                      
+                      return (
+                        <div
+                          key={unit.id}
+                          className={`${bgColor} border ${borderColor} rounded-lg p-4 hover:shadow-md ${hoverBorder} transition-all cursor-pointer`}
+                          onClick={() => openUnitDetails(unit)}
+                        >
+                          <div className="text-center">
+                            <div className="text-xl font-bold text-gray-900 dark:text-white">{unit.unitNumber}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{unit.buildingName}</div>
+                            <div className="text-xs text-gray-400 dark:text-gray-500">Piso {unit.floor}</div>
+                            {unit.area && (
+                              <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">{unit.area} m²</div>
+                            )}
+                            {/* Indicador de residentes */}
+                            {hasResidents && (
+                              <div className="mt-2 flex justify-center gap-1">
+                                {hasOwner && (
+                                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500" title="Propietario"></span>
+                                )}
+                                {hasRegistered && (
+                                  <span className="inline-block w-2 h-2 rounded-full bg-green-500" title="Registrado"></span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                 </div>
               </div>
             </div>

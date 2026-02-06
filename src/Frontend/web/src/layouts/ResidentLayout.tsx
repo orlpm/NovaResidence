@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -6,17 +6,20 @@ import {
   CreditCard,
   Calendar,
   AlertCircle,
+  MessageSquare,
   Menu,
   X,
   LogOut,
   Settings,
-  Bell,
   Sun,
   Moon,
   Building2
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
+import { NotificationBell } from '../components/NotificationBell'
+import { residentService } from '../lib/residentService'
+import { condominiumService } from '../lib/condominiumService'
 
 const navigation = [
   { name: 'Dashboard', href: '/resident', icon: LayoutDashboard },
@@ -24,14 +27,56 @@ const navigation = [
   { name: 'Pagos', href: '/resident/payments', icon: CreditCard },
   { name: 'Reservaciones', href: '/resident/reservations', icon: Calendar },
   { name: 'Incidencias', href: '/resident/incidents', icon: AlertCircle },
+  { name: 'Comunicación', href: '/resident/communications', icon: MessageSquare },
 ]
 
 function ResidentLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [selectedCondominiumId, setSelectedCondominiumId] = useState<string | null>(null)
   const { user, logout } = useAuthStore()
   const { effectiveTheme, setTheme } = useTheme()
   const navigate = useNavigate()
+
+  // Get the condominium ID for the resident
+  useEffect(() => {
+    const fetchCondominiumId = async () => {
+      try {
+        // First, try to get from user object directly
+        if (user?.condominiumId) {
+          setSelectedCondominiumId(user.condominiumId)
+          return
+        }
+        
+        if (user?.id) {
+          // Try to get resident info which includes condominiumId from their unit
+          try {
+            const residentInfo = await residentService.getResidentInfo(user.id)
+            if (residentInfo?.condominiumId) {
+              setSelectedCondominiumId(residentInfo.condominiumId)
+              return
+            }
+          } catch {
+            // Resident info not found, try fallback
+          }
+          
+          // Fallback: get user's condominiums
+          try {
+            const condos = await condominiumService.getUserCondominiums(user.id)
+            if (condos.length > 0) {
+              setSelectedCondominiumId(condos[0].id)
+              return
+            }
+          } catch {
+            // No condominiums found
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching condominium:', error)
+      }
+    }
+    fetchCondominiumId()
+  }, [user])
 
   const handleLogout = () => {
     logout()
@@ -187,10 +232,12 @@ function ResidentLayout() {
                 )}
               </button>
 
-              <button className="relative p-2 text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition-colors">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
+              {selectedCondominiumId && (
+                <NotificationBell 
+                  condominiumId={selectedCondominiumId} 
+                  isAdmin={false} 
+                />
+              )}
 
               <div className="relative">
                 <button
