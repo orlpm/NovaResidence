@@ -53,6 +53,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BillingPayment> Payments => Set<BillingPayment>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<FeeConfiguration> FeeConfigurations => Set<FeeConfiguration>();
+    public DbSet<PaymentProof> PaymentProofs => Set<PaymentProof>();
     
     // Communications Module
     public DbSet<Announcement> Announcements => Set<Announcement>();
@@ -98,6 +99,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<BillingPayment>().HasQueryFilter(p => !p.IsDeleted);
         modelBuilder.Entity<Invoice>().HasQueryFilter(i => !i.IsDeleted);
         modelBuilder.Entity<FeeConfiguration>().HasQueryFilter(fc => !fc.IsDeleted);
+        modelBuilder.Entity<PaymentProof>().HasQueryFilter(pp => !pp.IsDeleted);
         
         // Communications query filters
         modelBuilder.Entity<Announcement>().HasQueryFilter(a => !a.IsDeleted);

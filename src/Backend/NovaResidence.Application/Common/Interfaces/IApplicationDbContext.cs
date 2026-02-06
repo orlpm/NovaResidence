@@ -36,6 +36,7 @@ public interface IApplicationDbContext
     DbSet<Domain.Entities.Billing.Payment> Payments { get; }
     DbSet<Domain.Entities.Billing.Invoice> Invoices { get; }
     DbSet<Domain.Entities.Billing.FeeConfiguration> FeeConfigurations { get; }
+    DbSet<Domain.Entities.Billing.PaymentProof> PaymentProofs { get; }
     
     // Communications Module
     DbSet<Domain.Entities.Communications.Announcement> Announcements { get; }

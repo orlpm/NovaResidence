@@ -17,7 +17,8 @@ import {
   Sparkles,
   CalendarCheck,
   MessageSquare,
-  Shield
+  Shield,
+  Receipt
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'Amenidades', href: '/admin/amenities', icon: Sparkles },
   { name: 'Reservaciones', href: '/admin/reservations', icon: CalendarCheck },
   { name: 'Facturación', href: '/admin/billing', icon: CreditCard },
+  { name: 'Comprobantes', href: '/admin/payment-proofs', icon: Receipt },
   { name: 'Incidencias', href: '/admin/incidents', icon: AlertCircle },
   { name: 'Comunicaciones', href: '/admin/communications', icon: MessageSquare },
   { name: 'Reportes', href: '/admin/reports', icon: FileText },

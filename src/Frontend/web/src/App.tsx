@@ -30,6 +30,7 @@ import Incidents from './pages/admin/Incidents'
 import AdminReservations from './pages/admin/Reservations'
 import Reports from './pages/admin/Reports'
 import Communications from './pages/admin/Communications'
+import PaymentProofs from './pages/admin/PaymentProofs'
 
 // Pages - SuperAdmin
 import SuperAdminDashboard from './pages/superadmin/Dashboard'
@@ -48,6 +49,7 @@ import AccountantDashboard from './pages/accountant/Dashboard'
 import ResidentDashboard from './pages/resident/Dashboard'
 import MyUnit from './pages/resident/MyUnit'
 import Payments from './pages/resident/Payments'
+import MyPayments from './pages/resident/MyPayments'
 import ReservationsPage from './pages/resident/Reservations'
 import MyIncidents from './pages/resident/MyIncidents'
 import NewReservation from './pages/resident/NewReservation'
@@ -173,6 +175,7 @@ function App() {
         <Route path="amenities" element={<Amenities />} />
         <Route path="reservations" element={<AdminReservations />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="payment-proofs" element={<PaymentProofs />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="communications" element={<Communications />} />
         <Route path="reports" element={<Reports />} />
@@ -303,7 +306,7 @@ function App() {
       >
         <Route index element={<ResidentDashboard />} />
         <Route path="my-unit" element={<MyUnit />} />
-        <Route path="payments" element={<Payments />} />
+        <Route path="payments" element={<MyPayments />} />
         <Route path="reservations" element={<ReservationsPage />} />
         <Route path="reservations/new" element={<NewReservation />} />
         <Route path="incidents" element={<MyIncidents />} />
