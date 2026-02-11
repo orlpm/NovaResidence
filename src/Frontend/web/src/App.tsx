@@ -13,6 +13,7 @@ import SuperAdminLayout from './layouts/SuperAdminLayout'
 
 // Components
 import { PermissionRoute } from './components/routing/PermissionRoute'
+import { SubscriptionGuard } from './components/subscription/SubscriptionGuard'
 
 // Pages - Admin
 import AdminDashboard from './pages/admin/Dashboard'
@@ -30,11 +31,14 @@ import Incidents from './pages/admin/Incidents'
 import AdminReservations from './pages/admin/Reservations'
 import Reports from './pages/admin/Reports'
 import Communications from './pages/admin/Communications'
-import PaymentProofs from './pages/admin/PaymentProofs'
+import SubscriptionStatus from './pages/admin/SubscriptionStatus'
 
 // Pages - SuperAdmin
 import SuperAdminDashboard from './pages/superadmin/Dashboard'
 import ClientsManagement from './pages/superadmin/ClientsManagement'
+import UsersManagement from './pages/superadmin/UsersManagement'
+import RolesManagement from './pages/superadmin/RolesManagement'
+import SubscriptionsManagement from './pages/superadmin/SubscriptionsManagement'
 
 // Pages - Security
 import SecurityDashboard from './pages/security/Dashboard'
@@ -49,7 +53,6 @@ import AccountantDashboard from './pages/accountant/Dashboard'
 import ResidentDashboard from './pages/resident/Dashboard'
 import MyUnit from './pages/resident/MyUnit'
 import Payments from './pages/resident/Payments'
-import MyPayments from './pages/resident/MyPayments'
 import ReservationsPage from './pages/resident/Reservations'
 import MyIncidents from './pages/resident/MyIncidents'
 import NewReservation from './pages/resident/NewReservation'
@@ -113,7 +116,7 @@ function App() {
           path="users" 
           element={
             <PermissionRoute permissions={PERMISSIONS.PLATFORM_VIEW_ALL_DATA}>
-              <Residents />
+              <UsersManagement />
             </PermissionRoute>
           } 
         />
@@ -129,10 +132,11 @@ function App() {
           path="roles" 
           element={
             <PermissionRoute permissions={PERMISSIONS.PLATFORM_MANAGE_ROLES}>
-              <PermissionManagement />
+              <RolesManagement />
             </PermissionRoute>
           } 
         />
+        <Route path="subscriptions" element={<SubscriptionsManagement />} />
         <Route path="monitoring" element={<div className="text-white">Monitoreo del Sistema - Coming Soon</div>} />
         <Route 
           path="system" 
@@ -157,7 +161,9 @@ function App() {
         path="/admin"
         element={
           isAuthenticated && user?.role === 'admin' ? (
-            <AdminLayout />
+            <SubscriptionGuard>
+              <AdminLayout />
+            </SubscriptionGuard>
           ) : (
             <Navigate to="/auth/login" replace />
           )
@@ -175,10 +181,10 @@ function App() {
         <Route path="amenities" element={<Amenities />} />
         <Route path="reservations" element={<AdminReservations />} />
         <Route path="billing" element={<Billing />} />
-        <Route path="payment-proofs" element={<PaymentProofs />} />
         <Route path="incidents" element={<Incidents />} />
         <Route path="communications" element={<Communications />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="subscription" element={<SubscriptionStatus />} />
         <Route 
           path="permissions" 
           element={
@@ -193,7 +199,13 @@ function App() {
       <Route
         path="/subadmin"
         element={
-          isAuthenticated ? <SubAdminLayout /> : <Navigate to="/auth/login" replace />
+          isAuthenticated ? (
+            <SubscriptionGuard>
+              <SubAdminLayout />
+            </SubscriptionGuard>
+          ) : (
+            <Navigate to="/auth/login" replace />
+          )
         }
       >
         <Route index element={<AdminDashboard />} />
@@ -306,7 +318,7 @@ function App() {
       >
         <Route index element={<ResidentDashboard />} />
         <Route path="my-unit" element={<MyUnit />} />
-        <Route path="payments" element={<MyPayments />} />
+        <Route path="payments" element={<Payments />} />
         <Route path="reservations" element={<ReservationsPage />} />
         <Route path="reservations/new" element={<NewReservation />} />
         <Route path="incidents" element={<MyIncidents />} />

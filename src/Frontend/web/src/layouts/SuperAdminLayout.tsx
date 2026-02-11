@@ -3,7 +3,7 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, Sun, Moon, LogOut, Shield, Crown,
   LayoutDashboard, Building2, Users, Settings,
-  Lock, Activity, Server, Database
+  Lock, Activity, Server, Database, CreditCard
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../stores/authStore';
@@ -42,6 +42,12 @@ export default function SuperAdminLayout() {
       href: '/superadmin/roles', 
       icon: Shield,
       permission: PERMISSIONS.PLATFORM_MANAGE_ROLES
+    },
+    { 
+      name: 'Suscripciones', 
+      href: '/superadmin/subscriptions', 
+      icon: CreditCard,
+      permission: PERMISSIONS.PLATFORM_MANAGE_CLIENTS
     },
     { 
       name: 'Monitoreo', 

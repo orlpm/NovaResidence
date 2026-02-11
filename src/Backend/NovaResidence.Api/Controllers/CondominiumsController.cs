@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using NovaResidence.Application.Features.Condominiums.Queries.GetCondominium;
 using NovaResidence.Application.Features.Condominiums.Queries.GetUserCondominiums;
+using NovaResidence.Application.Features.Condominiums.Queries.GetAllCondominiums;
 using NovaResidence.Application.Features.Condominiums.Commands.CreateCondominium;
 using NovaResidence.Application.Features.Condominiums.Commands.UpdateCondominium;
+using NovaResidence.Application.Features.Condominiums.Commands.DeleteCondominium;
 using NovaResidence.Shared.Models;
 
 namespace NovaResidence.Api.Controllers;
@@ -59,22 +61,31 @@ public class CondominiumsController : ControllerBase
     }
 
     /// <summary>
-    /// Get all condominiums (admin only)
+    /// Get all condominiums (SuperAdmin only)
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<List<UserCondominiumDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<CondominiumListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll([FromQuery] Guid? userId)
     {
-        // Use a default user ID if not provided (for testing)
-        var userIdToQuery = userId ?? Guid.Empty;
-        var result = await _mediator.Send(new GetUserCondominiumsQuery(userIdToQuery));
+        // If userId is provided, get condominiums for that user
+        if (userId.HasValue && userId.Value != Guid.Empty)
+        {
+            var userResult = await _mediator.Send(new GetUserCondominiumsQuery(userId.Value));
+            if (userResult.IsSuccess)
+                return Ok(ApiResponse<List<UserCondominiumDto>>.SuccessResponse(userResult.Value));
+            return BadRequest(ApiResponse<List<UserCondominiumDto>>.FailureResponse(
+                userResult.Errors.FirstOrDefault() ?? "Error getting condominiums"));
+        }
+
+        // Otherwise get all condominiums (for SuperAdmin)
+        var result = await _mediator.Send(new GetAllCondominiumsQuery());
 
         if (result.IsSuccess)
         {
-            return Ok(ApiResponse<List<UserCondominiumDto>>.SuccessResponse(result.Value));
+            return Ok(ApiResponse<List<CondominiumListDto>>.SuccessResponse(result.Value));
         }
 
-        return BadRequest(ApiResponse<List<UserCondominiumDto>>.FailureResponse(
+        return BadRequest(ApiResponse<List<CondominiumListDto>>.FailureResponse(
             result.Errors.FirstOrDefault() ?? "Error getting condominiums"));
     }
 
@@ -167,8 +178,52 @@ public class CondominiumsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        // TODO: Implement DeleteCondominium command
-        return NoContent();
+        var result = await _mediator.Send(new DeleteCondominiumCommand(id));
+
+        if (result.IsSuccess)
+        {
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Condominium deleted successfully"));
+        }
+
+        return NotFound(ApiResponse<object>.FailureResponse("Condominium not found"));
+    }
+
+    /// <summary>
+    /// Activate a condominium
+    /// </summary>
+    [HttpPost("{id:guid}/activate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Activate(Guid id)
+    {
+        var command = new ToggleCondominiumStatusCommand(id, true);
+        var result = await _mediator.Send(command);
+
+        if (result.IsSuccess)
+        {
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Condominium activated successfully"));
+        }
+
+        return NotFound(ApiResponse<object>.FailureResponse("Condominium not found"));
+    }
+
+    /// <summary>
+    /// Deactivate (suspend) a condominium
+    /// </summary>
+    [HttpPost("{id:guid}/deactivate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Deactivate(Guid id)
+    {
+        var command = new ToggleCondominiumStatusCommand(id, false);
+        var result = await _mediator.Send(command);
+
+        if (result.IsSuccess)
+        {
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Condominium deactivated successfully"));
+        }
+
+        return NotFound(ApiResponse<object>.FailureResponse("Condominium not found"));
     }
 }
 

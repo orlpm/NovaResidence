@@ -1,16 +1,19 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests/e2e',
-  fullyParallel: true,
+  testDir: './tests',
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
-  reporter: 'list',
+  workers: 1,
+  reporter: 'html',
+  timeout: 60000,
+  
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:3001',
     trace: 'on-first-retry',
-    headless: true,
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
 
   projects: [
@@ -20,11 +23,11 @@ export default defineConfig({
     },
   ],
 
-  webServer: [
-    {
-      command: 'cd src/Frontend/web && npm run dev',
-      url: 'http://localhost:3000',
-      reuseExistingServer: true,
-    },
-  ],
-})
+  webServer: {
+    command: 'npx vite --port 3001',
+    cwd: './src/Frontend/web',
+    url: 'http://localhost:3001',
+    reuseExistingServer: true,
+    timeout: 30000,
+  },
+});

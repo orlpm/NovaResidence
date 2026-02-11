@@ -396,26 +396,26 @@ export default function ResidentCommunications() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="w-4 h-4" />
-                      {poll.totalVotes ?? 0} votos
+                      {poll.totalVotes} votos
                     </span>
                     <span>
-                      Participación: {(poll.participationPercentage ?? 0).toFixed(0)}%
+                      Participación: {poll.participationPercentage.toFixed(0)}%
                     </span>
                   </div>
 
                   {poll.hasVoted && (
                     <div className="mt-4 space-y-2">
-                      {(poll.options ?? []).map((option) => (
+                      {poll.options.map((option) => (
                         <div key={option.id} className="flex items-center gap-3">
                           <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-5 overflow-hidden">
                             <div 
                               className={`h-full ${poll.votedOptionIds.includes(option.id) ? 'bg-sky-500' : 'bg-gray-400 dark:bg-gray-500'}`}
-                              style={{ width: `${option.percentage ?? 0}%` }}
+                              style={{ width: `${option.percentage}%` }}
                             ></div>
                           </div>
                           <span className="text-sm text-gray-600 dark:text-gray-400 w-28 truncate">{option.text}</span>
                           <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
-                            {(option.percentage ?? 0).toFixed(0)}%
+                            {option.percentage.toFixed(0)}%
                           </span>
                         </div>
                       ))}

@@ -7,6 +7,7 @@ using NovaResidence.Domain.Entities.Incidents;
 using NovaResidence.Domain.Entities.Billing;
 using NovaResidence.Domain.Entities.Communications;
 using NovaResidence.Domain.Entities.Notifications;
+using NovaResidence.Domain.Entities.Subscriptions;
 using System.Reflection;
 
 // Aliases for disambiguation
@@ -53,7 +54,6 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<BillingPayment> Payments => Set<BillingPayment>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<FeeConfiguration> FeeConfigurations => Set<FeeConfiguration>();
-    public DbSet<PaymentProof> PaymentProofs => Set<PaymentProof>();
     
     // Communications Module
     public DbSet<Announcement> Announcements => Set<Announcement>();
@@ -70,6 +70,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     
     // Notifications Module
     public DbSet<Notification> Notifications => Set<Notification>();
+    
+    // Subscriptions Module
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
+    public DbSet<SubscriptionPayment> SubscriptionPayments => Set<SubscriptionPayment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -99,7 +104,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<BillingPayment>().HasQueryFilter(p => !p.IsDeleted);
         modelBuilder.Entity<Invoice>().HasQueryFilter(i => !i.IsDeleted);
         modelBuilder.Entity<FeeConfiguration>().HasQueryFilter(fc => !fc.IsDeleted);
-        modelBuilder.Entity<PaymentProof>().HasQueryFilter(pp => !pp.IsDeleted);
+        
+        // Subscriptions query filters
+        modelBuilder.Entity<SubscriptionPlan>().HasQueryFilter(sp => !sp.IsDeleted);
+        modelBuilder.Entity<Subscription>().HasQueryFilter(s => !s.IsDeleted);
+        modelBuilder.Entity<SubscriptionPayment>().HasQueryFilter(sp => !sp.IsDeleted);
         
         // Communications query filters
         modelBuilder.Entity<Announcement>().HasQueryFilter(a => !a.IsDeleted);

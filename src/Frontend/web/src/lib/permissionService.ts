@@ -153,6 +153,18 @@ class PermissionService {
   }
 
   /**
+   * Revoke permission from a role
+   */
+  async revokeRolePermission(
+    role: number,
+    permissionCode: string
+  ): Promise<void> {
+    await apiClient.post(`/permissions/role/${role}/revoke`, {
+      permissionCode
+    });
+  }
+
+  /**
    * Set condominium-specific role permission override
    */
   async setCondominiumRolePermission(

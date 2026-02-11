@@ -89,6 +89,22 @@ public class User : BaseEntity
             _condominiumRoles.Remove(roleToRemove);
         }
     }
+
+    public void UpdatePassword(string newPasswordHash)
+    {
+        Guard.Against.NullOrWhiteSpace(newPasswordHash, nameof(newPasswordHash));
+        PasswordHash = newPasswordHash;
+    }
+
+    public void Activate()
+    {
+        IsActive = true;
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+    }
 }
 
 /// <summary>

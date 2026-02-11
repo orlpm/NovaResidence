@@ -1,0 +1,767 @@
+﻿{
+  "config": {
+    "configFile": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\playwright.config.ts",
+    "rootDir": "C:/Users/Vostro 14/Desktop/NovaRecidence/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/Vostro 14/Desktop/NovaRecidence/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/Vostro 14/Desktop/NovaRecidence/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "subscription.spec.ts",
+      "file": "subscription.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Subscription Plans API",
+          "file": "subscription.spec.ts",
+          "line": 34,
+          "column": 6,
+          "specs": [
+            {
+              "title": "GET /api/SubscriptionPlans returns seeded plans",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 47,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.480Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-a5ab14f62d0e3eb6c90a",
+              "file": "subscription.spec.ts",
+              "line": 35,
+              "column": 7
+            },
+            {
+              "title": "GET /api/SubscriptionPlans/calculate returns pricing for 10 units",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 18,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.553Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-0307ad1494cad02efa34",
+              "file": "subscription.spec.ts",
+              "line": 57,
+              "column": 7
+            },
+            {
+              "title": "GET /api/SubscriptionPlans/calculate rejects 0 units",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 12,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.589Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-fc94257217a28702c0e6",
+              "file": "subscription.spec.ts",
+              "line": 70,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Subscription Lifecycle",
+          "file": "subscription.spec.ts",
+          "line": 79,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create a subscription with free trial",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "No condominium available for testing",
+                      "location": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "line": 105,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 8,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.616Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "No condominium available for testing",
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "line": 105,
+                            "column": 10
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-01948ba47f5ea6dee69d",
+              "file": "subscription.spec.ts",
+              "line": 104,
+              "column": 7
+            },
+            {
+              "title": "should get subscription status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "No condominium available",
+                      "location": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "line": 142,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 2,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.682Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "No condominium available",
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "line": 142,
+                            "column": 10
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-1876f172eca90e67d7f3",
+              "file": "subscription.spec.ts",
+              "line": 141,
+              "column": 7
+            },
+            {
+              "title": "should get full subscription detail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "No condominium available",
+                      "location": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "line": 158,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 3,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.692Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "No condominium available",
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "line": 158,
+                            "column": 10
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-a2023b89ccfe75e7b29c",
+              "file": "subscription.spec.ts",
+              "line": 157,
+              "column": 7
+            },
+            {
+              "title": "should register a payment and extend subscription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "No subscription to pay for",
+                      "location": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "line": 180,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 3,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.703Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "description": "No subscription to pay for",
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "line": 180,
+                            "column": 10
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-2c9d9ce3908d7718dfea",
+              "file": "subscription.spec.ts",
+              "line": 179,
+              "column": 7
+            },
+            {
+              "title": "should list all subscriptions (SuperAdmin)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 12,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.714Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-bd05d8b1ce41f93e95b7",
+              "file": "subscription.spec.ts",
+              "line": 201,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "UI - Subscription Flow",
+          "file": "subscription.spec.ts",
+          "line": 217,
+          "column": 6,
+          "specs": [
+            {
+              "title": "SuperAdmin can access admin areas without subscription block",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 2702,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n\n    at loginUI (C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:23:14)\n    at C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:219:11",
+                        "location": {
+                          "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                          "column": 14,
+                          "line": 23
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 21 |\u001b[39m \u001b[90m// Helper: login via browser\u001b[39m\n \u001b[90m 22 |\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m loginUI(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m\u001b[33m,\u001b[39m email\u001b[33m:\u001b[39m string\u001b[33m,\u001b[39m password\u001b[33m:\u001b[39m string) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 23 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/auth/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 24 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 25 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[type=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m email)\u001b[33m;\u001b[39m\n \u001b[90m 26 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[type=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m password)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "column": 14,
+                            "line": 23
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n\n\n  21 | // Helper: login via browser\n  22 | async function loginUI(page: Page, email: string, password: string) {\n> 23 |   await page.goto('/auth/login');\n     |              ^\n  24 |   await page.waitForLoadState('networkidle');\n  25 |   await page.fill('input[type=\"email\"]', email);\n  26 |   await page.fill('input[type=\"password\"]', password);\n    at loginUI (C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:23:14)\n    at C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:219:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:39.734Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\test-results\\subscription-UI---Subscrip-af689--without-subscription-block-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\test-results\\subscription-UI---Subscrip-af689--without-subscription-block-chromium\\video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "column": 14,
+                        "line": 23
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-fc88acd327ebf9e2eee5",
+              "file": "subscription.spec.ts",
+              "line": 218,
+              "column": 7
+            },
+            {
+              "title": "SuperAdmin can see subscription plans in API",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 449,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:43.793Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-031929d3ffbca7542403",
+              "file": "subscription.spec.ts",
+              "line": 233,
+              "column": 7
+            },
+            {
+              "title": "Login page loads correctly",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 2757,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n\n    at C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:251:16",
+                        "location": {
+                          "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                          "column": 16,
+                          "line": 251
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 249 |\u001b[39m\n \u001b[90m 250 |\u001b[39m   test(\u001b[32m'Login page loads correctly'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 251 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/auth/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 252 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 253 |\u001b[39m     \n \u001b[90m 254 |\u001b[39m     \u001b[90m// Should see login form\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "column": 16,
+                            "line": 251
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n\n\n  249 |\n  250 |   test('Login page loads correctly', async ({ page }) => {\n> 251 |     await page.goto('/auth/login');\n      |                ^\n  252 |     await page.waitForLoadState('networkidle');\n  253 |     \n  254 |     // Should see login form\n    at C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:251:16"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:44.351Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\test-results\\subscription-UI---Subscrip-64061--Login-page-loads-correctly-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\test-results\\subscription-UI---Subscrip-64061--Login-page-loads-correctly-chromium\\video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "column": 16,
+                        "line": 251
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-1ac19c52a6af29ce28ed",
+              "file": "subscription.spec.ts",
+              "line": 250,
+              "column": 7
+            },
+            {
+              "title": "SuperAdmin login and navigation works",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 2780,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n\n    at loginUI (C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:23:14)\n    at C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:266:11",
+                        "location": {
+                          "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                          "column": 14,
+                          "line": 23
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 21 |\u001b[39m \u001b[90m// Helper: login via browser\u001b[39m\n \u001b[90m 22 |\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m loginUI(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m\u001b[33m,\u001b[39m email\u001b[33m:\u001b[39m string\u001b[33m,\u001b[39m password\u001b[33m:\u001b[39m string) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 23 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/auth/login'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 24 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 25 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[type=\"email\"]'\u001b[39m\u001b[33m,\u001b[39m email)\u001b[33m;\u001b[39m\n \u001b[90m 26 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mfill(\u001b[32m'input[type=\"password\"]'\u001b[39m\u001b[33m,\u001b[39m password)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                            "column": 14,
+                            "line": 23
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/auth/login\nCall log:\n\u001b[2m  - navigating to \"http://localhost:3001/auth/login\", waiting until \"load\"\u001b[22m\n\n\n  21 | // Helper: login via browser\n  22 | async function loginUI(page: Page, email: string, password: string) {\n> 23 |   await page.goto('/auth/login');\n     |              ^\n  24 |   await page.waitForLoadState('networkidle');\n  25 |   await page.fill('input[type=\"email\"]', email);\n  26 |   await page.fill('input[type=\"password\"]', password);\n    at loginUI (C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:23:14)\n    at C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts:266:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:48.450Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\test-results\\subscription-UI---Subscrip-efd03--login-and-navigation-works-chromium\\test-failed-1.png"
+                        },
+                        {
+                          "name": "video",
+                          "contentType": "video/webm",
+                          "path": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\test-results\\subscription-UI---Subscrip-efd03--login-and-navigation-works-chromium\\video.webm"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\Vostro 14\\Desktop\\NovaRecidence\\tests\\subscription.spec.ts",
+                        "column": 14,
+                        "line": 23
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-585c5b2e0eec37b68f5b",
+              "file": "subscription.spec.ts",
+              "line": 265,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "Payment Required API Flow",
+          "file": "subscription.spec.ts",
+          "line": 279,
+          "column": 6,
+          "specs": [
+            {
+              "title": "subscription status endpoint returns proper structure",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 51,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:53.136Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-da5223d264ab64070167",
+              "file": "subscription.spec.ts",
+              "line": 280,
+              "column": 7
+            },
+            {
+              "title": "price calculation shows correct amounts per plan",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-02-08T04:46:53.209Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "7d953d1cdb8684155dd7-c6dbec00fe3af4086566",
+              "file": "subscription.spec.ts",
+              "line": 295,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-02-08T04:46:38.213Z",
+    "duration": 15062.770999999999,
+    "expected": 7,
+    "skipped": 4,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}

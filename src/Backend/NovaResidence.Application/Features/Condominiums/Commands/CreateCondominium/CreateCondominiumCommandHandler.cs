@@ -1,7 +1,9 @@
 using MediatR;
 using Ardalis.Result;
+using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Condominiums;
+using NovaResidence.Domain.Entities.Subscriptions;
 using NovaResidence.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
 
@@ -10,13 +12,16 @@ namespace NovaResidence.Application.Features.Condominiums.Commands.CreateCondomi
 public class CreateCondominiumCommandHandler : IRequestHandler<CreateCondominiumCommand, Result<CreateCondominiumResponse>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IApplicationDbContext _dbContext;
     private readonly ILogger<CreateCondominiumCommandHandler> _logger;
 
     public CreateCondominiumCommandHandler(
         IUnitOfWork unitOfWork,
+        IApplicationDbContext dbContext,
         ILogger<CreateCondominiumCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _dbContext = dbContext;
         _logger = logger;
     }
 
@@ -98,6 +103,108 @@ public class CreateCondominiumCommandHandler : IRequestHandler<CreateCondominium
             }
             
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Auto-create or update a Trial subscription for the Admin user
+            // SuperAdmins manage the SaaS — they don't need subscriptions
+            try
+            {
+                if (request.UserId != Guid.Empty)
+                {
+                    var creatingUser = await _dbContext.Users
+                        .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+
+                    if (creatingUser?.DefaultRole?.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        _logger.LogInformation("Skipping subscription for SuperAdmin {UserId}", request.UserId);
+                    }
+                    else
+                    {
+                    // Check if this admin already has a subscription
+                    var existingSub = await _dbContext.Subscriptions
+                        .Where(s => s.AdminUserId == request.UserId
+                                && s.Status != SubscriptionStatus.Cancelled)
+                        .OrderByDescending(s => s.CreatedAt)
+                        .FirstOrDefaultAsync(cancellationToken);
+
+                    if (existingSub != null)
+                    {
+                        // Admin already has a subscription — recalculate total units across all their condominiums
+                        var adminCondoIds = await _dbContext.Users
+                            .Where(u => u.Id == request.UserId)
+                            .SelectMany(u => u.CondominiumRoles)
+                            .Select(cr => cr.CondominiumId)
+                            .ToListAsync(cancellationToken);
+
+                        var totalAdminUnits = await _dbContext.Units
+                            .Where(u => _dbContext.Buildings
+                                .Where(b => adminCondoIds.Contains(b.CondominiumId))
+                                .Select(b => b.Id)
+                                .Contains(u.BuildingId))
+                            .CountAsync(cancellationToken);
+
+                        totalAdminUnits = Math.Max(totalAdminUnits, 1);
+                        var newAmount = existingSub.Plan != null
+                            ? existingSub.MonthlyAmount // keep same until plan recalc
+                            : 0;
+
+                        // Load plan for recalculation
+                        var currentPlan = await _dbContext.SubscriptionPlans
+                            .FirstOrDefaultAsync(p => p.Id == existingSub.SubscriptionPlanId, cancellationToken);
+                        if (currentPlan != null)
+                        {
+                            newAmount = currentPlan.CalculateMonthlyPrice(totalAdminUnits);
+                        }
+
+                        existingSub.UpdateBilledUnits(totalAdminUnits, newAmount);
+                        await _dbContext.SaveChangesAsync(cancellationToken);
+
+                        _logger.LogInformation(
+                            "Updated subscription for admin {UserId}: Units={Units}, Monthly=${Amount}",
+                            request.UserId, totalAdminUnits, newAmount);
+                    }
+                    else
+                    {
+                        // No subscription yet — create a Trial for this admin
+                        var effectiveUnits = Math.Max(totalUnits, 1);
+
+                        var plans = await _dbContext.SubscriptionPlans
+                            .Where(p => p.IsActive && !p.IsCustom)
+                            .OrderBy(p => p.MinUnits)
+                            .ToListAsync(cancellationToken);
+
+                        var plan = plans
+                            .Where(p => effectiveUnits >= p.MinUnits && (p.MaxUnits == null || effectiveUnits <= p.MaxUnits))
+                            .FirstOrDefault() ?? plans.FirstOrDefault();
+
+                        if (plan != null)
+                        {
+                            var monthlyAmount = plan.CalculateMonthlyPrice(effectiveUnits);
+                            var subscription = Subscription.Create(
+                                adminUserId: request.UserId,
+                                subscriptionPlanId: plan.Id,
+                                billedUnits: effectiveUnits,
+                                monthlyAmount: monthlyAmount,
+                                trialDays: plan.TrialDays > 0 ? plan.TrialDays : 30
+                            );
+                            _dbContext.Subscriptions.Add(subscription);
+                            await _dbContext.SaveChangesAsync(cancellationToken);
+
+                            _logger.LogInformation(
+                                "Auto-created Trial subscription for admin {UserId}: Plan={Plan}, Units={Units}, Monthly=${Amount}",
+                                request.UserId, plan.Name, effectiveUnits, monthlyAmount);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("No subscription plans found. Skipping auto-subscription for admin {UserId}", request.UserId);
+                        }
+                    }
+                    } // end else (non-SuperAdmin)
+                }
+            }
+            catch (Exception subEx)
+            {
+                _logger.LogWarning(subEx, "Failed to auto-create/update subscription for admin {UserId}. It can be created manually.", request.UserId);
+            }
 
             _logger.LogInformation(
                 "Condominium created successfully: {CondominiumId}, Buildings: {TotalBuildings}, Units: {TotalUnits}",

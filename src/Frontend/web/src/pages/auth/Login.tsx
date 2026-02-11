@@ -29,7 +29,9 @@ function Login() {
       
       // Redirect based on user role
       const role = user.role?.toLowerCase() || user.defaultRole?.toLowerCase()
-      if (role === 'admin' || role === 'superadmin') {
+      if (role === 'superadmin') {
+        navigate('/superadmin')
+      } else if (role === 'admin') {
         navigate('/admin')
       } else {
         navigate('/resident')

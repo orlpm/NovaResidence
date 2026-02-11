@@ -50,7 +50,42 @@ public class PermissionsController : ControllerBase
         UserRole role,
         [FromBody] GrantRolePermissionRequest request)
     {
+        // Only SuperAdmins can modify permissions for SuperAdmin and CondominiumAdmin roles
+        if (role == UserRole.SuperAdmin || role == UserRole.CondominiumAdmin)
+        {
+            var callerRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                          ?? User.FindFirst("role")?.Value;
+            if (callerRole == null || !callerRole.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+        }
+
         var command = new GrantRolePermissionCommand(role, request.PermissionCode, request.CanOverride);
+        var result = await _mediator.Send(command);
+        return result.IsSuccess ? Ok() : BadRequest(result.Errors);
+    }
+
+    /// <summary>
+    /// Revoke permission from a role
+    /// </summary>
+    [HttpPost("role/{role}/revoke")]
+    public async Task<IActionResult> RevokeRolePermission(
+        UserRole role,
+        [FromBody] RevokeRolePermissionRequest request)
+    {
+        // Only SuperAdmins can modify permissions for SuperAdmin and CondominiumAdmin roles
+        if (role == UserRole.SuperAdmin || role == UserRole.CondominiumAdmin)
+        {
+            var callerRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                          ?? User.FindFirst("role")?.Value;
+            if (callerRole == null || !callerRole.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+        }
+
+        var command = new RevokeRolePermissionCommand(role, request.PermissionCode);
         var result = await _mediator.Send(command);
         return result.IsSuccess ? Ok() : BadRequest(result.Errors);
     }
@@ -137,6 +172,7 @@ public class PermissionsController : ControllerBase
 
 // Request DTOs
 public record GrantRolePermissionRequest(string PermissionCode, bool CanOverride = true);
+public record RevokeRolePermissionRequest(string PermissionCode);
 public record GrantUserPermissionRequest(string PermissionCode, Guid? CondominiumId = null, DateTime? ExpiresAt = null, string? Reason = null);
 public record RevokeUserPermissionRequest(string PermissionCode, Guid? CondominiumId = null, string? Reason = null);
 public record SetCondominiumRolePermissionRequest(string PermissionCode, bool IsGranted);

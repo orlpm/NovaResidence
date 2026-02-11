@@ -14,14 +14,25 @@ interface UserPermissionGrant {
   reason?: string;
 }
 
+// Roles that only SuperAdmin can manage permissions for
+const SUPERADMIN_ONLY_ROLES = [UserRole.SuperAdmin, UserRole.CondominiumAdmin];
+
 export default function PermissionManagement() {
   const { user } = useAuthStore();
+  const isSuperAdmin = (user?.role as string) === 'superadmin' || user?.defaultRole === 'SuperAdmin';
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'roles' | 'users' | 'custom'>('roles');
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.Owner);
+
+  // Filter roles: admins can only manage sub-roles, not SuperAdmin or CondominiumAdmin
+  const availableRoles = Object.entries(ROLE_CONFIG).filter(([roleKey]) => {
+    const role = parseInt(roleKey) as UserRole;
+    if (isSuperAdmin) return true;
+    return !SUPERADMIN_ONLY_ROLES.includes(role);
+  });
   const [rolePermissions, setRolePermissions] = useState<string[]>([]);
 
   // Fetch all permissions
@@ -45,7 +56,9 @@ export default function PermissionManagement() {
   useEffect(() => {
     const fetchRolePermissions = async () => {
       try {
+        console.log('[PermissionManagement] Fetching permissions for role:', selectedRole);
         const data = await permissionService.getRolePermissions(selectedRole);
+        console.log('[PermissionManagement] Loaded role permissions:', data.length, 'permissions', data);
         setRolePermissions(data);
       } catch (error) {
         console.error('Error loading role permissions:', error);
@@ -73,8 +86,9 @@ export default function PermissionManagement() {
       const hasPermission = rolePermissions.includes(permissionCode);
       
       if (hasPermission) {
-        // For revoke, we would need backend support
-        console.log('Revoke not implemented yet');
+        // Revocar el permiso del rol
+        await permissionService.revokeRolePermission(selectedRole, permissionCode);
+        setRolePermissions(rolePermissions.filter(p => p !== permissionCode));
       } else {
         await permissionService.grantRolePermission(selectedRole, permissionCode, true);
         setRolePermissions([...rolePermissions, permissionCode]);
@@ -144,7 +158,7 @@ export default function PermissionManagement() {
               Seleccionar Rol
             </label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(ROLE_CONFIG).map(([roleKey, config]) => {
+              {availableRoles.map(([roleKey, config]) => {
                 const role = parseInt(roleKey) as UserRole;
                 const Icon = config.icon;
                 return (

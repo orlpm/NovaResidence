@@ -120,6 +120,10 @@ using (var scope = app.Services.CreateScope())
     
     var rolePermissionSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.RolePermissionSeeder(dbContext);
     await rolePermissionSeeder.SeedAsync();
+    
+    // Seed subscription plans
+    var subscriptionPlanSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.SubscriptionPlanSeeder(dbContext);
+    await subscriptionPlanSeeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline
@@ -146,6 +150,9 @@ app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Subscription validation (after auth, so we have user claims)
+app.UseMiddleware<SubscriptionValidationMiddleware>();
 
 app.MapControllers();
 app.MapHealthChecks("/health");

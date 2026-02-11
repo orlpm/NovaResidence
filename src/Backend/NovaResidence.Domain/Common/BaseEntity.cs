@@ -26,4 +26,15 @@ public abstract class BaseEntity
     {
         _domainEvents.Clear();
     }
+
+    /// <summary>
+    /// Restores a soft-deleted entity
+    /// </summary>
+    public void Restore()
+    {
+        IsDeleted = false;
+        DeletedAt = null;
+        DeletedBy = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

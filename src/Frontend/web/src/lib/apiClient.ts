@@ -26,11 +26,20 @@ class ApiClient {
       (error) => Promise.reject(error)
     )
 
-    // Response interceptor for token refresh
+    // Response interceptor for token refresh and subscription blocking
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config
+
+        // Handle 402 Payment Required — subscription expired
+        if (error.response?.status === 402) {
+          // Dispatch a custom event that the SubscriptionGuard can listen to
+          window.dispatchEvent(new CustomEvent('subscription:payment-required', {
+            detail: error.response.data
+          }));
+          return Promise.reject(error);
+        }
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true

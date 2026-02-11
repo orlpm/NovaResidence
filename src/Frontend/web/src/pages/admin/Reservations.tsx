@@ -285,9 +285,7 @@ export default function Reservations() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredReservations.map((reservation, index) => {
-                const isLastRows = index >= filteredReservations.length - 2
-                return (
+              {filteredReservations.map((reservation) => (
                 <tr key={reservation.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900 dark:text-white">{reservation.amenityName}</div>
@@ -325,7 +323,7 @@ export default function Reservations() {
                         <MoreVertical className="w-5 h-5 text-gray-400" />
                       </button>
                       {openDropdown === reservation.id && (
-                        <div className={`absolute right-0 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10 ${isLastRows ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
+                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
                           <button
                             onClick={() => { loadReservationDetail(reservation.id); setOpenDropdown(null) }}
                             className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -353,7 +351,7 @@ export default function Reservations() {
                     </div>
                   </td>
                 </tr>
-              )})}
+              ))}
             </tbody>
           </table>
         )}

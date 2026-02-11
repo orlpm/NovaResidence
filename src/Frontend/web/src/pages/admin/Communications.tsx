@@ -900,10 +900,10 @@ export default function Communications() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Users className="w-4 h-4" />
-                        {poll.totalVotes ?? 0} votos
+                        {poll.totalVotes} votos
                       </span>
                       <span>
-                        Participación: {(poll.participationPercentage ?? 0).toFixed(1)}%
+                        Participación: {poll.participationPercentage.toFixed(1)}%
                       </span>
                       {poll.requiresQuorum && (
                         <span className={poll.hasQuorum ? 'text-green-600' : 'text-orange-600'}>
@@ -914,21 +914,21 @@ export default function Communications() {
 
                     {/* Poll options preview */}
                     <div className="mt-4 space-y-2">
-                      {(poll.options ?? []).slice(0, 3).map((option) => (
+                      {poll.options.slice(0, 3).map((option) => (
                         <div key={option.id} className="flex items-center gap-3">
                           <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-6 overflow-hidden">
                             <div 
                               className="bg-sky-500 h-full"
-                              style={{ width: `${option.percentage ?? 0}%` }}
+                              style={{ width: `${option.percentage}%` }}
                             ></div>
                           </div>
                           <span className="text-sm text-gray-600 dark:text-gray-300 w-32 truncate">{option.text}</span>
                           <span className="text-sm font-medium text-gray-900 dark:text-white w-16 text-right">
-                            {(option.percentage ?? 0).toFixed(1)}%
+                            {option.percentage.toFixed(1)}%
                           </span>
                         </div>
                       ))}
-                      {(poll.options?.length ?? 0) > 3 && (
+                      {poll.options.length > 3 && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">+{poll.options.length - 3} opciones más</p>
                       )}
                     </div>
@@ -1745,11 +1745,11 @@ export default function Communications() {
             </div>
             <div className="mb-4 grid grid-cols-3 gap-4 text-center">
               <div className="bg-sky-50 dark:bg-sky-900/30 p-3 rounded-xl">
-                <p className="text-2xl font-bold text-sky-600 dark:text-sky-400">{selectedPoll.totalVotes ?? 0}</p>
+                <p className="text-2xl font-bold text-sky-600 dark:text-sky-400">{selectedPoll.totalVotes}</p>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Votos totales</p>
               </div>
               <div className="bg-green-50 dark:bg-green-900/30 p-3 rounded-xl">
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{(selectedPoll.participationPercentage ?? 0).toFixed(1)}%</p>
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{selectedPoll.participationPercentage.toFixed(1)}%</p>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Participación</p>
               </div>
               <div className={`p-3 rounded-xl ${selectedPoll.hasQuorum ? 'bg-green-50 dark:bg-green-900/30' : 'bg-orange-50 dark:bg-orange-900/30'}`}>
@@ -1760,16 +1760,16 @@ export default function Communications() {
               </div>
             </div>
             <div className="space-y-3">
-              {(selectedPoll.options ?? []).map((option, index) => (
+              {selectedPoll.options.map((option, index) => (
                 <div key={option.id}>
                   <div className="flex justify-between text-sm mb-1">
                     <span className="text-gray-700 dark:text-gray-300">{option.text}</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{option.voteCount ?? 0} votos ({(option.percentage ?? 0).toFixed(1)}%)</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{option.voteCount} votos ({option.percentage.toFixed(1)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-4">
                     <div 
                       className={`h-4 rounded-full ${index === 0 ? 'bg-sky-500' : index === 1 ? 'bg-green-500' : index === 2 ? 'bg-yellow-500' : 'bg-purple-500'}`}
-                      style={{ width: `${option.percentage ?? 0}%` }}
+                      style={{ width: `${option.percentage}%` }}
                     ></div>
                   </div>
                 </div>

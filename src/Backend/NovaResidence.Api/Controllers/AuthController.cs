@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using MediatR;
 using NovaResidence.Application.Features.Authentication.Commands.Register;
 using NovaResidence.Application.Common.Interfaces;
@@ -146,8 +147,193 @@ public class AuthController : ControllerBase
         // TODO: Implement forgot password command
         return Ok(new { Message = "Password reset email sent" });
     }
+
+    /// <summary>
+    /// Get all users (SuperAdmin only)
+    /// </summary>
+    [HttpGet("users")]
+    [Authorize(Roles = "superadmin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAllUsers()
+    {
+        try
+        {
+            var users = await _userRepository.GetAllAsync();
+            
+            var userDtos = users.Select(u => new
+            {
+                Id = u.Id.ToString(),
+                Email = u.Email,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                DefaultRole = u.DefaultRole,
+                IsActive = u.IsActive,
+                IsEmailConfirmed = u.IsEmailConfirmed,
+                LastLoginAt = u.LastLoginAt,
+                CreatedAt = u.CreatedAt
+            }).ToList();
+
+            return Ok(userDtos);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all users");
+            return StatusCode(500, new { message = "Error al obtener usuarios" });
+        }
+    }
+
+    /// <summary>
+    /// Reset user password (SuperAdmin only)
+    /// </summary>
+    [HttpPost("admin-reset-password")]
+    [Authorize(Roles = "superadmin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AdminResetPassword([FromBody] AdminResetPasswordRequest request)
+    {
+        try
+        {
+            if (!Guid.TryParse(request.UserId, out var userId))
+            {
+                return BadRequest(new { message = "ID de usuario inválido" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(userId);
+            
+            if (user == null)
+            {
+                return NotFound(new { message = "Usuario no encontrado" });
+            }
+
+            // Hash new password
+            var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+            user.UpdatePassword(newPasswordHash);
+            
+            await _userRepository.UpdateAsync(user);
+
+            _logger.LogInformation("Password reset by admin for user {UserId}", userId);
+
+            return Ok(new
+            {
+                Message = "Contraseña actualizada correctamente",
+                Email = user.Email,
+                UserId = user.Id.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting password for user {UserId}", request.UserId);
+            return StatusCode(500, new { message = "Error al resetear contraseña" });
+        }
+    }
+
+    /// <summary>
+    /// Activate user (SuperAdmin only)
+    /// </summary>
+    [HttpPost("users/{userId}/activate")]
+    [Authorize(Roles = "superadmin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivateUser(string userId)
+    {
+        try
+        {
+            if (!Guid.TryParse(userId, out var id))
+            {
+                return BadRequest(new { message = "ID de usuario inválido" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "Usuario no encontrado" });
+            }
+
+            user.Activate();
+            await _userRepository.UpdateAsync(user);
+
+            return Ok(new { message = "Usuario activado correctamente" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating user {UserId}", userId);
+            return StatusCode(500, new { message = "Error al activar usuario" });
+        }
+    }
+
+    /// <summary>
+    /// Deactivate user (SuperAdmin only)
+    /// </summary>
+    [HttpPost("users/{userId}/deactivate")]
+    [Authorize(Roles = "superadmin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeactivateUser(string userId)
+    {
+        try
+        {
+            if (!Guid.TryParse(userId, out var id))
+            {
+                return BadRequest(new { message = "ID de usuario inválido" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "Usuario no encontrado" });
+            }
+
+            user.Deactivate();
+            await _userRepository.UpdateAsync(user);
+
+            return Ok(new { message = "Usuario desactivado correctamente" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deactivating user {UserId}", userId);
+            return StatusCode(500, new { message = "Error al desactivar usuario" });
+        }
+    }
+
+    /// <summary>
+    /// Delete user (SuperAdmin only)
+    /// </summary>
+    [HttpDelete("users/{userId}")]
+    [Authorize(Roles = "superadmin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteUser(string userId)
+    {
+        try
+        {
+            if (!Guid.TryParse(userId, out var id))
+            {
+                return BadRequest(new { message = "ID de usuario inválido" });
+            }
+
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(new { message = "Usuario no encontrado" });
+            }
+
+            await _userRepository.DeleteAsync(user);
+
+            return Ok(new { message = "Usuario eliminado correctamente" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting user {UserId}", userId);
+            return StatusCode(500, new { message = "Error al eliminar usuario" });
+        }
+    }
 }
 
 public record LoginRequest(string Email, string Password);
 public record RefreshTokenRequest(string RefreshToken);
 public record ForgotPasswordRequest(string Email);
+public record AdminResetPasswordRequest(string UserId, string NewPassword);

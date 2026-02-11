@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Building2, Users, DollarSign, AlertTriangle,
-  TrendingUp, Activity, Server, Database,
-  Crown, Shield, Clock, Globe
+  Building2, Users, Activity, Server, Database,
+  Crown, Shield, Clock, Globe, RefreshCw,
+  Eye, ChevronRight
 } from 'lucide-react';
+import { userManagementService, UserListItem } from '../../lib/userManagementService';
 
 interface PlatformStats {
   totalCondominiums: number;
@@ -16,25 +18,118 @@ interface PlatformStats {
   apiRequests: number;
 }
 
+interface RecentActivity {
+  id: number;
+  action: string;
+  entity: string;
+  time: string;
+  type: 'success' | 'error' | 'info';
+}
+
 export default function SuperAdminDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<UserListItem[]>([]);
+
   const [stats, setStats] = useState<PlatformStats>({
-    totalCondominiums: 24,
-    totalUsers: 1847,
-    totalRevenue: 125650,
-    activeIncidents: 12,
+    totalCondominiums: 0,
+    totalUsers: 0,
+    totalRevenue: 0,
+    activeIncidents: 0,
     serverUptime: '99.97%',
     databaseSize: '2.4 GB',
-    activeConnections: 156,
-    apiRequests: 45230
+    activeConnections: 0,
+    apiRequests: 0
   });
 
-  const [recentActivity, setRecentActivity] = useState([
-    { id: 1, action: 'Nuevo condominio registrado', entity: 'Residencial Las Palmas', time: 'Hace 5 min', type: 'success' },
-    { id: 2, action: 'Usuario SuperAdmin creado', entity: 'admin@empresa.com', time: 'Hace 15 min', type: 'info' },
-    { id: 3, action: 'Error de conexión DB', entity: 'Servidor Backup', time: 'Hace 1 hora', type: 'error' },
-    { id: 4, action: 'Backup completado', entity: 'Base de datos principal', time: 'Hace 2 horas', type: 'success' },
-    { id: 5, action: 'Nuevo plan contratado', entity: 'Condominios Premium', time: 'Hace 3 horas', type: 'info' },
-  ]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      // Cargar usuarios reales desde la API
+      const usersData = await userManagementService.getUsers();
+      setUsers(usersData);
+
+      // Calcular estadísticas reales
+      const activeUsers = usersData.filter(u => u.isActive).length;
+      
+      setStats(prev => ({
+        ...prev,
+        totalUsers: usersData.length,
+        activeConnections: activeUsers
+      }));
+
+      // Generar actividad reciente basada en usuarios reales
+      const activities: RecentActivity[] = [];
+      
+      // Logins recientes
+      const recentLogins = usersData
+        .filter(u => u.lastLoginAt)
+        .sort((a, b) => new Date(b.lastLoginAt!).getTime() - new Date(a.lastLoginAt!).getTime())
+        .slice(0, 3);
+
+      recentLogins.forEach((u, i) => {
+        activities.push({
+          id: i + 1,
+          action: 'Login de usuario',
+          entity: `${u.firstName} ${u.lastName} (${u.email})`,
+          time: formatTimeAgo(u.lastLoginAt!),
+          type: 'success'
+        });
+      });
+
+      // Usuarios creados recientemente
+      const recentCreated = usersData
+        .filter(u => u.createdAt)
+        .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+        .slice(0, 2);
+
+      recentCreated.forEach((u, i) => {
+        activities.push({
+          id: 100 + i,
+          action: `Nuevo ${u.defaultRole || 'Usuario'} registrado`,
+          entity: u.email,
+          time: formatTimeAgo(u.createdAt!),
+          type: 'info'
+        });
+      });
+
+      setRecentActivity(activities.slice(0, 5));
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Hace un momento';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    if (diffHours < 24) return `Hace ${diffHours} horas`;
+    if (diffDays < 7) return `Hace ${diffDays} días`;
+    return date.toLocaleDateString('es-MX');
+  };
+
+  // Estadísticas de usuarios por rol
+  const usersByRole = {
+    superAdmins: users.filter(u => u.defaultRole === 'SuperAdmin').length,
+    admins: users.filter(u => u.defaultRole === 'Admin').length,
+    residents: users.filter(u => u.defaultRole === 'Resident').length,
+    others: users.filter(u => !['SuperAdmin', 'Admin', 'Resident'].includes(u.defaultRole)).length
+  };
 
   const mainStats = [
     {
@@ -42,36 +137,40 @@ export default function SuperAdminDashboard() {
       value: stats.totalCondominiums,
       icon: Building2,
       color: 'from-blue-500 to-cyan-500',
-      change: '+3 este mes'
+      change: 'Gestionar clientes',
+      onClick: () => navigate('/superadmin/clients')
     },
     {
-      name: 'Usuarios Activos',
-      value: stats.totalUsers.toLocaleString(),
+      name: 'Usuarios Totales',
+      value: users.length,
       icon: Users,
       color: 'from-purple-500 to-pink-500',
-      change: '+127 este mes'
+      change: `${users.filter(u => u.isActive).length} activos`,
+      onClick: () => navigate('/superadmin/users')
     },
     {
-      name: 'Ingresos Totales',
-      value: `$${stats.totalRevenue.toLocaleString()}`,
-      icon: DollarSign,
+      name: 'Administradores',
+      value: usersByRole.admins,
+      icon: Shield,
       color: 'from-green-500 to-emerald-500',
-      change: '+18% vs mes anterior'
+      change: `${usersByRole.superAdmins} super admins`,
+      onClick: () => navigate('/superadmin/users')
     },
     {
-      name: 'Incidencias Activas',
-      value: stats.activeIncidents,
-      icon: AlertTriangle,
+      name: 'Residentes',
+      value: usersByRole.residents,
+      icon: Users,
       color: 'from-orange-500 to-red-500',
-      change: '-5 vs semana pasada'
+      change: 'Usuarios del sistema',
+      onClick: () => navigate('/superadmin/users')
     }
   ];
 
   const systemStats = [
     { name: 'Server Uptime', value: stats.serverUptime, icon: Server, color: 'text-green-400' },
     { name: 'Database Size', value: stats.databaseSize, icon: Database, color: 'text-blue-400' },
-    { name: 'Conexiones Activas', value: stats.activeConnections, icon: Globe, color: 'text-purple-400' },
-    { name: 'API Requests/día', value: stats.apiRequests.toLocaleString(), icon: Activity, color: 'text-yellow-400' }
+    { name: 'Usuarios Activos', value: users.filter(u => u.isActive).length, icon: Globe, color: 'text-purple-400' },
+    { name: 'Último Login', value: recentActivity.find(a => a.action.includes('Login'))?.time || 'N/A', icon: Activity, color: 'text-yellow-400' }
   ];
 
   const getActivityColor = (type: string) => {
@@ -82,6 +181,23 @@ export default function SuperAdminDashboard() {
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
+
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'SuperAdmin': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'Admin': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'Resident': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -96,9 +212,18 @@ export default function SuperAdminDashboard() {
             Vista general de toda la plataforma NovaResidence
           </p>
         </div>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-          <span className="text-green-400 text-sm font-medium">Sistema Operativo</span>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={loadData}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-all"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </button>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30">
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+            <span className="text-green-400 text-sm font-medium">Sistema Operativo</span>
+          </div>
         </div>
       </div>
 
@@ -107,7 +232,8 @@ export default function SuperAdminDashboard() {
         {mainStats.map((stat) => (
           <div
             key={stat.name}
-            className="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700"
+            onClick={stat.onClick}
+            className="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 cursor-pointer hover:border-gray-600 transition-all"
           >
             <div className={`h-1 bg-gradient-to-r ${stat.color}`}></div>
             <div className="p-6">
@@ -115,6 +241,7 @@ export default function SuperAdminDashboard() {
                 <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color} bg-opacity-20`}>
                   <stat.icon className="w-6 h-6 text-white" />
                 </div>
+                <ChevronRight className="w-5 h-5 text-gray-500" />
               </div>
               <div className="mt-4">
                 <p className="text-3xl font-bold text-white">{stat.value}</p>
@@ -152,23 +279,30 @@ export default function SuperAdminDashboard() {
             <Activity className="w-5 h-5 text-purple-400" />
             Actividad Reciente
           </h2>
-          <div className="space-y-3">
-            {recentActivity.map((activity) => (
-              <div
-                key={activity.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${getActivityColor(activity.type)}`}
-              >
-                <div>
-                  <p className="font-medium text-white">{activity.action}</p>
-                  <p className="text-sm text-gray-400">{activity.entity}</p>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {recentActivity.map((activity) => (
+                <div
+                  key={activity.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border ${getActivityColor(activity.type)}`}
+                >
+                  <div>
+                    <p className="font-medium text-white">{activity.action}</p>
+                    <p className="text-sm text-gray-400">{activity.entity}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-500 text-sm">
+                    <Clock className="w-4 h-4" />
+                    {activity.time}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-gray-500 text-sm">
-                  <Clock className="w-4 h-4" />
-                  {activity.time}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No hay actividad reciente</p>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
@@ -178,13 +312,19 @@ export default function SuperAdminDashboard() {
             Acciones Rápidas
           </h2>
           <div className="space-y-3">
-            <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 transition-colors">
+            <button 
+              onClick={() => navigate('/superadmin/clients')}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 transition-colors"
+            >
               <Building2 className="w-5 h-5" />
-              <span>Nuevo Condominio</span>
+              <span>Gestionar Condominios</span>
             </button>
-            <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors">
+            <button 
+              onClick={() => navigate('/superadmin/users')}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors"
+            >
               <Users className="w-5 h-5" />
-              <span>Agregar Usuario Admin</span>
+              <span>Gestionar Usuarios</span>
             </button>
             <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors">
               <Database className="w-5 h-5" />
@@ -198,56 +338,117 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {/* Condominiums Overview */}
+      {/* Users Overview */}
       <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-blue-400" />
-          Condominios Recientes
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Users className="w-5 h-5 text-blue-400" />
+            Usuarios Recientes
+          </h2>
+          <button 
+            onClick={() => navigate('/superadmin/users')}
+            className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
+          >
+            Ver todos <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
-                <th className="pb-3 font-medium">Nombre</th>
-                <th className="pb-3 font-medium">Plan</th>
-                <th className="pb-3 font-medium">Unidades</th>
-                <th className="pb-3 font-medium">Usuarios</th>
+                <th className="pb-3 font-medium">Usuario</th>
+                <th className="pb-3 font-medium">Email</th>
+                <th className="pb-3 font-medium">Rol</th>
                 <th className="pb-3 font-medium">Estado</th>
-                <th className="pb-3 font-medium">Creado</th>
+                <th className="pb-3 font-medium">Último Login</th>
+                <th className="pb-3 font-medium">Acciones</th>
               </tr>
             </thead>
             <tbody className="text-gray-300">
-              {[
-                { name: 'Residencial Las Palmas', plan: 'Premium', units: 120, users: 245, status: 'Activo', created: '2024-01-15' },
-                { name: 'Torres del Sol', plan: 'Básico', units: 48, users: 92, status: 'Activo', created: '2024-01-10' },
-                { name: 'Condominios Vista Mar', plan: 'Premium', units: 200, users: 380, status: 'Activo', created: '2024-01-05' },
-                { name: 'Jardines del Norte', plan: 'Estándar', units: 75, users: 150, status: 'Pendiente', created: '2024-01-02' },
-              ].map((condo, i) => (
-                <tr key={i} className="border-b border-gray-700/50 hover:bg-gray-700/30">
-                  <td className="py-3 font-medium text-white">{condo.name}</td>
+              {users.slice(0, 5).map((user) => (
+                <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/30">
                   <td className="py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      condo.plan === 'Premium' ? 'bg-yellow-500/20 text-yellow-400' :
-                      condo.plan === 'Estándar' ? 'bg-blue-500/20 text-blue-400' :
-                      'bg-gray-500/20 text-gray-400'
-                    }`}>
-                      {condo.plan}
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white font-semibold text-xs">
+                        {user.firstName?.[0]}{user.lastName?.[0]}
+                      </div>
+                      <span className="font-medium text-white">{user.firstName} {user.lastName}</span>
+                    </div>
+                  </td>
+                  <td className="py-3 text-gray-400">{user.email}</td>
+                  <td className="py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs border ${getRoleBadgeColor(user.defaultRole)}`}>
+                      {user.defaultRole || 'User'}
                     </span>
                   </td>
-                  <td className="py-3">{condo.units}</td>
-                  <td className="py-3">{condo.users}</td>
                   <td className="py-3">
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      condo.status === 'Activo' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'
+                      user.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
                     }`}>
-                      {condo.status}
+                      {user.isActive ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td className="py-3 text-gray-500">{condo.created}</td>
+                  <td className="py-3 text-gray-500">
+                    {user.lastLoginAt ? formatTimeAgo(user.lastLoginAt) : 'Nunca'}
+                  </td>
+                  <td className="py-3">
+                    <button 
+                      onClick={() => navigate('/superadmin/users')}
+                      className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        {users.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p>No hay usuarios registrados</p>
+          </div>
+        )}
+      </div>
+
+      {/* Role Distribution */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-gray-800/50 rounded-lg p-4 border border-purple-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-white">{usersByRole.superAdmins}</p>
+              <p className="text-sm text-gray-400">Super Admins</p>
+            </div>
+            <Crown className="w-8 h-8 text-purple-400" />
+          </div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-4 border border-blue-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-white">{usersByRole.admins}</p>
+              <p className="text-sm text-gray-400">Administradores</p>
+            </div>
+            <Shield className="w-8 h-8 text-blue-400" />
+          </div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-4 border border-green-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-white">{usersByRole.residents}</p>
+              <p className="text-sm text-gray-400">Residentes</p>
+            </div>
+            <Users className="w-8 h-8 text-green-400" />
+          </div>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-500/30">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold text-white">{usersByRole.others}</p>
+              <p className="text-sm text-gray-400">Otros Roles</p>
+            </div>
+            <Users className="w-8 h-8 text-gray-400" />
+          </div>
         </div>
       </div>
     </div>
