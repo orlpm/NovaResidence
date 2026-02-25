@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Shield, Search, Filter, Check, X, Clock, AlertCircle } from 'lucide-react';
+import { Shield, Search, Check, X, Clock, AlertCircle } from 'lucide-react';
 import { permissionService, Permission } from '../../lib/permissionService';
 import { useAuthStore } from '../../stores/authStore';
 import { ROLE_CONFIG, UserRole } from '../../config/roles';
-
-interface UserPermissionGrant {
-  userId: string;
-  userName: string;
-  permissionCode: string;
-  permissionName: string;
-  condominiumId?: string;
-  expiresAt?: string;
-  reason?: string;
-}
 
 // Roles that only SuperAdmin can manage permissions for
 const SUPERADMIN_ONLY_ROLES = [UserRole.SuperAdmin, UserRole.CondominiumAdmin];

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Incidents;
 using Microsoft.Extensions.Logging;
+using NovaResidence.Domain.Enums;
 
 namespace NovaResidence.Application.Features.Incidents.Commands;
 
@@ -32,6 +33,12 @@ public class CreateIncidentCommandHandler : IRequestHandler<CreateIncidentComman
                 request.UnitId,
                 request.Location
             );
+
+            if (!string.IsNullOrWhiteSpace(request.PhotoUrl))
+            {
+                var fileName = Path.GetFileName(request.PhotoUrl.Trim());
+                incident.AddAttachment(fileName, request.PhotoUrl.Trim(), "image/*", null);
+            }
 
             _context.Incidents.Add(incident);
             await _context.SaveChangesAsync(cancellationToken);
@@ -83,6 +90,23 @@ public class AssignIncidentCommandHandler : IRequestHandler<AssignIncidentComman
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
             return Result.NotFound(new string[] { "Incident not found" });
+
+        var assignee = await _context.Users
+            .Include(u => u.CondominiumRoles)
+            .FirstOrDefaultAsync(u => u.Id == request.AssignedToId && !u.IsDeleted, cancellationToken);
+
+        if (assignee == null)
+            return Result.NotFound(new string[] { "Assignee not found" });
+
+        if (!assignee.IsActive)
+            return Result.Error(new Ardalis.Result.ErrorList(new[] { "Assignee is inactive" }, null));
+
+        var isOperationalStaff = assignee.CondominiumRoles.Any(cr =>
+            cr.CondominiumId == incident.CondominiumId &&
+            (cr.Role == UserRole.Maintenance || cr.Role == UserRole.SecurityGuard || cr.Role == UserRole.Cleaning));
+
+        if (!isOperationalStaff)
+            return Result.Error(new Ardalis.Result.ErrorList(new[] { "Assignee must be operational staff from the same condominium" }, null));
 
         incident.AssignTo(request.AssignedToId, request.EstimatedCompletion);
         await _context.SaveChangesAsync(cancellationToken);

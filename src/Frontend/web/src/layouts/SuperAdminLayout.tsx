@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, Sun, Moon, LogOut, Shield, Crown,
-  LayoutDashboard, Building2, Users, Settings,
+  LayoutDashboard, Building2, Users,
   Lock, Activity, Server, Database, CreditCard
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -10,6 +10,7 @@ import { useAuthStore } from '../stores/authStore';
 import { NotificationBell } from '../components/NotificationBell';
 import { PermissionGate } from '../components/shared/PermissionGate';
 import { PERMISSIONS } from '../config/permissions';
+import { useBackgroundPattern } from '../components/BackgroundPattern';
 
 export default function SuperAdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -29,6 +30,12 @@ export default function SuperAdminLayout() {
       name: 'Usuarios', 
       href: '/superadmin/users', 
       icon: Users,
+      permission: PERMISSIONS.PLATFORM_VIEW_ALL_DATA
+    },
+    {
+      name: 'Personal Operativo',
+      href: '/superadmin/staff',
+      icon: Shield,
       permission: PERMISSIONS.PLATFORM_VIEW_ALL_DATA
     },
     { 
@@ -68,8 +75,10 @@ export default function SuperAdminLayout() {
     }
   ];
 
+  const bgPattern = useBackgroundPattern('superadmin');
+
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-gray-900 overflow-x-hidden" style={bgPattern}>
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-purple-900 via-purple-800 to-indigo-900 shadow-2xl transform transition-transform duration-300 ease-in-out ${
@@ -167,7 +176,7 @@ export default function SuperAdminLayout() {
                 <span className="text-sm font-medium text-yellow-400">Modo Super Admin</span>
               </div>
 
-              <NotificationBell />
+              <NotificationBell condominiumId={undefined} />
               
               <button
                 onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}

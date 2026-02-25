@@ -46,3 +46,9 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+## Runtime artifacts
+playwright-report/
+test-results/
+.deploy/
+src/Backend/NovaResidence.Api/uploads/

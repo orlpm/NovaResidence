@@ -3,6 +3,12 @@ import { useAuthStore } from '../stores/authStore'
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
 
+const isLikelyJwt = (token?: string | null): token is string => {
+  if (!token || typeof token !== 'string') return false
+  const parts = token.split('.')
+  return parts.length === 3 && parts.every(p => p.length > 0)
+}
+
 class ApiClient {
   private client: AxiosInstance
 
@@ -17,9 +23,18 @@ class ApiClient {
     // Request interceptor to add auth token
     this.client.interceptors.request.use(
       (config) => {
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+          if (config.headers) {
+            delete (config.headers as any)['Content-Type']
+            delete (config.headers as any)['content-type']
+          }
+        }
+
         const { accessToken } = useAuthStore.getState()
-        if (accessToken) {
+        if (isLikelyJwt(accessToken)) {
           config.headers.Authorization = `Bearer ${accessToken}`
+        } else if (accessToken) {
+          useAuthStore.getState().logout()
         }
         return config
       },
@@ -47,6 +62,10 @@ class ApiClient {
           try {
             await useAuthStore.getState().refreshAccessToken()
             const { accessToken } = useAuthStore.getState()
+            if (!isLikelyJwt(accessToken)) {
+              useAuthStore.getState().logout()
+              return Promise.reject(error)
+            }
             originalRequest.headers.Authorization = `Bearer ${accessToken}`
             return this.client(originalRequest)
           } catch (refreshError) {

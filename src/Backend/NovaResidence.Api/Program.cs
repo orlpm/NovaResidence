@@ -144,6 +144,15 @@ if (!app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 
+// Serve uploaded files (payment proofs, etc.)
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+if (!Directory.Exists(uploadsPath)) Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads"
+});
+
 // Custom middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();

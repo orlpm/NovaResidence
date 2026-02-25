@@ -28,10 +28,14 @@ import Residents from './pages/admin/Residents'
 import Amenities from './pages/admin/Amenities'
 import Billing from './pages/admin/Billing'
 import Incidents from './pages/admin/Incidents'
+import AdminVisits from './pages/admin/Visits'
 import AdminReservations from './pages/admin/Reservations'
+import CommonAreas from './pages/admin/CommonAreas'
+import CondominiumMaps from './pages/admin/CondominiumMaps'
 import Reports from './pages/admin/Reports'
 import Communications from './pages/admin/Communications'
 import SubscriptionStatus from './pages/admin/SubscriptionStatus'
+import StaffManagement from './pages/shared/StaffManagement'
 
 // Pages - SuperAdmin
 import SuperAdminDashboard from './pages/superadmin/Dashboard'
@@ -57,7 +61,13 @@ import ReservationsPage from './pages/resident/Reservations'
 import MyIncidents from './pages/resident/MyIncidents'
 import NewReservation from './pages/resident/NewReservation'
 import NewIncident from './pages/resident/NewIncident'
+import IncidentDetail from './pages/resident/IncidentDetail'
+import MyVisits from './pages/resident/MyVisits'
+import NewVisit from './pages/resident/NewVisit'
+import VisitDetail from './pages/resident/VisitDetail'
 import ResidentCommunications from './pages/resident/Communications'
+import ResidentCommonAreas from './pages/resident/CommonAreas'
+import ResidentCondominiumMap from './pages/resident/CondominiumMap'
 
 // Pages - Auth
 import Login from './pages/auth/Login'
@@ -136,6 +146,7 @@ function App() {
             </PermissionRoute>
           } 
         />
+        <Route path="staff" element={<StaffManagement />} />
         <Route path="subscriptions" element={<SubscriptionsManagement />} />
         <Route path="monitoring" element={<div className="text-white">Monitoreo del Sistema - Coming Soon</div>} />
         <Route 
@@ -179,12 +190,30 @@ function App() {
         <Route path="units" element={<Units />} />
         <Route path="residents" element={<Residents />} />
         <Route path="amenities" element={<Amenities />} />
+        <Route 
+          path="common-areas" 
+          element={
+            <PermissionRoute permissions={[PERMISSIONS.COMMON_AREAS_VIEW, PERMISSIONS.COMMON_AREAS_MANAGE]}>
+              <CommonAreas />
+            </PermissionRoute>
+          }
+        />
+        <Route 
+          path="maps" 
+          element={
+            <PermissionRoute permissions={[PERMISSIONS.MAPS_VIEW, PERMISSIONS.MAPS_MANAGE]}>
+              <CondominiumMaps />
+            </PermissionRoute>
+          }
+        />
         <Route path="reservations" element={<AdminReservations />} />
         <Route path="billing" element={<Billing />} />
         <Route path="incidents" element={<Incidents />} />
+        <Route path="visits" element={<AdminVisits />} />
         <Route path="communications" element={<Communications />} />
         <Route path="reports" element={<Reports />} />
         <Route path="subscription" element={<SubscriptionStatus />} />
+        <Route path="staff" element={<StaffManagement />} />
         <Route 
           path="permissions" 
           element={
@@ -254,7 +283,7 @@ function App() {
         <Route index element={<SecurityDashboard />} />
         <Route path="dashboard" element={<SecurityDashboard />} />
         <Route path="access-log" element={<div className="text-white">Access Log - Coming Soon</div>} />
-        <Route path="visitors" element={<div className="text-white">Visitors - Coming Soon</div>} />
+        <Route path="visitors" element={<AdminVisits />} />
         <Route path="incidents" element={<Incidents />} />
       </Route>
 
@@ -320,9 +349,29 @@ function App() {
         <Route path="my-unit" element={<MyUnit />} />
         <Route path="payments" element={<Payments />} />
         <Route path="reservations" element={<ReservationsPage />} />
+        <Route 
+          path="common-areas" 
+          element={
+            <PermissionRoute permissions={PERMISSIONS.COMMON_AREAS_VIEW}>
+              <ResidentCommonAreas />
+            </PermissionRoute>
+          }
+        />
+        <Route 
+          path="map" 
+          element={
+            <PermissionRoute permissions={PERMISSIONS.MAPS_VIEW}>
+              <ResidentCondominiumMap />
+            </PermissionRoute>
+          }
+        />
         <Route path="reservations/new" element={<NewReservation />} />
         <Route path="incidents" element={<MyIncidents />} />
         <Route path="incidents/new" element={<NewIncident />} />
+        <Route path="incidents/:id" element={<IncidentDetail />} />
+        <Route path="visits" element={<MyVisits />} />
+        <Route path="visits/new" element={<NewVisit />} />
+        <Route path="visits/:id" element={<VisitDetail />} />
         <Route path="communications" element={<ResidentCommunications />} />
       </Route>
 
@@ -335,6 +384,12 @@ function App() {
               <Navigate to="/superadmin" replace />
             ) : user?.role === 'admin' ? (
               <Navigate to="/admin" replace />
+            ) : user?.role === 'security' ? (
+              <Navigate to="/security" replace />
+            ) : user?.role === 'maintenance' ? (
+              <Navigate to="/maintenance" replace />
+            ) : user?.role === 'accountant' ? (
+              <Navigate to="/accountant" replace />
             ) : (
               <Navigate to="/resident" replace />
             )

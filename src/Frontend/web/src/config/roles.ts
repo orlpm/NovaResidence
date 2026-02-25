@@ -10,7 +10,8 @@ export enum UserRole {
   SecurityGuard = 5,
   Maintenance = 6,
   ServiceProvider = 7,
-  Accountant = 8
+  Accountant = 8,
+  Cleaning = 9
 }
 
 export const ROLE_CONFIG = {
@@ -76,6 +77,13 @@ export const ROLE_CONFIG = {
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-100 dark:bg-emerald-900/20',
     layout: '/accountant'
+  },
+  [UserRole.Cleaning]: {
+    name: 'Limpieza',
+    icon: Briefcase,
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-100 dark:bg-cyan-900/20',
+    layout: '/maintenance'
   }
 };
 
@@ -121,5 +129,10 @@ export const ROLE_NAVIGATION = {
     { name: 'Facturación', path: '/accountant/billing', icon: 'DollarSign', permission: PERMISSIONS.BILLING_VIEW },
     { name: 'Reportes Financieros', path: '/accountant/reports', icon: 'FileText', permission: PERMISSIONS.REPORTS_FINANCIAL },
     { name: 'Cargos', path: '/accountant/charges', icon: 'Receipt', permission: PERMISSIONS.BILLING_CREATE_CHARGES }
+  ],
+  [UserRole.Cleaning]: [
+    { name: 'Dashboard', path: '/maintenance/dashboard', icon: 'LayoutDashboard', permission: null },
+    { name: 'Mis Incidencias', path: '/maintenance/incidents', icon: 'AlertCircle', permission: PERMISSIONS.INCIDENTS_VIEW },
+    { name: 'Reportar Incidencia', path: '/maintenance/new-incident', icon: 'Plus', permission: PERMISSIONS.INCIDENTS_CREATE }
   ]
 };

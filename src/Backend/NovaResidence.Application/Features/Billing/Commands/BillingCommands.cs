@@ -54,7 +54,8 @@ public record RecordPaymentCommand(
     DateTime PaymentDate,
     Guid? ReceivedById = null,
     string? ReferenceNumber = null,
-    string? Notes = null
+    string? Notes = null,
+    string? ProofImageUrl = null
 ) : IRequest<Result<Guid>>;
 
 public record VerifyPaymentCommand(Guid PaymentId, Guid VerifiedById) : IRequest<Result>;

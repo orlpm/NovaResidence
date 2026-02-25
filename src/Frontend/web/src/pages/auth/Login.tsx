@@ -33,6 +33,12 @@ function Login() {
         navigate('/superadmin')
       } else if (role === 'admin') {
         navigate('/admin')
+      } else if (role === 'security' || role === 'securityguard') {
+        navigate('/security')
+      } else if (role === 'maintenance' || role === 'cleaning') {
+        navigate('/maintenance')
+      } else if (role === 'accountant') {
+        navigate('/accountant')
       } else {
         navigate('/resident')
       }
@@ -84,6 +90,7 @@ function Login() {
               id="password"
               name="password"
               type="password"
+              autoComplete="off"
               required
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}

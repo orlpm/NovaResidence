@@ -52,18 +52,18 @@ export default function Navbar() {
           ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-2xl shadow-sky-500/10' 
           : 'bg-white dark:bg-gray-900'
       }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-20">
             {/* Logo */}
-            <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center space-x-3 group">
-              <div className="w-12 h-12 bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/40 group-hover:shadow-sky-500/60 transition-all duration-300 group-hover:scale-110">
-                <Building2 className="w-7 h-7 text-white" />
+            <Link to="/" onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMobileMenuOpen(false); }} className="flex items-center space-x-2 sm:space-x-3 group min-w-0">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/40 group-hover:shadow-sky-500/60 transition-all duration-300 group-hover:scale-110 flex-shrink-0">
+                <Building2 className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
               </div>
-              <div>
-                <span className="text-2xl font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+              <div className="min-w-0">
+                <span className="text-lg sm:text-2xl font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent block truncate">
                   NovaResidence
                 </span>
-                <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Gestión de Condominios</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium hidden xs:block">Gestión de Condominios</p>
               </div>
             </Link>
 
@@ -172,25 +172,27 @@ export default function Navbar() {
             </div>
 
             {/* Mobile menu button */}
-            <div className="md:hidden flex items-center space-x-2">
+            <div className="md:hidden flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
               <button
                 onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}
-                className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800"
+                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-gray-100 dark:bg-gray-800"
+                aria-label="Toggle theme"
               >
                 {effectiveTheme === 'dark' ? (
-                  <Sun className="w-5 h-5 text-amber-500" />
+                  <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
                 ) : (
-                  <Moon className="w-5 h-5 text-gray-600" />
+                  <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                 )}
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800"
+                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-gray-100 dark:bg-gray-800"
+                aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? (
-                  <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-300" />
                 ) : (
-                  <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+                  <Menu className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600 dark:text-gray-300" />
                 )}
               </button>
             </div>
@@ -198,35 +200,71 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl">
-            <div className="px-4 py-6 space-y-2">
-              <a href="#features" className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-xl font-semibold">
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
+          mobileMenuOpen ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'
+        }`}>
+          <div className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-2xl">
+            <div className="px-3 sm:px-4 py-4 sm:py-6 space-y-1.5 sm:space-y-2 max-h-[70vh] overflow-y-auto">
+              <a
+                href="#features"
+                onClick={(e) => { e.preventDefault(); setMobileMenuOpen(false); document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="block px-4 py-2.5 sm:py-3 text-gray-700 dark:text-gray-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-xl font-semibold text-sm sm:text-base"
+              >
                 Características
               </a>
-              <a href="#pricing" className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-xl font-semibold">
+              <a
+                href="#pricing"
+                onClick={(e) => { e.preventDefault(); setMobileMenuOpen(false); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="block px-4 py-2.5 sm:py-3 text-gray-700 dark:text-gray-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-xl font-semibold text-sm sm:text-base"
+              >
                 Precios
               </a>
-              <a href="#contact" className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-xl font-semibold">
+              <a
+                href="#contact"
+                onClick={(e) => { e.preventDefault(); setMobileMenuOpen(false); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }}
+                className="block px-4 py-2.5 sm:py-3 text-gray-700 dark:text-gray-300 hover:bg-sky-50 dark:hover:bg-sky-900/20 rounded-xl font-semibold text-sm sm:text-base"
+              >
                 Contacto
               </a>
               
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
+              <div className="pt-3 sm:pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2.5 sm:space-y-3">
                 {isAuthenticated ? (
                   <>
-                    <Link to={getDashboardLink()} className="block w-full text-center px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg">
+                    <div className="flex items-center space-x-3 px-4 py-2 mb-2">
+                      <div className="w-9 h-9 bg-gradient-to-br from-sky-400 to-blue-600 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        {user?.firstName?.[0]}{user?.lastName?.[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{user?.firstName} {user?.lastName}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email}</p>
+                      </div>
+                    </div>
+                    <Link
+                      to={getDashboardLink()}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block w-full text-center px-5 py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg text-sm sm:text-base"
+                    >
                       Mi Dashboard
                     </Link>
-                    <button onClick={handleLogout} className="w-full px-6 py-3 border-2 border-red-500 text-red-500 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-900/20">
+                    <button
+                      onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                      className="w-full px-5 py-2.5 sm:py-3 border-2 border-red-500 text-red-500 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 text-sm sm:text-base"
+                    >
                       Cerrar Sesión
                     </button>
                   </>
                 ) : (
                   <>
-                    <button onClick={() => setShowLogin(true)} className="w-full px-6 py-3 border-2 border-sky-500 text-sky-600 dark:text-sky-400 rounded-xl font-semibold hover:bg-sky-50 dark:hover:bg-sky-900/20">
+                    <button
+                      onClick={() => { setShowLogin(true); setMobileMenuOpen(false); }}
+                      className="w-full px-5 py-2.5 sm:py-3 border-2 border-sky-500 text-sky-600 dark:text-sky-400 rounded-xl font-semibold hover:bg-sky-50 dark:hover:bg-sky-900/20 text-sm sm:text-base"
+                    >
                       Iniciar Sesión
                     </button>
-                    <button onClick={() => setShowRegister(true)} className="w-full px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg">
+                    <button
+                      onClick={() => { setShowRegister(true); setMobileMenuOpen(false); }}
+                      className="w-full px-5 py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg text-sm sm:text-base"
+                    >
                       Registrarse
                     </button>
                   </>
@@ -234,7 +272,7 @@ export default function Navbar() {
               </div>
             </div>
           </div>
-        )}
+        </div>
       </nav>
 
       {/* Modals */}

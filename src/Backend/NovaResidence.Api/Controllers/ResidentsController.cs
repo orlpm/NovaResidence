@@ -12,17 +12,20 @@ public class ResidentsController : ControllerBase
 {
     private readonly IResidentRepository _residentRepository;
     private readonly IUnitRepository _unitRepository;
+    private readonly IBuildingRepository _buildingRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ResidentsController> _logger;
 
     public ResidentsController(
         IResidentRepository residentRepository,
         IUnitRepository unitRepository,
+        IBuildingRepository buildingRepository,
         IUnitOfWork unitOfWork,
         ILogger<ResidentsController> logger)
     {
         _residentRepository = residentRepository;
         _unitRepository = unitRepository;
+        _buildingRepository = buildingRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -123,8 +126,13 @@ public class ResidentsController : ControllerBase
         // Get unit information with building
         var unit = await _unitRepository.GetByIdAsync(resident.UnitId);
         
-        // Get condominiumId from building
+        // Get condominiumId from building (fallback when navigation properties are not loaded)
         Guid? condominiumId = unit?.Building?.CondominiumId;
+        if (!condominiumId.HasValue && unit != null)
+        {
+            var building = await _buildingRepository.GetByIdAsync(unit.BuildingId);
+            condominiumId = building?.CondominiumId;
+        }
         
         var result = new ResidentWithUnitDto(
             resident.Id,

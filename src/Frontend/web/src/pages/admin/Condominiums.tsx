@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   Building2, 
@@ -13,7 +13,8 @@ import {
   Edit,
   Eye,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react'
 import { condominiumService, UserCondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
@@ -27,10 +28,27 @@ function Condominiums() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [condoToDelete, setCondoToDelete] = useState<UserCondominiumDto | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadCondominiums()
   }, [user])
+
+  // Cerrar menú al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null)
+      }
+    }
+
+    if (openMenuId) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openMenuId])
 
   const loadCondominiums = async () => {
     setIsLoading(true)
@@ -73,6 +91,27 @@ function Condominiums() {
   const handleManageBuildings = (condoId: string) => {
     navigate(`/admin/condominiums/${condoId}/units`)
     setOpenMenuId(null)
+  }
+
+  const handleDeleteClick = (condo: UserCondominiumDto) => {
+    setCondoToDelete(condo)
+    setOpenMenuId(null)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!condoToDelete) return
+    
+    setIsDeleting(true)
+    try {
+      await condominiumService.deleteCondominium(condoToDelete.id)
+      setCondoToDelete(null)
+      await loadCondominiums()
+    } catch (err) {
+      console.error('Error deleting condominium:', err)
+      setError('Error al eliminar el condominio. Por favor intenta de nuevo.')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -206,7 +245,7 @@ function Condominiums() {
                   </div>
                   
                   {/* Menu */}
-                  <div className="relative">
+                  <div className="relative" ref={openMenuId === condo.id ? menuRef : null}>
                     <button
                       onClick={() => setOpenMenuId(openMenuId === condo.id ? null : condo.id)}
                       className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
@@ -239,6 +278,7 @@ function Condominiums() {
                         </button>
                         <hr className="my-1 border-gray-200 dark:border-gray-700" />
                         <button
+                          onClick={() => handleDeleteClick(condo)}
                           className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -329,6 +369,78 @@ function Condominiums() {
               {condominiums.reduce((sum, c) => sum + c.totalUnits, 0)}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">Total Unidades</p>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {condoToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                Confirmar Eliminación
+              </h3>
+              <button
+                onClick={() => setCondoToDelete(null)}
+                disabled={isDeleting}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-4 p-4 bg-red-50 dark:bg-red-900/20 rounded-xl">
+                <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-900 dark:text-red-100 mb-1">
+                    Esta acción no se puede deshacer
+                  </p>
+                  <p className="text-xs text-red-700 dark:text-red-300">
+                    Se eliminarán todos los datos asociados al condominio
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-gray-700 dark:text-gray-300">
+                ¿Estás seguro de que deseas eliminar el condominio
+                {' '}<span className="font-semibold">{condoToDelete.name}</span>?
+              </p>
+              
+              <div className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <p>• {condoToDelete.totalBuildings} edificio(s)</p>
+                <p>• {condoToDelete.totalUnits} unidad(es)</p>
+                <p>• Todos los residentes asociados</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCondoToDelete(null)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

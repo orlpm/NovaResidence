@@ -24,12 +24,13 @@ export enum ChargeStatus {
 
 export enum PaymentMethod {
   Cash = 0,
-  Check = 1,
-  BankTransfer = 2,
-  CreditCard = 3,
-  DebitCard = 4,
-  DirectDebit = 5,
-  Other = 6
+  BankTransfer = 1,
+  CreditCard = 2,
+  DebitCard = 3,
+  Check = 4,
+  SPEI = 5,
+  PayPal = 6,
+  Other = 99
 }
 
 export enum InvoiceStatus {
@@ -64,11 +65,12 @@ export const chargeStatusNames: Record<ChargeStatus, string> = {
 
 export const paymentMethodNames: Record<PaymentMethod, string> = {
   [PaymentMethod.Cash]: 'Efectivo',
-  [PaymentMethod.Check]: 'Cheque',
   [PaymentMethod.BankTransfer]: 'Transferencia Bancaria',
   [PaymentMethod.CreditCard]: 'Tarjeta de Crédito',
   [PaymentMethod.DebitCard]: 'Tarjeta de Débito',
-  [PaymentMethod.DirectDebit]: 'Domiciliación',
+  [PaymentMethod.Check]: 'Cheque',
+  [PaymentMethod.SPEI]: 'SPEI',
+  [PaymentMethod.PayPal]: 'PayPal',
   [PaymentMethod.Other]: 'Otro'
 }
 
@@ -87,12 +89,32 @@ export interface PaymentDto {
   paymentMethod: PaymentMethod
   paymentMethodName: string
   referenceNumber: string | null
+  notes: string | null
   paymentDate: string
   isVerified: boolean
   verifiedAt: string | null
   isRefunded: boolean
   refundedAt: string | null
   refundReason: string | null
+  proofImageUrl: string | null
+  chargeId: string
+  chargeConcept: string | null
+  unitNumber: string | null
+  buildingName: string | null
+  condominiumId: string | null
+}
+
+export interface ChargePaymentDto {
+  id: string
+  amount: number
+  paymentMethod: PaymentMethod
+  paymentMethodName: string
+  referenceNumber: string | null
+  paymentDate: string
+  isVerified: boolean
+  verifiedAt: string | null
+  isRefunded: boolean
+  proofImageUrl: string | null
 }
 
 export interface ChargeListDto {
@@ -113,6 +135,8 @@ export interface ChargeListDto {
   billingPeriodMonth: number
   billingPeriodYear: number
   createdAt: string
+  hasUnverifiedPayments: boolean
+  payments: ChargePaymentDto[]
 }
 
 export interface ChargeDetailDto extends ChargeListDto {
@@ -211,6 +235,7 @@ export interface RecordPaymentRequest {
   receivedById?: string | null
   referenceNumber?: string | null
   notes?: string | null
+  proofImageUrl?: string | null
 }
 
 export interface VerifyPaymentRequest {
@@ -377,6 +402,22 @@ export const billingService = {
   // Refund a payment
   async refundPayment(id: string, request: RefundPaymentRequest): Promise<void> {
     await apiClient.post(`/billing/payments/${id}/refund`, request)
+  },
+
+  // Upload payment proof image
+  async uploadPaymentProof(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post<string>('/billing/payments/upload-proof', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return response.data
+  },
+
+  // Get pending (unverified) payments for a condominium
+  async getPendingPayments(condominiumId: string): Promise<PaymentDto[]> {
+    const response = await apiClient.get<PaymentDto[]>(`/billing/payments/pending/${condominiumId}`)
+    return response.data
   },
 
   // ============ Balances ============

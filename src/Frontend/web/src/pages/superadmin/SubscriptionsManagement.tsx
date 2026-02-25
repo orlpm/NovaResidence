@@ -28,6 +28,7 @@ export default function SubscriptionsManagement() {
     subscription: SubscriptionListItem;
   } | null>(null);
   const [actionMonths, setActionMonths] = useState(1);
+  const [actionDays, setActionDays] = useState(0);
   const [actionReason, setActionReason] = useState('');
   const [actionStatus, setActionStatus] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -81,10 +82,21 @@ export default function SubscriptionsManagement() {
     if (!actionModal) return;
     setActionLoading(true);
     try {
-      await subscriptionService.extendSubscription(actionModal.subscription.id, actionMonths, actionReason || undefined);
-      setFeedback({ type: 'success', message: `Suscripción extendida ${actionMonths} mes(es)` });
+      await subscriptionService.extendSubscription(
+        actionModal.subscription.id,
+        actionMonths,
+        actionDays,
+        actionReason || undefined
+      );
+      const extensionText = actionMonths > 0 && actionDays > 0
+        ? `${actionMonths} mes(es) y ${actionDays} día(s)`
+        : actionMonths > 0
+          ? `${actionMonths} mes(es)`
+          : `${actionDays} día(s)`;
+      setFeedback({ type: 'success', message: `Suscripción extendida ${extensionText}` });
       setActionModal(null);
       setActionMonths(1);
+      setActionDays(0);
       setActionReason('');
       await loadSubscriptions();
     } catch (error: any) {
@@ -257,65 +269,50 @@ export default function SubscriptionsManagement() {
                   const isExpanded = expandedId === sub.id;
 
                   return (
-                    <tr key={sub.id} className="group">
-                      <td colSpan={7} className="p-0">
-                        {/* Main Row */}
-                        <div
-                          className="flex items-center px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition-colors"
-                          onClick={() => setExpandedId(isExpanded ? null : sub.id)}
-                        >
-                          <div className="flex-1 min-w-0 flex items-center gap-4">
-                            {/* Admin User */}
-                            <div className="w-48">
-                              <p className="text-sm font-medium text-white truncate">{sub.adminName}</p>
-                              <p className="text-xs text-gray-500 truncate">{sub.adminEmail}</p>
-                              <p className="text-xs text-gray-600">{sub.condominiumCount} condominio(s) · {sub.billedUnits} unidades</p>
-                            </div>
-
-                            {/* Plan */}
-                            <div className="w-28">
-                              <p className="text-sm text-gray-300">{sub.planName}</p>
-                              <p className="text-xs text-gray-500">${sub.planPricePerUnit}/unidad</p>
-                            </div>
-
-                            {/* Status */}
-                            <div className="w-36">
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${sc.bg} ${sc.color}`}>
-                                <StatusIcon className="w-3 h-3" />
-                                {sc.label}
-                              </span>
-                            </div>
-
-                            {/* Monthly */}
-                            <div className="w-28">
-                              <p className="text-sm font-semibold text-white">${sub.monthlyAmount.toLocaleString()}</p>
-                              <p className="text-xs text-gray-500">MXN/mes</p>
-                            </div>
-
-                            {/* Days Remaining */}
-                            <div className="w-28">
-                              <p className={`text-sm font-bold ${getDaysColor(sub.daysRemaining, sub.statusText)}`}>
-                                {sub.daysRemaining} días
-                              </p>
-                              <div className="w-full bg-gray-700 rounded-full h-1.5 mt-1">
-                                <div
-                                  className={`h-1.5 rounded-full transition-all ${
-                                    sub.daysRemaining > 15 ? 'bg-green-500' :
-                                    sub.daysRemaining > 7 ? 'bg-yellow-500' : 'bg-red-500'
-                                  }`}
-                                  style={{ width: `${Math.min(100, (sub.daysRemaining / 30) * 100)}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Expiration */}
-                            <div className="w-28">
-                              <p className="text-xs text-gray-400">{formatDate(sub.currentPeriodEnd)}</p>
-                            </div>
+                    <>
+                      <tr
+                        key={sub.id}
+                        className="group hover:bg-gray-700/30 transition-colors cursor-pointer"
+                        onClick={() => setExpandedId(isExpanded ? null : sub.id)}
+                      >
+                        <td className="px-4 py-3 align-middle">
+                          <p className="text-sm font-medium text-white truncate">{sub.adminName}</p>
+                          <p className="text-xs text-gray-500 truncate">{sub.adminEmail}</p>
+                          <p className="text-xs text-gray-600">{sub.condominiumCount} condominio(s) · {sub.billedUnits} unidades</p>
+                        </td>
+                        <td className="px-4 py-3 align-middle whitespace-nowrap">
+                          <p className="text-sm text-gray-300">{sub.planName}</p>
+                          <p className="text-xs text-gray-500">${sub.planPricePerUnit}/unidad</p>
+                        </td>
+                        <td className="px-4 py-3 align-middle whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${sc.bg} ${sc.color}`}>
+                            <StatusIcon className="w-3 h-3" />
+                            {sc.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 align-middle whitespace-nowrap">
+                          <p className="text-sm font-semibold text-white">${sub.monthlyAmount.toLocaleString()}</p>
+                          <p className="text-xs text-gray-500">MXN/mes</p>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <p className={`text-sm font-bold ${getDaysColor(sub.daysRemaining, sub.statusText)}`}>
+                            {sub.daysRemaining} días
+                          </p>
+                          <div className="w-full bg-gray-700 rounded-full h-1.5 mt-1">
+                            <div
+                              className={`h-1.5 rounded-full transition-all ${
+                                sub.daysRemaining > 15 ? 'bg-green-500' :
+                                sub.daysRemaining > 7 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${Math.min(100, (sub.daysRemaining / 30) * 100)}%` }}
+                            />
                           </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center gap-2 ml-4">
+                        </td>
+                        <td className="px-4 py-3 align-middle whitespace-nowrap text-xs text-gray-400">
+                          {formatDate(sub.currentPeriodEnd)}
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={(e) => { e.stopPropagation(); setActionModal({ type: 'extend', subscription: sub }); }}
                               className="p-1.5 rounded-lg text-blue-400 hover:bg-blue-500/20 transition-colors"
@@ -339,12 +336,13 @@ export default function SubscriptionsManagement() {
                             </button>
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                           </div>
-                        </div>
+                        </td>
+                      </tr>
 
-                        {/* Expanded Detail */}
-                        {isExpanded && (
-                          <div className="px-6 pb-4 bg-gray-750 border-t border-gray-700/50">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
+                      {isExpanded && (
+                        <tr className="bg-gray-700/20">
+                          <td colSpan={7} className="px-6 pb-4 pt-2 border-t border-gray-700/50">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
                               <DetailItem icon={Calendar} label="Fecha Inicio" value={formatDate(sub.startDate)} />
                               <DetailItem icon={Gift} label="Fin Prueba" value={formatDate(sub.trialEndDate)} />
                               <DetailItem icon={Timer} label="Período Actual" value={`${formatDate(sub.currentPeriodStart)} — ${formatDate(sub.currentPeriodEnd)}`} />
@@ -358,10 +356,10 @@ export default function SubscriptionsManagement() {
                                 value={sub.isAccessGranted ? '✅ Permitido' : '🚫 Bloqueado'}
                               />
                             </div>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   );
                 })}
               </tbody>
@@ -381,7 +379,7 @@ export default function SubscriptionsManagement() {
                 {actionModal.type === 'status' && '🔄 Cambiar Estado'}
               </h3>
               <button
-                onClick={() => { setActionModal(null); setActionMonths(1); setActionReason(''); setActionStatus(''); }}
+                onClick={() => { setActionModal(null); setActionMonths(1); setActionDays(0); setActionReason(''); setActionStatus(''); }}
                 className="p-1 rounded-lg text-gray-400 hover:bg-gray-700"
               >
                 <X className="w-5 h-5" />
@@ -412,25 +410,42 @@ export default function SubscriptionsManagement() {
                   </select>
                 </div>
               ) : (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    {actionModal.type === 'extend' ? 'Meses a extender' : 'Meses a condonar'}
-                  </label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 6, 12].map(m => (
-                      <button
-                        key={m}
-                        onClick={() => setActionMonths(m)}
-                        className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          actionMonths === m
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
-                      >
-                        {m}
-                      </button>
-                    ))}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                      Meses {actionModal.type === 'extend' ? 'a extender' : 'a condonar'}
+                    </label>
+                    <div className="flex gap-2">
+                      {[0, 1, 2, 3, 6, 12].map(m => (
+                        <button
+                          key={m}
+                          onClick={() => setActionMonths(m)}
+                          className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            actionMonths === m
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+
+                  {actionModal.type === 'extend' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Días a extender</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={365}
+                        value={actionDays}
+                        onChange={(e) => setActionDays(Math.max(0, Number(e.target.value) || 0))}
+                        className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                      />
+                    </div>
+                  )}
+
                   {actionModal.type === 'condone' && (
                     <p className="mt-2 text-xs text-yellow-400">
                       💰 Valor condonado: ${(actionModal.subscription.monthlyAmount * actionMonths).toLocaleString()} MXN
@@ -453,7 +468,7 @@ export default function SubscriptionsManagement() {
 
             <div className="flex gap-3 p-6 border-t border-gray-700">
               <button
-                onClick={() => { setActionModal(null); setActionMonths(1); setActionReason(''); setActionStatus(''); }}
+                onClick={() => { setActionModal(null); setActionMonths(1); setActionDays(0); setActionReason(''); setActionStatus(''); }}
                 className="flex-1 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Cancelar
@@ -464,7 +479,11 @@ export default function SubscriptionsManagement() {
                   actionModal.type === 'condone' ? handleCondone :
                   handleChangeStatus
                 }
-                disabled={actionLoading || (actionModal.type === 'status' && !actionStatus)}
+                disabled={
+                  actionLoading ||
+                  (actionModal.type === 'status' && !actionStatus) ||
+                  (actionModal.type === 'extend' && actionMonths <= 0 && actionDays <= 0)
+                }
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : (

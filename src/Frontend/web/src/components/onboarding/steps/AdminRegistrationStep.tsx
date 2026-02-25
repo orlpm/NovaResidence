@@ -140,6 +140,7 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
             type={showPassword ? 'text' : 'password'}
             value={formData.password}
             onChange={(e) => handleChange('password', e.target.value)}
+            autoComplete="new-password"
             className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
             placeholder="••••••••"
           />

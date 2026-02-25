@@ -22,7 +22,22 @@ public record ChargeListDto(
     DateTime DueDate,
     int BillingPeriodMonth,
     int BillingPeriodYear,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    bool HasUnverifiedPayments,
+    List<ChargePaymentDto> Payments
+);
+
+public record ChargePaymentDto(
+    Guid Id,
+    decimal Amount,
+    PaymentMethod PaymentMethod,
+    string PaymentMethodName,
+    string? ReferenceNumber,
+    DateTime PaymentDate,
+    bool IsVerified,
+    DateTime? VerifiedAt,
+    bool IsRefunded,
+    string? ProofImageUrl
 );
 
 public record ChargeDetailDto(
@@ -55,13 +70,20 @@ public record PaymentDto(
     Guid Id,
     decimal Amount,
     PaymentMethod PaymentMethod,
+    string PaymentMethodName,
     string? ReferenceNumber,
     string? Notes,
     DateTime PaymentDate,
     bool IsVerified,
     DateTime? VerifiedAt,
     bool IsRefunded,
-    string? RefundReason
+    string? RefundReason,
+    string? ProofImageUrl,
+    Guid ChargeId,
+    string? ChargeConcept,
+    string? UnitNumber,
+    string? BuildingName,
+    Guid? CondominiumId
 );
 
 public record UnitBalanceDto(
@@ -136,3 +158,5 @@ public record GetBillingSummaryQuery(
 ) : IRequest<Result<BillingSummaryDto>>;
 
 public record GetOverdueChargesQuery(Guid CondominiumId) : IRequest<Result<List<ChargeListDto>>>;
+
+public record GetPendingPaymentsQuery(Guid CondominiumId) : IRequest<Result<List<PaymentDto>>>;

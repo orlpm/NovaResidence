@@ -260,6 +260,10 @@ class CondominiumService {
     await apiClient.put(`/condominiums/${id}`, data)
   }
 
+  async deleteCondominium(id: string): Promise<void> {
+    await apiClient.delete(`/condominiums/${id}`)
+  }
+
   // --- Building Management ---
 
   async addBuilding(condominiumId: string, data: { name: string; totalFloors: number; description?: string; startsAtGroundFloor?: boolean }): Promise<void> {

@@ -8,6 +8,8 @@ using NovaResidence.Domain.Entities.Billing;
 using NovaResidence.Domain.Entities.Communications;
 using NovaResidence.Domain.Entities.Notifications;
 using NovaResidence.Domain.Entities.Subscriptions;
+using NovaResidence.Domain.Entities.Visits;
+using NovaResidence.Domain.Entities.Maps;
 using System.Reflection;
 
 // Aliases for disambiguation
@@ -40,9 +42,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<Unit> Units => Set<Unit>();
     public DbSet<CommonArea> CommonAreas => Set<CommonArea>();
     public DbSet<CommonAreaReservation> CommonAreaReservations => Set<CommonAreaReservation>();
+    public DbSet<CondominiumCommonArea> CondominiumCommonAreas => Set<CondominiumCommonArea>();
     public DbSet<Resident> Residents => Set<Resident>();
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<CondominiumMap> CondominiumMaps => Set<CondominiumMap>();
+    public DbSet<CondominiumMapMarker> CondominiumMapMarkers => Set<CondominiumMapMarker>();
     
     // Incidents Module
     public DbSet<IncidentEntity> Incidents => Set<IncidentEntity>();
@@ -68,6 +73,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<ForumComment> ForumComments => Set<ForumComment>();
     public DbSet<ForumPostAttachment> ForumPostAttachments => Set<ForumPostAttachment>();
     
+    // Visits Module
+    public DbSet<Visit> Visits => Set<Visit>();
+    
     // Notifications Module
     public DbSet<Notification> Notifications => Set<Notification>();
     
@@ -90,9 +98,12 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<Unit>().HasQueryFilter(u => !u.IsDeleted);
         modelBuilder.Entity<CommonArea>().HasQueryFilter(ca => !ca.IsDeleted);
         modelBuilder.Entity<CommonAreaReservation>().HasQueryFilter(r => !r.IsDeleted);
+        modelBuilder.Entity<CondominiumCommonArea>().HasQueryFilter(ca => !ca.IsDeleted);
         modelBuilder.Entity<Resident>().HasQueryFilter(r => !r.IsDeleted);
         modelBuilder.Entity<Amenity>().HasQueryFilter(a => !a.IsDeleted);
         modelBuilder.Entity<Reservation>().HasQueryFilter(r => !r.IsDeleted);
+        modelBuilder.Entity<CondominiumMap>().HasQueryFilter(m => !m.IsDeleted);
+        modelBuilder.Entity<CondominiumMapMarker>().HasQueryFilter(mm => !mm.IsDeleted);
         
         // Incidents query filters
         modelBuilder.Entity<IncidentEntity>().HasQueryFilter(i => !i.IsDeleted);
@@ -109,6 +120,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<SubscriptionPlan>().HasQueryFilter(sp => !sp.IsDeleted);
         modelBuilder.Entity<Subscription>().HasQueryFilter(s => !s.IsDeleted);
         modelBuilder.Entity<SubscriptionPayment>().HasQueryFilter(sp => !sp.IsDeleted);
+        
+        // Visits query filters
+        modelBuilder.Entity<Visit>().HasQueryFilter(v => !v.IsDeleted);
         
         // Communications query filters
         modelBuilder.Entity<Announcement>().HasQueryFilter(a => !a.IsDeleted);

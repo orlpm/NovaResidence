@@ -17,8 +17,11 @@ public record IncidentListDto(
     string StatusName,
     string? Location,
     string ReportedByName,
+    bool IsReportedByResident,
+    string ReportedByRole,
     string? AssignedToName,
     string? UnitNumber,
+    int AttachmentCount,
     DateTime CreatedAt,
     DateTime? ResolvedAt
 );
@@ -46,10 +49,13 @@ public record IncidentDetailDto(
     decimal? EstimatedCost,
     decimal? ActualCost,
     string ReportedByName,
+    bool IsReportedByResident,
+    string ReportedByRole,
     string? AssignedToName,
     string? UnitNumber,
     DateTime CreatedAt,
-    List<IncidentCommentDto> Comments
+    List<IncidentCommentDto> Comments,
+    List<IncidentAttachmentDto> Attachments
 );
 
 public record IncidentCommentDto(
@@ -58,6 +64,15 @@ public record IncidentCommentDto(
     string UserName,
     string Content,
     bool IsInternal,
+    DateTime CreatedAt
+);
+
+public record IncidentAttachmentDto(
+    Guid Id,
+    string FileName,
+    string FileUrl,
+    string? ContentType,
+    long? FileSize,
     DateTime CreatedAt
 );
 

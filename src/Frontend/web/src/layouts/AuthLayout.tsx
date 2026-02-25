@@ -1,9 +1,12 @@
 import { Outlet, Link } from 'react-router-dom'
 import { Building2 } from 'lucide-react'
+import { useBackgroundPattern } from '../components/BackgroundPattern'
 
 function AuthLayout() {
+  const bgPattern = useBackgroundPattern('auth')
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col overflow-x-hidden" style={bgPattern}>
       {/* Background Elements */}
       <div className="fixed inset-0 bg-gradient-to-br from-sky-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 -z-10" />
       <div className="fixed top-20 left-10 w-72 h-72 bg-sky-400/20 rounded-full blur-3xl -z-10" />

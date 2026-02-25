@@ -160,6 +160,8 @@ public enum SubscriptionStatus
 /// </summary>
 public class Subscription : BaseEntity
 {
+    public const int DefaultGracePeriodDays = 5;
+
     /// <summary>The administrator user who owns this subscription</summary>
     public Guid AdminUserId { get; private set; }
     
@@ -178,8 +180,8 @@ public class Subscription : BaseEntity
     /// <summary>Monthly amount calculated at subscription time</summary>
     public decimal MonthlyAmount { get; private set; }
     
-    /// <summary>Grace period days after payment is due (default 7)</summary>
-    public int GracePeriodDays { get; private set; } = 7;
+    /// <summary>Grace period days after payment is due (default 5)</summary>
+    public int GracePeriodDays { get; private set; } = DefaultGracePeriodDays;
     
     /// <summary>When the last payment was received</summary>
     public DateTime? LastPaymentDate { get; private set; }
@@ -220,7 +222,7 @@ public class Subscription : BaseEntity
             CurrentPeriodEnd = trialEnd ?? now.AddMonths(1),
             BilledUnits = billedUnits,
             MonthlyAmount = monthlyAmount,
-            GracePeriodDays = 7
+            GracePeriodDays = DefaultGracePeriodDays
         };
     }
 
@@ -229,6 +231,9 @@ public class Subscription : BaseEntity
     /// </summary>
     public bool IsAccessGranted()
     {
+        if (GracePeriodDays != DefaultGracePeriodDays)
+            GracePeriodDays = DefaultGracePeriodDays;
+
         var now = DateTime.UtcNow;
 
         return Status switch
@@ -245,6 +250,9 @@ public class Subscription : BaseEntity
     /// </summary>
     public void EvaluateStatus()
     {
+        if (GracePeriodDays != DefaultGracePeriodDays)
+            GracePeriodDays = DefaultGracePeriodDays;
+
         var now = DateTime.UtcNow;
 
         switch (Status)
@@ -296,6 +304,16 @@ public class Subscription : BaseEntity
     public void UpdateBilledUnits(int newUnitCount, decimal newMonthlyAmount)
     {
         BilledUnits = newUnitCount;
+        MonthlyAmount = newMonthlyAmount;
+    }
+
+    /// <summary>
+    /// Changes subscription plan while preserving current period/status.
+    /// </summary>
+    public void ChangePlan(Guid newPlanId, int billedUnits, decimal newMonthlyAmount)
+    {
+        SubscriptionPlanId = newPlanId;
+        BilledUnits = billedUnits;
         MonthlyAmount = newMonthlyAmount;
     }
 

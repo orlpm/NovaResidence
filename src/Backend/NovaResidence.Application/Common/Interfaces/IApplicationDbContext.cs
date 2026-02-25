@@ -22,9 +22,12 @@ public interface IApplicationDbContext
     DbSet<Domain.Entities.Condominiums.Unit> Units { get; }
     DbSet<Domain.Entities.Condominiums.CommonArea> CommonAreas { get; }
     DbSet<Domain.Entities.Condominiums.CommonAreaReservation> CommonAreaReservations { get; }
+    DbSet<Domain.Entities.Condominiums.CondominiumCommonArea> CondominiumCommonAreas { get; }
     DbSet<Domain.Entities.Condominiums.Amenity> Amenities { get; }
     DbSet<Domain.Entities.Condominiums.Reservation> Reservations { get; }
     DbSet<Domain.Entities.Condominiums.Resident> Residents { get; }
+    DbSet<Domain.Entities.Maps.CondominiumMap> CondominiumMaps { get; }
+    DbSet<Domain.Entities.Maps.CondominiumMapMarker> CondominiumMapMarkers { get; }
     
     // Incidents Module
     DbSet<Domain.Entities.Incidents.Incident> Incidents { get; }

@@ -16,9 +16,12 @@ public class PermissionSeeder
 
     public async Task SeedAsync()
     {
-        // Check if permissions already exist
-        var existingCount = await _context.Permissions.CountAsync();
-        if (existingCount > 0) return;
+        var existingCodes = await _context.Permissions
+            .IgnoreQueryFilters()
+            .Select(p => p.Code)
+            .ToListAsync();
+
+        var existingSet = new HashSet<string>(existingCodes, StringComparer.OrdinalIgnoreCase);
 
         var permissions = new List<Permission>
         {
@@ -95,6 +98,14 @@ public class PermissionSeeder
             Permission.Create(PermissionCodes.RESERVATIONS_MANAGE, "Gestionar Reservaciones", "Reservations", "Administrar sistema de reservaciones"),
             Permission.Create(PermissionCodes.RESERVATIONS_VIEW_ALL, "Ver Todas las Reservaciones", "Reservations", "Ver reservaciones de todos los residentes"),
 
+            // Common Areas
+            Permission.Create(PermissionCodes.COMMON_AREAS_VIEW, "Ver Áreas Comunes", "CommonAreas", "Ver espacios comunes no reservables del condominio"),
+            Permission.Create(PermissionCodes.COMMON_AREAS_MANAGE, "Gestionar Áreas Comunes", "CommonAreas", "Crear, editar y desactivar áreas comunes"),
+
+            // Maps
+            Permission.Create(PermissionCodes.MAPS_VIEW, "Ver Mapas del Condominio", "Maps", "Visualizar mapas y capas del condominio"),
+            Permission.Create(PermissionCodes.MAPS_MANAGE, "Gestionar Mapas del Condominio", "Maps", "Crear mapas, capas y marcadores del condominio"),
+
             // Settings
             Permission.Create(PermissionCodes.SETTINGS_VIEW, "Ver Configuración", "Settings", "Ver configuraciones del condominio"),
             Permission.Create(PermissionCodes.SETTINGS_EDIT_CONDOMINIUM, "Editar Condominio", "Settings", "Modificar información del condominio"),
@@ -113,7 +124,16 @@ public class PermissionSeeder
             Permission.Create(PermissionCodes.REPORTS_CUSTOM, "Reportes Personalizados", "Reports", "Crear reportes personalizados")
         };
 
-        _context.Permissions.AddRange(permissions);
+        var missingPermissions = permissions
+            .Where(p => !existingSet.Contains(p.Code))
+            .ToList();
+
+        if (missingPermissions.Count == 0)
+        {
+            return;
+        }
+
+        _context.Permissions.AddRange(missingPermissions);
         await _context.SaveChangesAsync(CancellationToken.None);
     }
 }

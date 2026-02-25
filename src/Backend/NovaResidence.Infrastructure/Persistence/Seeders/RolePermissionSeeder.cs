@@ -17,20 +17,36 @@ public class RolePermissionSeeder
 
     public async Task SeedAsync()
     {
-        // Check if role permissions already exist
-        var existingCount = await _context.RolePermissions.CountAsync();
-        if (existingCount > 0) return;
-
         // Get all permissions
         var permissions = await _context.Permissions.ToListAsync();
         var permissionDict = permissions.ToDictionary(p => p.Code, p => p.Id);
 
+        // Add only missing role-permission assignments (idempotent)
+        var existingPairs = await _context.RolePermissions
+            .IgnoreQueryFilters()
+            .Select(rp => new { rp.Role, rp.PermissionId })
+            .ToListAsync();
+        var existingSet = new HashSet<string>(existingPairs.Select(p => $"{(int)p.Role}:{p.PermissionId}"));
+
         var rolePermissions = new List<RolePermission>();
+
+        void AddRolePermissionIfMissing(UserRole role, string permCode, bool canOverride)
+        {
+            if (!permissionDict.ContainsKey(permCode)) return;
+
+            var permissionId = permissionDict[permCode];
+            var key = $"{(int)role}:{permissionId}";
+
+            if (existingSet.Contains(key)) return;
+
+            rolePermissions.Add(RolePermission.Create(role, permissionId, canOverride));
+            existingSet.Add(key);
+        }
 
         // SuperAdmin - Gets all permissions (handled in service, but we seed for consistency)
         foreach (var permCode in permissionDict.Keys)
         {
-            rolePermissions.Add(RolePermission.Create(UserRole.SuperAdmin, permissionDict[permCode], false));
+            AddRolePermissionIfMissing(UserRole.SuperAdmin, permCode, false);
         }
 
         // CondominiumAdmin - Full control within their condominium
@@ -95,6 +111,12 @@ public class RolePermissionSeeder
             PermissionCodes.RESERVATIONS_DELETE,
             PermissionCodes.RESERVATIONS_MANAGE,
             PermissionCodes.RESERVATIONS_VIEW_ALL,
+
+            // Common Areas & Maps
+            PermissionCodes.COMMON_AREAS_VIEW,
+            PermissionCodes.COMMON_AREAS_MANAGE,
+            PermissionCodes.MAPS_VIEW,
+            PermissionCodes.MAPS_MANAGE,
             
             // Settings - Full access
             PermissionCodes.SETTINGS_VIEW,
@@ -116,8 +138,7 @@ public class RolePermissionSeeder
         
         foreach (var permCode in adminPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.CondominiumAdmin, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.CondominiumAdmin, permCode, true);
         }
 
         // CondominiumSubAdmin - Limited access (can be customized per condominium)
@@ -139,14 +160,17 @@ public class RolePermissionSeeder
             PermissionCodes.INCIDENTS_VIEW_ALL,
             PermissionCodes.RESERVATIONS_VIEW,
             PermissionCodes.RESERVATIONS_VIEW_ALL,
+            PermissionCodes.COMMON_AREAS_VIEW,
+            PermissionCodes.COMMON_AREAS_MANAGE,
+            PermissionCodes.MAPS_VIEW,
+            PermissionCodes.MAPS_MANAGE,
             PermissionCodes.REPORTS_VIEW,
             PermissionCodes.REPORTS_EXPORT
         };
         
         foreach (var permCode in subAdminPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.SubAdmin, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.SubAdmin, permCode, true);
         }
 
         // Owner - Basic resident permissions + billing view
@@ -166,15 +190,13 @@ public class RolePermissionSeeder
         
         foreach (var permCode in ownerPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.Owner, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.Owner, permCode, true);
         }
 
         // Tenant - Similar to Owner
         foreach (var permCode in ownerPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.Tenant, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.Tenant, permCode, true);
         }
 
         // SecurityGuard - Security and visitor management
@@ -190,8 +212,7 @@ public class RolePermissionSeeder
         
         foreach (var permCode in securityPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.SecurityGuard, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.SecurityGuard, permCode, true);
         }
 
         // Maintenance - Incident management
@@ -206,8 +227,23 @@ public class RolePermissionSeeder
         
         foreach (var permCode in maintenancePermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.Maintenance, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.Maintenance, permCode, true);
+        }
+
+        // Cleaning - Incident reporting and basic operations visibility
+        var cleaningPermissions = new[]
+        {
+            PermissionCodes.INCIDENTS_VIEW,
+            PermissionCodes.INCIDENTS_CREATE,
+            PermissionCodes.RESERVATIONS_VIEW,
+            PermissionCodes.COMMON_AREAS_VIEW,
+            PermissionCodes.MAPS_VIEW,
+            PermissionCodes.COMMUNICATIONS_VIEW_ANNOUNCEMENTS
+        };
+
+        foreach (var permCode in cleaningPermissions)
+        {
+            AddRolePermissionIfMissing(UserRole.Cleaning, permCode, true);
         }
 
         // ServiceProvider - Limited incident view
@@ -219,8 +255,7 @@ public class RolePermissionSeeder
         
         foreach (var permCode in serviceProviderPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.ServiceProvider, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.ServiceProvider, permCode, true);
         }
 
         // Accountant - Financial reports and billing
@@ -238,11 +273,22 @@ public class RolePermissionSeeder
         
         foreach (var permCode in accountantPermissions)
         {
-            if (permissionDict.ContainsKey(permCode))
-                rolePermissions.Add(RolePermission.Create(UserRole.Accountant, permissionDict[permCode], true));
+            AddRolePermissionIfMissing(UserRole.Accountant, permCode, true);
         }
 
-        _context.RolePermissions.AddRange(rolePermissions);
-        await _context.SaveChangesAsync(CancellationToken.None);
+        foreach (var permCode in new[] { PermissionCodes.COMMON_AREAS_VIEW, PermissionCodes.MAPS_VIEW })
+        {
+            AddRolePermissionIfMissing(UserRole.Owner, permCode, true);
+            AddRolePermissionIfMissing(UserRole.Tenant, permCode, true);
+            AddRolePermissionIfMissing(UserRole.SecurityGuard, permCode, true);
+            AddRolePermissionIfMissing(UserRole.Maintenance, permCode, true);
+            AddRolePermissionIfMissing(UserRole.Accountant, permCode, true);
+        }
+
+        if (rolePermissions.Count > 0)
+        {
+            _context.RolePermissions.AddRange(rolePermissions);
+            await _context.SaveChangesAsync(CancellationToken.None);
+        }
     }
 }

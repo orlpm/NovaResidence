@@ -12,13 +12,18 @@ import {
 import { 
   ArrowLeftIcon, 
   ExclamationTriangleIcon,
+  PhotoIcon,
   WrenchScrewdriverIcon,
   ShieldExclamationIcon,
   BoltIcon,
   SparklesIcon,
   NoSymbolIcon,
   QuestionMarkCircleIcon,
-  MapPinIcon
+  MapPinIcon,
+  HomeModernIcon,
+  BugAntIcon,
+  CubeIcon,
+  LightBulbIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -35,6 +40,8 @@ function NewIncident() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [residentInfo, setResidentInfo] = useState<ResidentInfo | null>(null);
   
   const [formData, setFormData] = useState({
@@ -48,6 +55,14 @@ function NewIncident() {
   useEffect(() => {
     loadResidentInfo();
   }, [user?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
 
   const loadResidentInfo = async () => {
     if (!user?.id) return;
@@ -89,43 +104,111 @@ function NewIncident() {
       return;
     }
 
+    if (!residentInfo.condominiumId) {
+      toast.error('No se pudo identificar el condominio del residente');
+      return;
+    }
+
     setSubmitting(true);
     try {
+      let uploadedPhotoUrl: string | null = null;
+      if (selectedPhoto) {
+        uploadedPhotoUrl = await incidentService.uploadPhoto(selectedPhoto);
+      }
+
       await incidentService.create({
-        condominiumId: residentInfo.condominiumId || '',
+        condominiumId: residentInfo.condominiumId,
         reportedById: user.id,
         title: formData.title,
         description: formData.description,
         type: formData.type,
         priority: formData.priority,
         location: formData.location || `Unidad ${residentInfo.unitNumber} - ${residentInfo.buildingName}`,
-        unitId: residentInfo.unitId
+        unitId: residentInfo.unitId,
+        photoUrl: uploadedPhotoUrl
       });
 
       toast.success('Incidencia reportada exitosamente');
       navigate('/resident/incidents');
     } catch (error: any) {
       console.error('Error creating incident:', error);
-      toast.error(error.response?.data?.message || 'Error al reportar la incidencia');
+      const responseData = error?.response?.data;
+      const validationErrors = responseData?.errors;
+      const firstValidationMessage = validationErrors && typeof validationErrors === 'object'
+        ? Object.values(validationErrors).flat().find((msg) => typeof msg === 'string')
+        : null;
+      const errorMessage =
+        responseData?.message ||
+        firstValidationMessage ||
+        (Array.isArray(responseData?.errors) ? responseData.errors[0] : null) ||
+        (typeof responseData === 'string' ? responseData : null) ||
+        'Error al reportar la incidencia';
+      toast.error(errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+
+    if (!file) {
+      setSelectedPhoto(null);
+      setPhotoPreviewUrl(null);
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Formato no válido. Usa JPG, PNG o WEBP');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen no debe superar los 5MB');
+      e.target.value = '';
+      return;
+    }
+
+    setSelectedPhoto(file);
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+    }
+    setPhotoPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const removePhoto = () => {
+    if (photoPreviewUrl) {
+      URL.revokeObjectURL(photoPreviewUrl);
+    }
+    setSelectedPhoto(null);
+    setPhotoPreviewUrl(null);
+  };
+
   const getTypeIcon = (type: IncidentType) => {
     switch (type) {
       case IncidentType.Maintenance:
-        return <WrenchScrewdriverIcon className="w-6 h-6" />;
+        return <WrenchScrewdriverIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
       case IncidentType.Security:
-        return <ShieldExclamationIcon className="w-6 h-6" />;
+        return <ShieldExclamationIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
       case IncidentType.Noise:
-        return <BoltIcon className="w-6 h-6" />;
-      case IncidentType.Plumbing:
-        return <SparklesIcon className="w-6 h-6" />;
+        return <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
       case IncidentType.Parking:
-        return <NoSymbolIcon className="w-6 h-6" />;
+        return <NoSymbolIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
+      case IncidentType.CommonArea:
+        return <HomeModernIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
+      case IncidentType.Plumbing:
+        return <SparklesIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
+      case IncidentType.Electrical:
+        return <LightBulbIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
+      case IncidentType.Structural:
+        return <CubeIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
+      case IncidentType.Pest:
+        return <BugAntIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
+      case IncidentType.Other:
       default:
-        return <QuestionMarkCircleIcon className="w-6 h-6" />;
+        return <QuestionMarkCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />;
     }
   };
 
@@ -187,7 +270,7 @@ function NewIncident() {
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
             Tipo de Incidencia *
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
             {Object.entries(incidentTypeNames).map(([key, name]) => {
               const typeKey = parseInt(key) as IncidentType;
               return (
@@ -195,14 +278,14 @@ function NewIncident() {
                   key={key}
                   type="button"
                   onClick={() => setFormData({ ...formData, type: typeKey })}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                  className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-xl border-2 transition-all ${
                     formData.type === typeKey
                       ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300'
                       : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {getTypeIcon(typeKey)}
-                  <span className="font-medium text-sm">{name}</span>
+                  <span className="font-medium text-xs sm:text-sm">{name}</span>
                 </button>
               );
             })}
@@ -214,7 +297,7 @@ function NewIncident() {
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
             Prioridad *
           </label>
-          <div className="flex gap-3 flex-wrap">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             {Object.entries(incidentPriorityNames).map(([key, name]) => {
               const priorityKey = parseInt(key) as IncidentPriority;
               const colors: Record<number, string> = {
@@ -234,7 +317,7 @@ function NewIncident() {
                   key={key}
                   type="button"
                   onClick={() => setFormData({ ...formData, priority: priorityKey })}
-                  className={`px-6 py-3 rounded-xl border-2 font-semibold transition-all ${
+                  className={`px-3 sm:px-6 py-3 rounded-xl border-2 font-semibold text-sm sm:text-base transition-all text-center ${
                     formData.priority === priorityKey
                       ? colors[priorityKey] || 'border-gray-500'
                       : `border-gray-200 dark:border-gray-600 ${inactiveColors[priorityKey] || ''} text-gray-700 dark:text-gray-300`
@@ -279,19 +362,55 @@ function NewIncident() {
           />
         </div>
 
+        {/* Foto (Opcional) */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6">
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            <div className="flex items-center gap-2">
+              <PhotoIcon className="w-5 h-5" />
+              Foto de la Incidencia (Opcional)
+            </div>
+          </label>
+
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handlePhotoChange}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Formatos permitidos: JPG, PNG, WEBP. Máximo 5MB.</p>
+
+          {photoPreviewUrl && (
+            <div className="mt-4">
+              <img
+                src={photoPreviewUrl}
+                alt="Vista previa de incidencia"
+                className="w-full max-h-64 object-cover rounded-xl border border-gray-200 dark:border-gray-600"
+              />
+              <button
+                type="button"
+                onClick={removePhoto}
+                className="mt-3 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+              >
+                Quitar foto
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Botones */}
-        <div className="flex gap-4 justify-end">
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 sm:justify-end">
           <button
             type="button"
             onClick={() => navigate('/resident/incidents')}
-            className="px-6 py-3 rounded-xl font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
+            className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-center"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>

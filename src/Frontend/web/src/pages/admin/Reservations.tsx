@@ -263,7 +263,7 @@ export default function Reservations() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">Cargando reservaciones...</div>
         ) : filteredReservations.length === 0 ? (

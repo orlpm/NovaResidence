@@ -15,9 +15,12 @@ import {
   Sun,
   Moon,
   Sparkles,
+  Map,
+  Trees,
   CalendarCheck,
   MessageSquare,
-  Shield
+  Shield,
+  UserCheck
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -25,6 +28,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import { condominiumService } from '../lib/condominiumService'
 import { PermissionGate } from '../components/shared/PermissionGate'
 import { PERMISSIONS } from '../config/permissions'
+import { useBackgroundPattern } from '../components/BackgroundPattern'
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -32,12 +36,31 @@ const navigation = [
   { name: 'Unidades', href: '/admin/units', icon: Home },
   { name: 'Residentes', href: '/admin/residents', icon: Users },
   { name: 'Amenidades', href: '/admin/amenities', icon: Sparkles },
+  {
+    name: 'Áreas Comunes',
+    href: '/admin/common-areas',
+    icon: Trees,
+    permission: PERMISSIONS.COMMON_AREAS_VIEW
+  },
+  {
+    name: 'Mapas',
+    href: '/admin/maps',
+    icon: Map,
+    permission: PERMISSIONS.MAPS_VIEW
+  },
   { name: 'Reservaciones', href: '/admin/reservations', icon: CalendarCheck },
   { name: 'Facturación', href: '/admin/billing', icon: CreditCard },
   { name: 'Incidencias', href: '/admin/incidents', icon: AlertCircle },
+  { name: 'Visitas', href: '/admin/visits', icon: UserCheck },
   { name: 'Comunicaciones', href: '/admin/communications', icon: MessageSquare },
   { name: 'Reportes', href: '/admin/reports', icon: FileText },
   { name: 'Mi Suscripción', href: '/admin/subscription', icon: CreditCard },
+  {
+    name: 'Personal Operativo',
+    href: '/admin/staff',
+    icon: Users,
+    permission: PERMISSIONS.SETTINGS_MANAGE_USERS
+  },
   { 
     name: 'Permisos', 
     href: '/admin/permissions', 
@@ -82,8 +105,10 @@ function AdminLayout() {
     navigate('/')
   }
 
+  const bgPattern = useBackgroundPattern('admin')
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 overflow-x-hidden">
+    <div className="h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 overflow-hidden" style={bgPattern}>
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-6 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-lg">
@@ -226,32 +251,32 @@ function AdminLayout() {
         </div>
       )}
 
-      <div className="lg:pl-72 flex flex-col min-h-screen">
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+      <div className="lg:pl-72 flex flex-col h-screen overflow-y-auto">
+        <div className="sticky top-0 z-40 flex h-14 sm:h-16 shrink-0 items-center gap-x-2 sm:gap-x-4 border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg px-2 sm:px-4 shadow-sm lg:gap-x-6 lg:px-8">
           <button
             type="button"
-            className="lg:hidden -m-2.5 p-2.5 text-gray-700 dark:text-gray-300"
+            className="lg:hidden -m-1.5 sm:-m-2.5 p-1.5 sm:p-2.5 text-gray-700 dark:text-gray-300 flex-shrink-0"
             onClick={() => setSidebarOpen(true)}
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
 
-          <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-            <div className="flex flex-1 items-center">
-              <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <div className="flex flex-1 gap-x-2 sm:gap-x-4 self-stretch lg:gap-x-6 min-w-0">
+            <div className="flex flex-1 items-center min-w-0">
+              <h1 className="text-sm sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                 Panel de Administración
               </h1>
             </div>
 
-            <div className="flex items-center gap-x-4 lg:gap-x-6">
+            <div className="flex items-center gap-x-1.5 sm:gap-x-4 lg:gap-x-6 flex-shrink-0">
               <button
                 onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')}
-                className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
               >
                 {effectiveTheme === 'dark' ? (
-                  <Sun className="h-5 w-5" />
+                  <Sun className="h-4 w-4 sm:h-5 sm:w-5" />
                 ) : (
-                  <Moon className="h-5 w-5" />
+                  <Moon className="h-4 w-4 sm:h-5 sm:w-5" />
                 )}
               </button>
 
@@ -265,17 +290,17 @@ function AdminLayout() {
               <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center space-x-3 hover:opacity-80 transition-opacity"
+                  className="flex items-center hover:opacity-80 transition-opacity"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm shadow-md shadow-sky-500/30">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center text-white font-semibold text-xs sm:text-sm shadow-md shadow-sky-500/30">
                     {user?.firstName?.[0]}{user?.lastName?.[0]}
                   </div>
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl shadow-sky-500/10 border border-gray-200 dark:border-gray-800 py-1">
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                  <div className="absolute right-0 mt-2 w-48 sm:w-56 bg-white dark:bg-gray-900 rounded-xl shadow-xl shadow-sky-500/10 border border-gray-200 dark:border-gray-800 py-1">
+                    <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-gray-200 dark:border-gray-800">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                         {user?.firstName} {user?.lastName}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
@@ -307,7 +332,7 @@ function AdminLayout() {
           </div>
         </div>
 
-        <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
+        <main className="flex-1 py-4 sm:py-8 px-2 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

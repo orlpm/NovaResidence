@@ -199,7 +199,69 @@ public class SubscriptionsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (subscription == null)
-            return NotFound(new { Message = "No se encontró suscripción para este usuario" });
+        {
+            var adminUser = await _context.Set<Domain.Entities.Authentication.User>()
+                .Include(u => u.CondominiumRoles)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (adminUser == null)
+                return NotFound(new { Message = "Usuario no encontrado" });
+
+            if (adminUser.DefaultRole?.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) == true)
+                return NotFound(new { Message = "Los SuperAdministradores no requieren suscripción" });
+
+            var adminCondoIdsForCreation = adminUser.CondominiumRoles.Select(cr => cr.CondominiumId).ToList();
+            if (!adminCondoIdsForCreation.Any())
+                return NotFound(new { Message = "No se encontró suscripción para este usuario" });
+
+            var plans = await _context.SubscriptionPlans
+                .Where(p => p.IsActive && !p.IsCustom)
+                .OrderBy(p => p.MinUnits)
+                .ToListAsync();
+
+            if (!plans.Any())
+                return NotFound(new { Message = "No hay planes de suscripción activos" });
+
+            var unitCount = await _context.Units
+                .Where(u => _context.Buildings
+                    .Where(b => adminCondoIdsForCreation.Contains(b.CondominiumId))
+                    .Select(b => b.Id)
+                    .Contains(u.BuildingId))
+                .CountAsync();
+
+            unitCount = Math.Max(unitCount, 1);
+
+            var plan = plans
+                .Where(p => unitCount >= p.MinUnits && (p.MaxUnits == null || unitCount <= p.MaxUnits))
+                .FirstOrDefault() ?? plans.First();
+
+            var monthlyAmount = plan.CalculateMonthlyPrice(unitCount);
+            var newSubscription = Subscription.Create(
+                adminUserId: userId,
+                subscriptionPlanId: plan.Id,
+                billedUnits: unitCount,
+                monthlyAmount: monthlyAmount,
+                trialDays: plan.TrialDays > 0 ? plan.TrialDays : 30
+            );
+
+            _context.Subscriptions.Add(newSubscription);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Auto-created missing trial subscription for user {UserId}: Plan={Plan}, Units={Units}, Monthly=${Amount}",
+                userId, plan.Name, unitCount, monthlyAmount);
+
+            subscription = await _context.Subscriptions
+                .Include(s => s.Plan)
+                .Include(s => s.AdminUser)
+                .Include(s => s.Payments.OrderByDescending(p => p.PaymentDate).Take(5))
+                .Where(s => s.AdminUserId == userId && s.Status != SubscriptionStatus.Cancelled)
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (subscription == null)
+                return NotFound(new { Message = "No se pudo crear la suscripción para este usuario" });
+        }
 
         // Evaluate and update status
         subscription.EvaluateStatus();
@@ -387,7 +449,68 @@ public class SubscriptionsController : ControllerBase
     }
 
     /// <summary>
+    /// Change plan for an existing subscription (owner admin or SuperAdmin)
+    /// </summary>
+    [HttpPost("{subscriptionId:guid}/change-plan")]
+    public async Task<IActionResult> ChangePlan(Guid subscriptionId, [FromBody] ChangePlanRequest request)
+    {
+        var subscription = await _context.Subscriptions
+            .Include(s => s.Plan)
+            .FirstOrDefaultAsync(s => s.Id == subscriptionId);
+
+        if (subscription == null)
+            return NotFound(new { Message = "Suscripción no encontrada" });
+
+        var plan = await _context.SubscriptionPlans
+            .FirstOrDefaultAsync(p => p.Id == request.PlanId && p.IsActive);
+        if (plan == null)
+            return NotFound(new { Message = "Plan no encontrado o inactivo" });
+
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+            ?? User.FindFirst("role")?.Value;
+        var userIdClaim = User.FindFirst("userId")?.Value
+            ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var isSuperAdmin = string.Equals(role, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSuperAdmin)
+        {
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var callerUserId))
+                return Unauthorized(new { Message = "No se pudo identificar al usuario" });
+
+            if (callerUserId != subscription.AdminUserId)
+                return Forbid();
+        }
+
+        var adminCondoIds = await _context.Set<Domain.Entities.Authentication.User>()
+            .Where(u => u.Id == subscription.AdminUserId)
+            .SelectMany(u => u.CondominiumRoles)
+            .Select(cr => cr.CondominiumId)
+            .ToListAsync();
+
+        var billedUnits = Math.Max(1, await _context.Units
+            .Where(u => _context.Buildings
+                .Where(b => adminCondoIds.Contains(b.CondominiumId))
+                .Select(b => b.Id)
+                .Contains(u.BuildingId))
+            .CountAsync());
+
+        var monthlyAmount = plan.CalculateMonthlyPrice(billedUnits);
+        subscription.ChangePlan(plan.Id, billedUnits, monthlyAmount);
+
+        await _context.SaveChangesAsync();
+
+        return Ok(new
+        {
+            Message = "Plan actualizado exitosamente",
+            Plan = new { plan.Id, plan.Name },
+            subscription.BilledUnits,
+            subscription.MonthlyAmount
+        });
+    }
+
+    /// <summary>
     /// Get subscription status check (lightweight endpoint for frontend polling)
+    /// Auto-creates a 30-day free trial for Admin users who don't have a subscription yet.
     /// </summary>
     [HttpGet("status/{userId:guid}")]
     public async Task<IActionResult> GetStatus(Guid userId)
@@ -400,16 +523,86 @@ public class SubscriptionsController : ControllerBase
 
         if (subscription == null)
         {
-            return Ok(new
+            // Auto-create a 30-day free trial for Admin users
+            var user = await _context.Set<Domain.Entities.Authentication.User>()
+                .Include(u => u.CondominiumRoles)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+                return NotFound(new { Message = "Usuario no encontrado" });
+
+            // SuperAdmins don't need subscriptions
+            if (user.DefaultRole?.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) == true)
             {
-                HasSubscription = false,
-                IsAccessGranted = false,
-                Status = "None",
-                Message = "Sin suscripción"
-            });
+                return Ok(new
+                {
+                    HasSubscription = false,
+                    IsAccessGranted = true,
+                    Status = "None",
+                    Message = "SuperAdmin no requiere suscripción"
+                });
+            }
+
+            // Find the basic plan (lowest tier) to assign as trial
+            var basicPlan = await _context.SubscriptionPlans
+                .Where(p => p.IsActive && !p.IsCustom)
+                .OrderBy(p => p.MinUnits)
+                .FirstOrDefaultAsync();
+
+            if (basicPlan != null)
+            {
+                // Count units if user already has condominiums, otherwise default to 1
+                var adminCondoIds = user.CondominiumRoles?.Select(cr => cr.CondominiumId).ToList() ?? new List<Guid>();
+                var unitCount = 1;
+                if (adminCondoIds.Any())
+                {
+                    unitCount = await _context.Units
+                        .Where(u => _context.Buildings
+                            .Where(b => adminCondoIds.Contains(b.CondominiumId))
+                            .Select(b => b.Id)
+                            .Contains(u.BuildingId))
+                        .CountAsync();
+                    unitCount = Math.Max(unitCount, 1);
+                }
+
+                var monthlyAmount = basicPlan.CalculateMonthlyPrice(unitCount);
+                var trialDays = basicPlan.TrialDays > 0 ? basicPlan.TrialDays : 30;
+
+                subscription = Subscription.Create(
+                    adminUserId: userId,
+                    subscriptionPlanId: basicPlan.Id,
+                    billedUnits: unitCount,
+                    monthlyAmount: monthlyAmount,
+                    trialDays: trialDays
+                );
+
+                _context.Subscriptions.Add(subscription);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "Auto-created trial subscription for new user {UserId}: Plan={Plan}, TrialDays={TrialDays}",
+                    userId, basicPlan.Name, trialDays);
+
+                // Reload with navigation properties
+                subscription = await _context.Subscriptions
+                    .Include(s => s.Plan)
+                    .Where(s => s.Id == subscription.Id)
+                    .FirstOrDefaultAsync();
+            }
+            else
+            {
+                // No plans available — allow access anyway for new users
+                return Ok(new
+                {
+                    HasSubscription = false,
+                    IsAccessGranted = true,
+                    Status = "None",
+                    Message = "No hay planes disponibles. Contacte al administrador."
+                });
+            }
         }
 
-        subscription.EvaluateStatus();
+        subscription!.EvaluateStatus();
         await _context.SaveChangesAsync();
 
         return Ok(new
@@ -604,7 +797,7 @@ public class SubscriptionsController : ControllerBase
     }
 
     /// <summary>
-    /// SuperAdmin: Extend a subscription by N months (condone / free extension)
+    /// SuperAdmin: Extend a subscription by months and/or days
     /// </summary>
     [HttpPost("{subscriptionId:guid}/extend")]
     public async Task<IActionResult> ExtendSubscription(Guid subscriptionId, [FromBody] ExtendSubscriptionRequest request)
@@ -616,12 +809,17 @@ public class SubscriptionsController : ControllerBase
         if (subscription == null)
             return NotFound(new { Message = "Suscripción no encontrada" });
 
+        if (request.Months <= 0 && request.Days <= 0)
+            return BadRequest(new { Message = "Debes indicar al menos meses o días para extender" });
+
         // Extend the current period
         var baseDate = subscription.CurrentPeriodEnd > DateTime.UtcNow
             ? subscription.CurrentPeriodEnd
             : DateTime.UtcNow;
 
-        var newEnd = baseDate.AddMonths(request.Months);
+        var newEnd = baseDate
+            .AddMonths(request.Months)
+            .AddDays(request.Days);
 
         // Use reflection to set CurrentPeriodEnd since it may be private set
         var periodEndProp = typeof(Subscription).GetProperty("CurrentPeriodEnd");
@@ -635,12 +833,18 @@ public class SubscriptionsController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Subscription {SubscriptionId} extended by {Months} months to {NewEnd}. Reason: {Reason}",
-            subscriptionId, request.Months, newEnd, request.Reason);
+        _logger.LogInformation("Subscription {SubscriptionId} extended by {Months} months and {Days} days to {NewEnd}. Reason: {Reason}",
+            subscriptionId, request.Months, request.Days, newEnd, request.Reason);
+
+        var extensionText = request.Months > 0 && request.Days > 0
+            ? $"{request.Months} mes(es) y {request.Days} día(s)"
+            : request.Months > 0
+                ? $"{request.Months} mes(es)"
+                : $"{request.Days} día(s)";
 
         return Ok(new
         {
-            Message = $"Suscripción extendida {request.Months} mes(es) hasta {newEnd:dd/MM/yyyy}",
+            Message = $"Suscripción extendida {extensionText} hasta {newEnd:dd/MM/yyyy}",
             NewPeriodEnd = newEnd,
             Status = subscription.Status.ToString()
         });
@@ -785,12 +989,16 @@ public record RegisterPaymentRequest(
     string? ProofUrl = null,
     DateTime? PaymentDate = null);
 
+public record ChangePlanRequest(
+    Guid PlanId);
+
 public record ChangeStatusRequest(
     string NewStatus,
     string? Reason = null);
 
 public record ExtendSubscriptionRequest(
     int Months = 1,
+    int Days = 0,
     string? Reason = null);
 
 public record CondoneRequest(

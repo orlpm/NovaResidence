@@ -82,6 +82,9 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.RefundReason)
             .HasMaxLength(500);
 
+        builder.Property(p => p.ProofImageUrl)
+            .HasMaxLength(500);
+
         builder.HasIndex(p => p.ChargeId);
         builder.HasIndex(p => p.PaymentDate);
         builder.HasIndex(p => p.PaymentMethod);

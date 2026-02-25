@@ -103,13 +103,21 @@
 
 body {
   margin: 0;
-  display: flex;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 #root {
   width: 100%;
+  min-height: 100vh;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 @layer base {

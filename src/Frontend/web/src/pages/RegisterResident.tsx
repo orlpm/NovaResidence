@@ -255,6 +255,7 @@ export default function RegisterResident() {
                     id="password"
                     name="password"
                     type="password"
+                    autoComplete="new-password"
                     required
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -274,6 +275,7 @@ export default function RegisterResident() {
                     id="confirmPassword"
                     name="confirmPassword"
                     type="password"
+                    autoComplete="new-password"
                     required
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}

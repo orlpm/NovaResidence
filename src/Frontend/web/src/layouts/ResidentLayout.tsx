@@ -13,20 +13,27 @@ import {
   Settings,
   Sun,
   Moon,
-  Building2
+  Building2,
+  Users,
+  Trees,
+  Map
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
 import { NotificationBell } from '../components/NotificationBell'
 import { residentService } from '../lib/residentService'
 import { condominiumService } from '../lib/condominiumService'
+import { useBackgroundPattern } from '../components/BackgroundPattern'
 
 const navigation = [
   { name: 'Dashboard', href: '/resident', icon: LayoutDashboard },
   { name: 'Mi Unidad', href: '/resident/my-unit', icon: Home },
   { name: 'Pagos', href: '/resident/payments', icon: CreditCard },
   { name: 'Reservaciones', href: '/resident/reservations', icon: Calendar },
+  { name: 'Áreas Comunes', href: '/resident/common-areas', icon: Trees },
+  { name: 'Mapa', href: '/resident/map', icon: Map },
   { name: 'Incidencias', href: '/resident/incidents', icon: AlertCircle },
+  { name: 'Visitas', href: '/resident/visits', icon: Users },
   { name: 'Comunicación', href: '/resident/communications', icon: MessageSquare },
 ]
 
@@ -83,8 +90,10 @@ function ResidentLayout() {
     navigate('/')
   }
 
+  const bgPattern = useBackgroundPattern('residential')
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-50 overflow-x-hidden" style={bgPattern}>
       {/* Sidebar - Desktop */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
         <div className="flex grow flex-col gap-y-6 overflow-y-auto bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-lg">

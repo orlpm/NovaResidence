@@ -30,7 +30,10 @@ public enum UserRole
     ServiceProvider = 7,
     
     /// <summary>Accountant</summary>
-    Accountant = 8
+    Accountant = 8,
+
+    /// <summary>Cleaning personnel</summary>
+    Cleaning = 9
 }
 
 public enum UnitStatus
@@ -347,6 +350,101 @@ public enum NotificationPriority
     Normal = 1,
     High = 2,
     Urgent = 3
+}
+
+#endregion
+
+#region Visit Enums
+
+/// <summary>
+/// Status of a visit request
+/// </summary>
+public enum VisitStatus
+{
+    /// <summary>Awaiting approval</summary>
+    Pending = 0,
+    
+    /// <summary>Approved by admin/resident</summary>
+    Approved = 1,
+    
+    /// <summary>Rejected by admin</summary>
+    Rejected = 2,
+    
+    /// <summary>Visitor has entered the condominium</summary>
+    CheckedIn = 3,
+    
+    /// <summary>Visitor has left the condominium</summary>
+    CheckedOut = 4,
+    
+    /// <summary>Visit was cancelled</summary>
+    Cancelled = 5,
+    
+    /// <summary>Visit expired (visitor never arrived)</summary>
+    Expired = 6
+}
+
+/// <summary>
+/// Type of visit
+/// </summary>
+public enum VisitType
+{
+    /// <summary>Personal/family visit</summary>
+    Personal = 0,
+    
+    /// <summary>Delivery (package, food, etc.)</summary>
+    Delivery = 1,
+    
+    /// <summary>Service provider (plumber, electrician, etc.)</summary>
+    Service = 2,
+    
+    /// <summary>Contractor/construction worker</summary>
+    Contractor = 3,
+    
+    /// <summary>Real estate agent/potential buyer</summary>
+    RealEstate = 4,
+    
+    /// <summary>Medical/emergency visit</summary>
+    Medical = 5,
+    
+    /// <summary>Other type of visit</summary>
+    Other = 99
+}
+
+#endregion
+
+#region Common Areas & Maps Enums
+
+public enum CommonAreaType
+{
+    Garden = 0,
+    Lobby = 1,
+    SharedParking = 2,
+    InternalRoad = 3,
+    Hallway = 4,
+    Terrace = 5,
+    Playground = 6,
+    Rooftop = 7,
+    Stairs = 8,
+    ElevatorZone = 9,
+    Other = 99
+}
+
+public enum MapScopeType
+{
+    Level = 0,
+    Building = 1,
+    Section = 2,
+    CustomGroup = 3
+}
+
+public enum CondominiumMarkerType
+{
+    Amenity = 0,
+    CommonArea = 1,
+    Building = 2,
+    HousingUnit = 3,
+    CommercialUnit = 4,
+    Generic = 99
 }
 
 #endregion

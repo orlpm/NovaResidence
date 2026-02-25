@@ -96,6 +96,11 @@ public class User : BaseEntity
         PasswordHash = newPasswordHash;
     }
 
+    public void SetDefaultRole(string role)
+    {
+        DefaultRole = Guard.Against.NullOrWhiteSpace(role, nameof(role));
+    }
+
     public void Activate()
     {
         IsActive = true;

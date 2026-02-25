@@ -170,6 +170,9 @@ public class Payment : BaseEntity
     public DateTime? VerifiedAt { get; private set; }
     public Guid? VerifiedById { get; private set; }
     
+    /// <summary>URL to uploaded payment proof image/document (for bank transfers)</summary>
+    public string? ProofImageUrl { get; private set; }
+    
     // For refunds
     public bool IsRefunded { get; private set; }
     public DateTime? RefundedAt { get; private set; }
@@ -206,6 +209,11 @@ public class Payment : BaseEntity
             IsVerified = false,
             IsRefunded = false
         };
+    }
+
+    public void SetProofImageUrl(string url)
+    {
+        ProofImageUrl = url;
     }
 
     public void Verify(Guid verifiedById)

@@ -82,15 +82,20 @@ export interface IncidentAttachmentDto {
 export interface IncidentListDto {
   id: string
   title: string
+  description?: string
   type: IncidentType
   typeName: string
   priority: IncidentPriority
   priorityName: string
   status: IncidentStatus
   statusName: string
+  location?: string | null
   unitNumber: string | null
   reportedByName: string
+  isReportedByResident: boolean
+  reportedByRole: string
   assignedToName: string | null
+  attachmentCount: number
   createdAt: string
   resolvedAt: string | null
 }
@@ -122,6 +127,7 @@ export interface CreateIncidentRequest {
   priority: IncidentPriority
   unitId?: string | null
   location?: string | null
+  photoUrl?: string | null
 }
 
 export interface UpdateIncidentRequest {
@@ -224,6 +230,15 @@ export const incidentService = {
   // Create a new incident
   async create(request: CreateIncidentRequest): Promise<string> {
     const response = await apiClient.post<string>('/incidents', request)
+    return response.data
+  },
+
+  async uploadPhoto(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await apiClient.post<string>('/incidents/upload-photo', formData)
+
     return response.data
   },
 

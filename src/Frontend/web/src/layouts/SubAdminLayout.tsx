@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
-  Menu, X, Sun, Moon, LogOut, Bell,
+  Menu, X, Sun, Moon, LogOut,
   LayoutDashboard, Users, DollarSign, 
   AlertCircle, MessageSquare
 } from 'lucide-react';
@@ -10,10 +10,11 @@ import { useAuthStore } from '../stores/authStore';
 import { NotificationBell } from '../components/NotificationBell';
 import { PermissionGate } from '../components/shared/PermissionGate';
 import { PERMISSIONS } from '../config/permissions';
+import { useBackgroundPattern } from '../components/BackgroundPattern';
 
 export default function SubAdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { user, logout } = useAuthStore();
   const location = useLocation();
 
@@ -45,8 +46,10 @@ export default function SubAdminLayout() {
     }
   ];
 
+  const bgPattern = useBackgroundPattern('subadmin');
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden" style={bgPattern}>
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out ${
@@ -133,7 +136,7 @@ export default function SubAdminLayout() {
               <NotificationBell />
               
               <button
-                onClick={toggleTheme}
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 {theme === 'dark' ? (

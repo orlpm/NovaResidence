@@ -628,14 +628,49 @@ export default function Communications() {
           className="w-full md:w-96 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
           value={selectedCondominium}
           onChange={(e) => setSelectedCondominium(e.target.value)}
+          disabled={condominiums.length === 0}
         >
-          {condominiums.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
+          {condominiums.length === 0 ? (
+            <option value="">No hay condominios disponibles</option>
+          ) : (
+            condominiums.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))
+          )}
         </select>
       </div>
 
+      {/* No Condominiums Warning */}
+      {condominiums.length === 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center">
+                <Bell className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-100 mb-2">
+                No tienes condominios registrados
+              </h3>
+              <p className="text-amber-800 dark:text-amber-200 mb-4">
+                Para utilizar los módulos de Comunicación y Gobernanza (Avisos, Encuestas, Reuniones y Foro), 
+                es necesario crear al menos un condominio con sus edificios y unidades.
+              </p>
+              <a
+                href="/admin/condominiums"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Crear mi primer condominio
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
+      {condominiums.length > 0 && (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="-mb-px flex space-x-8 px-6">
@@ -1209,6 +1244,7 @@ export default function Communications() {
         </>
         )}
       </div>
+      )}
 
       {/* ========== MODALS ========== */}
       

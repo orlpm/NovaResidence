@@ -6,10 +6,11 @@ import { useAuthStore } from '../stores/authStore';
 import { NotificationBell } from '../components/NotificationBell';
 import { PermissionGate } from '../components/shared/PermissionGate';
 import { PERMISSIONS } from '../config/permissions';
+import { useBackgroundPattern } from '../components/BackgroundPattern';
 
 export default function MaintenanceLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { user, logout } = useAuthStore();
   const location = useLocation();
 
@@ -29,8 +30,10 @@ export default function MaintenanceLayout() {
     }
   ];
 
+  const bgPattern = useBackgroundPattern('maintenance');
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 overflow-x-hidden" style={bgPattern}>
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300 ease-in-out ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
@@ -109,7 +112,7 @@ export default function MaintenanceLayout() {
 
             <div className="flex items-center space-x-4">
               <NotificationBell />
-              <button onClick={toggleTheme} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+              <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
               <button onClick={logout} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600">

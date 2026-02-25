@@ -16,7 +16,10 @@ import {
   Calendar,
   TrendingUp,
   Edit2,
-  Trash2
+  Trash2,
+  Clock,
+  ImageIcon,
+  ShieldCheck
 } from 'lucide-react'
 import { 
   billingService, 
@@ -28,6 +31,7 @@ import {
   paymentMethodNames,
   type ChargeListDto,
   type ChargeDetailDto,
+  type PaymentDto,
   type UnitBalanceDto,
   type BillingSummaryDto,
   type FeeConfigurationDto,
@@ -39,7 +43,7 @@ import {
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
 
-type TabType = 'charges' | 'balances' | 'summary' | 'config'
+type TabType = 'charges' | 'balances' | 'summary' | 'config' | 'pending'
 
 export default function Billing() {
   const { user } = useAuthStore()
@@ -104,6 +108,11 @@ export default function Billing() {
 
   const [cancelReason, setCancelReason] = useState('')
   const [forgiveReason, setForgiveReason] = useState('')
+  const [pendingPayments, setPendingPayments] = useState<PaymentDto[]>([])
+  const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null)
+  const [showProofModal, setShowProofModal] = useState(false)
+  const [proofImageUrl, setProofImageUrl] = useState<string | null>(null)
+  const [confirmVerifyPaymentId, setConfirmVerifyPaymentId] = useState<string | null>(null)
 
   useEffect(() => { loadCondominiums() }, [])
 
@@ -171,6 +180,10 @@ export default function Billing() {
           const configsData = await billingService.getFeeConfigurations(selectedCondominium)
           setFeeConfigs(configsData)
           break
+        case 'pending':
+          const pendingData = await billingService.getPendingPayments(selectedCondominium)
+          setPendingPayments(pendingData)
+          break
       }
     } catch { setError('Error al cargar datos') }
     finally { setIsLoading(false) }
@@ -182,6 +195,29 @@ export default function Billing() {
       setChargeDetail(detail)
       setShowDetailModal(true)
     } catch { setError('Error al cargar detalle de cargo') }
+  }
+
+  const handleVerifyPayment = (paymentId: string) => {
+    setConfirmVerifyPaymentId(paymentId)
+  }
+
+  const confirmVerifyPayment = async () => {
+    if (!user?.id || !confirmVerifyPaymentId) return
+    const paymentId = confirmVerifyPaymentId
+    setConfirmVerifyPaymentId(null)
+    setVerifyingPaymentId(paymentId)
+    try {
+      await billingService.verifyPayment(paymentId, { verifiedById: user.id })
+      showSuccess('Pago verificado exitosamente')
+      if (selectedCondominium) {
+        const pendingData = await billingService.getPendingPayments(selectedCondominium)
+        setPendingPayments(pendingData)
+      }
+    } catch {
+      setError('Error al verificar el pago')
+    } finally {
+      setVerifyingPaymentId(null)
+    }
   }
 
   const handleCreateCharge = async (e: React.FormEvent) => {
@@ -475,6 +511,7 @@ export default function Billing() {
 
   const tabs = [
     { id: 'charges' as TabType, label: 'Cargos', icon: FileText },
+    { id: 'pending' as TabType, label: 'Pagos Pendientes', icon: Clock },
     { id: 'balances' as TabType, label: 'Saldos', icon: DollarSign },
     { id: 'summary' as TabType, label: 'Resumen', icon: TrendingUp },
     { id: 'config' as TabType, label: 'Configuración', icon: Settings }
@@ -778,6 +815,116 @@ export default function Billing() {
                           {config.applyLateFee && (
                             <p className="text-xs text-orange-600 dark:text-orange-400">Recargo: {config.lateFeePercentage}% (gracia: {config.gracePeriodDays} días)</p>
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {activeTab === 'pending' && (
+                <>
+                  {pendingPayments.length === 0 ? (
+                    <div className="text-center py-12">
+                      <ShieldCheck className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                      <p className="text-gray-600 dark:text-gray-400 text-lg font-semibold">No hay pagos pendientes de verificación</p>
+                      <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Todos los pagos han sido revisados</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                        <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <p className="text-sm text-amber-800 dark:text-amber-300">
+                          <strong>{pendingPayments.length}</strong> pago(s) pendiente(s) de verificación. Revisa los comprobantes y confirma los pagos.
+                        </p>
+                      </div>
+                      {pendingPayments.map((payment) => (
+                        <div key={payment.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:shadow-lg transition-all">
+                          <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Clock className="w-5 h-5 text-amber-500" />
+                                <h3 className="font-bold text-gray-900 dark:text-white truncate">{payment.chargeConcept}</h3>
+                                <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full">Pendiente</span>
+                              </div>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Monto</p>
+                                  <p className="text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(payment.amount)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Método</p>
+                                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{payment.paymentMethodName}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Unidad</p>
+                                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{payment.unitNumber} - {payment.buildingName}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">Fecha de pago</p>
+                                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                    {new Date(payment.paymentDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </p>
+                                </div>
+                              </div>
+                              {payment.referenceNumber && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                  Ref: <span className="font-mono font-semibold text-gray-700 dark:text-gray-300">{payment.referenceNumber}</span>
+                                </p>
+                              )}
+                              {payment.notes && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">"{payment.notes}"</p>
+                              )}
+                            </div>
+
+                            {/* Proof Image & Actions */}
+                            <div className="flex flex-col items-center gap-3 lg:w-48 flex-shrink-0">
+                              {payment.proofImageUrl ? (
+                                <button
+                                  onClick={() => { setProofImageUrl(`http://localhost:5001${payment.proofImageUrl}`); setShowProofModal(true); }}
+                                  className="w-full border-2 border-dashed border-sky-300 dark:border-sky-700 rounded-xl p-3 hover:bg-sky-50 dark:hover:bg-sky-900/20 transition-colors text-center"
+                                >
+                                  {payment.proofImageUrl.endsWith('.pdf') ? (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <FileText className="w-8 h-8 text-sky-500" />
+                                      <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">Ver PDF</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col items-center gap-1">
+                                      <img
+                                        src={`http://localhost:5001${payment.proofImageUrl}`}
+                                        alt="Comprobante"
+                                        className="w-full max-h-24 object-contain rounded-lg"
+                                      />
+                                      <span className="text-xs font-semibold text-sky-600 dark:text-sky-400">Ver comprobante</span>
+                                    </div>
+                                  )}
+                                </button>
+                              ) : (
+                                <div className="w-full border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center">
+                                  <ImageIcon className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto" />
+                                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Sin comprobante</p>
+                                </div>
+                              )}
+                              <button
+                                onClick={() => handleVerifyPayment(payment.id)}
+                                disabled={verifyingPaymentId === payment.id}
+                                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {verifyingPaymentId === payment.id ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                    Verificando...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    Confirmar Pago
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1268,6 +1415,84 @@ export default function Billing() {
                 <button onClick={handleDeleteAllConfigs} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700">Eliminar Todas</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Verify Payment Modal */}
+      {confirmVerifyPaymentId && (() => {
+        const payment = pendingPayments.find(p => p.id === confirmVerifyPaymentId)
+        return (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+              <div className="p-6 text-center">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <ShieldCheck className="w-8 h-8 text-green-600 dark:text-green-400" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">¿Confirmar verificación de pago?</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Esta acción marcará el pago como verificado y no se puede deshacer.</p>
+                {payment && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 mb-6 text-left">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs">Monto</p>
+                        <p className="font-bold text-gray-900 dark:text-white">${payment.amount.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500 dark:text-gray-400 text-xs">Método</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{payment.paymentMethodName}</p>
+                      </div>
+                      {payment.unitNumber && (
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs">Unidad</p>
+                          <p className="font-semibold text-gray-900 dark:text-white">{payment.unitNumber}</p>
+                        </div>
+                      )}
+                      {payment.referenceNumber && (
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs">Referencia</p>
+                          <p className="font-semibold text-gray-900 dark:text-white">{payment.referenceNumber}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-3 p-6 pt-0">
+                <button
+                  onClick={() => setConfirmVerifyPaymentId(null)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmVerifyPayment}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Sí, Verificar
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Proof Image Modal */}
+      {showProofModal && proofImageUrl && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowProofModal(false)}>
+          <div className="relative max-w-4xl w-full max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <button
+              onClick={() => setShowProofModal(false)}
+              className="absolute -top-10 right-0 p-2 bg-white/20 hover:bg-white/30 rounded-full text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            {proofImageUrl.endsWith('.pdf') ? (
+              <iframe src={proofImageUrl} className="w-full h-[80vh] rounded-2xl bg-white" />
+            ) : (
+              <img src={proofImageUrl} alt="Comprobante de pago" className="w-full max-h-[85vh] object-contain rounded-2xl" />
+            )}
           </div>
         </div>
       )}

@@ -402,7 +402,7 @@ export default function Residents() {
       {/* Invitation Modal */}
       {showInvitationModal && selectedResident && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
               Invitación Generada
             </h3>
@@ -549,7 +549,7 @@ function AddResidentModal({ condominiumId, onClose, onSuccess }: AddResidentModa
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">

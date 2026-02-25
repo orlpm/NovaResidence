@@ -12,10 +12,12 @@ namespace NovaResidence.Api.Controllers;
 public class BillingController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IWebHostEnvironment _env;
 
-    public BillingController(IMediator mediator)
+    public BillingController(IMediator mediator, IWebHostEnvironment env)
     {
         _mediator = mediator;
+        _env = env;
     }
 
     #region Charges
@@ -205,7 +207,8 @@ public class BillingController : ControllerBase
             request.PaymentDate ?? DateTime.UtcNow,
             request.ReceivedById,
             request.ReferenceNumber,
-            request.Notes
+            request.Notes,
+            request.ProofImageUrl
         );
 
         var result = await _mediator.Send(command);
@@ -215,6 +218,44 @@ public class BillingController : ControllerBase
                 ? NotFound(result.Errors) 
                 : BadRequest(result.Errors);
         
+        return Ok(result.Value);
+    }
+
+    [HttpPost("payments/upload-proof")]
+    public async Task<ActionResult<string>> UploadPaymentProof(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No se proporcionó archivo");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".pdf", ".webp" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest("Formato de archivo no válido. Use JPG, PNG, PDF o WEBP.");
+
+        if (file.Length > 5 * 1024 * 1024) // 5MB limit
+            return BadRequest("El archivo no debe superar los 5MB.");
+
+        var uploadsFolder = Path.Combine(_env.ContentRootPath, "uploads", "payment-proofs");
+        Directory.CreateDirectory(uploadsFolder);
+
+        var uniqueFileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var fileUrl = $"/uploads/payment-proofs/{uniqueFileName}";
+        return Ok(fileUrl);
+    }
+
+    [HttpGet("payments/pending/{condominiumId:guid}")]
+    public async Task<ActionResult<List<PaymentDto>>> GetPendingPayments(Guid condominiumId)
+    {
+        var result = await _mediator.Send(new GetPendingPaymentsQuery(condominiumId));
+        if (!result.IsSuccess)
+            return BadRequest(result.Errors);
         return Ok(result.Value);
     }
 
@@ -445,7 +486,8 @@ public record RecordPaymentRequest(
     DateTime? PaymentDate = null,
     Guid? ReceivedById = null,
     string? ReferenceNumber = null,
-    string? Notes = null
+    string? Notes = null,
+    string? ProofImageUrl = null
 );
 
 public record VerifyPaymentRequest(Guid VerifiedById);

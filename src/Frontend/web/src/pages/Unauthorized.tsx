@@ -8,10 +8,26 @@ export default function Unauthorized() {
 
   const handleGoHome = () => {
     // Redirect based on user role
-    if (user?.role === 'Admin') {
-      navigate('/admin/dashboard');
-    } else {
-      navigate('/resident/dashboard');
+    switch (user?.role) {
+      case 'superadmin':
+        navigate('/superadmin/dashboard');
+        break;
+      case 'admin':
+        navigate('/admin/dashboard');
+        break;
+      case 'security':
+        navigate('/security/dashboard');
+        break;
+      case 'maintenance':
+      case 'cleaning':
+        navigate('/maintenance/dashboard');
+        break;
+      case 'accountant':
+        navigate('/accountant/dashboard');
+        break;
+      default:
+        navigate('/resident/dashboard');
+        break;
     }
   };
 

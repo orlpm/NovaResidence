@@ -1,10 +1,6 @@
 import { Shield, Users, ClipboardList, AlertCircle } from 'lucide-react';
-import { usePermissions } from '../../hooks/usePermissions';
-import { PERMISSIONS } from '../../config/permissions';
 
 export default function SecurityDashboard() {
-  const { permissions, loading } = usePermissions();
-
   const stats = [
     {
       name: 'Visitantes Hoy',

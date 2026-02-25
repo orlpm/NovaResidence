@@ -447,6 +447,11 @@ public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand,
                 request.Notes
             );
 
+            if (!string.IsNullOrEmpty(request.ProofImageUrl))
+            {
+                payment.SetProofImageUrl(request.ProofImageUrl);
+            }
+
             _context.Payments.Add(payment);
             charge.ApplyPayment(payment);
             await _context.SaveChangesAsync(cancellationToken);
@@ -499,20 +504,53 @@ public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand,
 public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IMediator _mediator;
 
-    public VerifyPaymentCommandHandler(IApplicationDbContext context)
+    public VerifyPaymentCommandHandler(IApplicationDbContext context, IMediator mediator)
     {
         _context = context;
+        _mediator = mediator;
     }
 
     public async Task<Result> Handle(VerifyPaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _context.Payments.FindAsync(new object[] { request.PaymentId }, cancellationToken);
+        var payment = await _context.Payments
+            .Include(p => p.Charge)
+            .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
+
         if (payment == null)
             return Result.NotFound(new string[] { "Payment not found" });
 
         payment.Verify(request.VerifiedById);
         await _context.SaveChangesAsync(cancellationToken);
+
+        if (payment.Charge != null)
+        {
+            var residents = await _context.Residents
+                .Where(r => r.UnitId == payment.Charge.UnitId && r.IsRegistered && r.UserId != null)
+                .ToListAsync(cancellationToken);
+
+            foreach (var resident in residents)
+            {
+                if (!resident.UserId.HasValue) continue;
+
+                var message = $"Tu pago de ${payment.Amount:N2} para el cargo '{payment.Charge.Concept}' ha sido validado por la administración.";
+
+                await _mediator.Send(new CreateNotificationCommand(
+                    CondominiumId: payment.Charge.CondominiumId,
+                    UserId: resident.UserId.Value,
+                    Type: NotificationType.PaymentReceived,
+                    Title: "Pago verificado",
+                    Message: message,
+                    Priority: NotificationPriority.Normal,
+                    UnitId: payment.Charge.UnitId,
+                    RelatedEntityType: "Payment",
+                    RelatedEntityId: payment.Id,
+                    ActionUrl: "/resident/payments"
+                ), cancellationToken);
+            }
+        }
+
         return Result.Success();
     }
 }

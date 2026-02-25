@@ -13,7 +13,9 @@ import {
   MessageSquare,
   X,
   Play,
-  RefreshCw
+  RefreshCw,
+  Paperclip,
+  Image as ImageIcon
 } from 'lucide-react'
 import { 
   incidentService, 
@@ -29,6 +31,7 @@ import {
 } from '../../lib/incidentService'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
+import { userManagementService, type StaffUserItem } from '../../lib/userManagementService'
 
 export default function Incidents() {
   const { user } = useAuthStore()
@@ -49,9 +52,12 @@ export default function Incidents() {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showResolveModal, setShowResolveModal] = useState(false)
   const [showReopenModal, setShowReopenModal] = useState(false)
+  const [showAssignModal, setShowAssignModal] = useState(false)
   const [selectedIncident, setSelectedIncident] = useState<IncidentListDto | null>(null)
   const [incidentDetail, setIncidentDetail] = useState<IncidentDetailDto | null>(null)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [staffUsers, setStaffUsers] = useState<StaffUserItem[]>([])
+  const [selectedAssigneeId, setSelectedAssigneeId] = useState('')
 
   const [formData, setFormData] = useState<CreateIncidentRequest>({
     condominiumId: '',
@@ -100,12 +106,80 @@ export default function Incidents() {
     finally { setIsLoading(false) }
   }
 
-  const loadIncidentDetail = async (id: string) => {
+  const loadStaffUsers = async () => {
+    if (!selectedCondominium) {
+      setStaffUsers([])
+      return
+    }
+
+    try {
+      const data = await userManagementService.getStaffUsers(selectedCondominium)
+      setStaffUsers(data.filter((s) => s.isActive))
+    } catch {
+      setError('Error al cargar personal operativo')
+    }
+  }
+
+  const loadIncidentDetail = async (id: string, incident?: IncidentListDto) => {
     try {
       const detail = await incidentService.getById(id)
+      if (incident) setSelectedIncident(incident)
+      await loadStaffUsers()
+      setSelectedAssigneeId(detail.assignedToId || '')
       setIncidentDetail(detail)
       setShowDetailModal(true)
     } catch { setError('Error al cargar detalle de incidencia') }
+  }
+
+  const handleAcknowledgeFromDetail = async () => {
+    if (!incidentDetail) return
+    try {
+      await incidentService.acknowledge(incidentDetail.id)
+      await Promise.all([loadIncidents(), loadIncidentDetail(incidentDetail.id)])
+      showSuccess('Incidencia recibida')
+    } catch {
+      setError('Error al recibir incidencia')
+    }
+  }
+
+  const handleStartProgressFromDetail = async () => {
+    if (!incidentDetail) return
+    try {
+      await incidentService.startProgress(incidentDetail.id)
+      await Promise.all([loadIncidents(), loadIncidentDetail(incidentDetail.id)])
+      showSuccess('Incidencia en progreso')
+    } catch {
+      setError('Error al iniciar progreso')
+    }
+  }
+
+  const openResolveFromDetail = () => {
+    if (!incidentDetail) return
+
+    const mappedIncident: IncidentListDto = {
+      id: incidentDetail.id,
+      title: incidentDetail.title,
+      description: incidentDetail.description,
+      type: incidentDetail.type,
+      typeName: incidentDetail.typeName,
+      priority: incidentDetail.priority,
+      priorityName: incidentDetail.priorityName,
+      status: incidentDetail.status,
+      statusName: incidentDetail.statusName,
+      location: incidentDetail.location,
+      reportedByName: incidentDetail.reportedByName,
+      isReportedByResident: incidentDetail.isReportedByResident,
+      reportedByRole: incidentDetail.reportedByRole,
+      assignedToName: incidentDetail.assignedToName,
+      unitNumber: incidentDetail.unitNumber,
+      attachmentCount: (incidentDetail.attachments ?? []).length,
+      createdAt: incidentDetail.createdAt,
+      resolvedAt: incidentDetail.resolvedAt
+    }
+
+    setSelectedIncident(mappedIncident)
+    setShowDetailModal(false)
+    setShowResolveModal(true)
   }
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -209,6 +283,47 @@ export default function Incidents() {
     setOpenDropdown(null)
   }
 
+  const openAssignModal = async (incident: IncidentListDto) => {
+    setSelectedIncident(incident)
+    setSelectedAssigneeId('')
+    await loadStaffUsers()
+    setShowAssignModal(true)
+    setOpenDropdown(null)
+  }
+
+  const handleAssign = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedIncident || !selectedAssigneeId) {
+      setError('Selecciona un miembro del personal operativo')
+      return
+    }
+
+    try {
+      await incidentService.assign(selectedIncident.id, { assigneeId: selectedAssigneeId })
+      setShowAssignModal(false)
+      setSelectedAssigneeId('')
+      await loadIncidents()
+      showSuccess('Incidencia asignada correctamente')
+    } catch {
+      setError('Error al asignar incidencia')
+    }
+  }
+
+  const handleAssignFromDetail = async () => {
+    if (!incidentDetail || !selectedAssigneeId) {
+      setError('Selecciona un miembro del personal operativo')
+      return
+    }
+
+    try {
+      await incidentService.assign(incidentDetail.id, { assigneeId: selectedAssigneeId })
+      await Promise.all([loadIncidents(), loadIncidentDetail(incidentDetail.id)])
+      showSuccess('Incidencia asignada correctamente')
+    } catch {
+      setError('Error al asignar incidencia')
+    }
+  }
+
   const handleReopen = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedIncident) return
@@ -292,6 +407,18 @@ export default function Incidents() {
     incident.reportedByName.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const getAttachmentUrl = (fileUrl: string) => {
+    if (/^https?:\/\//i.test(fileUrl)) return fileUrl
+    const apiUrl = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
+    const apiBase = apiUrl.replace(/\/api\/?$/, '')
+    return `${apiBase}${fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`}`
+  }
+
+  const isImageAttachment = (contentType: string | null, fileName: string) => {
+    if (contentType?.toLowerCase().startsWith('image/')) return true
+    return /\.(jpg|jpeg|png|webp|gif|bmp|svg)$/i.test(fileName)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -369,6 +496,7 @@ export default function Incidents() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Prioridad</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Estado</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Reportado por</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Asignado a</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                 </tr>
@@ -378,20 +506,42 @@ export default function Incidents() {
                   <tr key={incident.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900 dark:text-white">{incident.title}</div>
+                      {incident.attachmentCount > 0 && (
+                        <div className="text-xs text-sky-600 dark:text-sky-400 mt-1 inline-flex items-center gap-1">
+                          <Paperclip className="w-3 h-3" />
+                          {incident.attachmentCount} adjunto{incident.attachmentCount > 1 ? 's' : ''}
+                        </div>
+                      )}
                       {incident.unitNumber && <div className="text-xs text-gray-500 dark:text-gray-400">Unidad: {incident.unitNumber}</div>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm text-gray-600 dark:text-gray-300">{incident.typeName}</span></td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(incident.priority)}`}>{incident.priorityName}</span></td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(incident.status)}`}>{incident.statusName}</span></td>
-                    <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2"><User className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600 dark:text-gray-300">{incident.reportedByName}</span></div></td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">{incident.reportedByName}</span>
+                          {incident.isReportedByResident && (
+                            <div className="text-xs text-emerald-600 dark:text-emerald-400">Creada por residente</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
+                      {incident.assignedToName || 'Sin asignar'}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600 dark:text-gray-300">{new Date(incident.createdAt).toLocaleDateString()}</span></div></td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="relative">
                         <button onClick={() => setOpenDropdown(openDropdown === incident.id ? null : incident.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><MoreVertical className="w-5 h-5 text-gray-400" /></button>
                         {openDropdown === incident.id && (
                           <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                            <button onClick={() => { loadIncidentDetail(incident.id); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
+                            <button onClick={() => { loadIncidentDetail(incident.id, incident); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
                             {incident.status === IncidentStatus.Open && <button onClick={() => handleAcknowledge(incident)} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Recibir</button>}
+                            {(incident.status === IncidentStatus.Open || incident.status === IncidentStatus.Acknowledged || incident.status === IncidentStatus.InProgress || incident.status === IncidentStatus.Reopened) && (
+                              <button onClick={() => openAssignModal(incident)} className="w-full px-4 py-2 text-left text-sm text-indigo-600 dark:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><User className="w-4 h-4" /> Asignar personal</button>
+                            )}
                             {incident.status === IncidentStatus.Acknowledged && <button onClick={() => handleStartProgress(incident)} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Play className="w-4 h-4" /> Iniciar Progreso</button>}
                             {incident.status === IncidentStatus.InProgress && <button onClick={() => openResolveModal(incident)} className="w-full px-4 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Resolver</button>}
                             {incident.status === IncidentStatus.Resolved && <button onClick={() => handleClose(incident)} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Cerrar</button>}
@@ -518,7 +668,7 @@ export default function Incidents() {
 
       {showResolveModal && selectedIncident && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Resolver Incidencia</h2>
               <button onClick={() => setShowResolveModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
@@ -535,6 +685,39 @@ export default function Incidents() {
               <div className="flex gap-3 pt-4">
                 <button type="button" onClick={() => setShowResolveModal(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancelar</button>
                 <button type="submit" className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-all">Resolver</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAssignModal && selectedIncident && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Asignar Incidencia</h2>
+              <button onClick={() => setShowAssignModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><X className="w-5 h-5 text-gray-500" /></button>
+            </div>
+            <form onSubmit={handleAssign} className="p-6 space-y-4">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Incidencia: <span className="font-semibold">{selectedIncident.title}</span></p>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal operativo</label>
+                <select
+                  value={selectedAssigneeId}
+                  onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                >
+                  <option value="">Selecciona personal</option>
+                  {staffUsers.map((staff) => (
+                    <option key={staff.id} value={staff.id}>
+                      {staff.firstName} {staff.lastName} - {staff.defaultRole === 'Maintenance' ? 'Mantenimiento' : staff.defaultRole === 'SecurityGuard' ? 'Vigilancia' : 'Limpieza'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowAssignModal(false)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancelar</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-all">Asignar</button>
               </div>
             </form>
           </div>
@@ -576,16 +759,89 @@ export default function Incidents() {
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(incidentDetail.priority)}`}>{incidentDetail.priorityName}</span>
                   <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(incidentDetail.status)}`}>{incidentDetail.statusName}</span>
                 </div>
+                <div className="flex gap-2 mt-3">
+                  {incidentDetail.status === IncidentStatus.Open && (
+                    <button onClick={handleAcknowledgeFromDetail} className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">Recibir</button>
+                  )}
+                  {incidentDetail.status === IncidentStatus.Acknowledged && (
+                    <button onClick={handleStartProgressFromDetail} className="px-3 py-1.5 text-sm bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">En progreso</button>
+                  )}
+                  {incidentDetail.status === IncidentStatus.InProgress && (
+                    <button onClick={openResolveFromDetail} className="px-3 py-1.5 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">Resolver</button>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-sm text-gray-500 dark:text-gray-400">Tipo</p><p className="text-gray-900 dark:text-white">{incidentDetail.typeName}</p></div>
-                <div><p className="text-sm text-gray-500 dark:text-gray-400">Reportado por</p><p className="text-gray-900 dark:text-white">{incidentDetail.reportedByName}</p></div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Reportado por</p>
+                  <p className="text-gray-900 dark:text-white">{incidentDetail.reportedByName}</p>
+                  {incidentDetail.isReportedByResident && <p className="text-xs text-emerald-600 dark:text-emerald-400">Creada por residente</p>}
+                </div>
                 {incidentDetail.unitNumber && <div><p className="text-sm text-gray-500 dark:text-gray-400">Unidad</p><p className="text-gray-900 dark:text-white">{incidentDetail.unitNumber}</p></div>}
                 {incidentDetail.location && <div><p className="text-sm text-gray-500 dark:text-gray-400">Ubicación</p><p className="text-gray-900 dark:text-white">{incidentDetail.location}</p></div>}
-                {incidentDetail.assignedToName && <div><p className="text-sm text-gray-500 dark:text-gray-400">Asignado a</p><p className="text-gray-900 dark:text-white">{incidentDetail.assignedToName}</p></div>}
+                <div><p className="text-sm text-gray-500 dark:text-gray-400">Asignado a</p><p className="text-gray-900 dark:text-white">{incidentDetail.assignedToName || 'Sin asignar'}</p></div>
                 <div><p className="text-sm text-gray-500 dark:text-gray-400">Fecha de creación</p><p className="text-gray-900 dark:text-white">{new Date(incidentDetail.createdAt).toLocaleString()}</p></div>
               </div>
+
+                {(incidentDetail.status === IncidentStatus.Open || incidentDetail.status === IncidentStatus.Acknowledged || incidentDetail.status === IncidentStatus.InProgress || incidentDetail.status === IncidentStatus.Reopened) && (
+                  <div className="p-4 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20">
+                    <p className="text-sm font-medium text-indigo-700 dark:text-indigo-300 mb-2">Asignar personal operativo</p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <select
+                        value={selectedAssigneeId}
+                        onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="">Selecciona personal</option>
+                        {staffUsers.map((staff) => (
+                          <option key={staff.id} value={staff.id}>
+                            {staff.firstName} {staff.lastName} - {staff.defaultRole === 'Maintenance' ? 'Mantenimiento' : staff.defaultRole === 'SecurityGuard' ? 'Vigilancia' : 'Limpieza'}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={handleAssignFromDetail}
+                        type="button"
+                        disabled={!selectedAssigneeId}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        Asignar
+                      </button>
+                    </div>
+                  </div>
+                )}
               <div><p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Descripción</p><p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">{incidentDetail.description}</p></div>
+              {(incidentDetail.attachments ?? []).length > 0 && (
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2"><Paperclip className="w-4 h-4" /> Adjuntos ({(incidentDetail.attachments ?? []).length})</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(incidentDetail.attachments ?? []).map((attachment) => {
+                      const attachmentUrl = getAttachmentUrl(attachment.fileUrl)
+                      const isImage = isImageAttachment(attachment.contentType, attachment.fileName)
+
+                      return (
+                        <a
+                          key={attachment.id}
+                          href={attachmentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                        >
+                          {isImage ? (
+                            <img src={attachmentUrl} alt={attachment.fileName} className="w-full h-32 object-cover rounded-md mb-2" />
+                          ) : (
+                            <div className="w-full h-32 rounded-md mb-2 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                              <ImageIcon className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="text-sm text-gray-900 dark:text-white truncate">{attachment.fileName}</div>
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               {incidentDetail.resolutionNotes && <div><p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Notas de Resolución</p><p className="text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">{incidentDetail.resolutionNotes}</p></div>}
               {incidentDetail.comments.length > 0 && (
                 <div>

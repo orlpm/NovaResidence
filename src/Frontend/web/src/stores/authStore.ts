@@ -9,7 +9,7 @@ export interface User {
   email: string
   firstName: string
   lastName: string
-  role: 'superadmin' | 'admin' | 'resident' | 'provider'
+  role: 'superadmin' | 'admin' | 'resident' | 'provider' | 'security' | 'maintenance' | 'accountant' | 'cleaning'
   defaultRole?: string
   condominiumId?: string
 }
@@ -63,7 +63,7 @@ export const useAuthStore = create<AuthState>()(
             email: userData.Email || userData.email || email,
             firstName: userData.FirstName || userData.firstName || '',
             lastName: userData.LastName || userData.lastName || '',
-            role: ((userData.Role || userData.role || data.defaultRole || 'resident').toLowerCase()) as 'superadmin' | 'admin' | 'resident' | 'provider',
+            role: ((userData.Role || userData.role || data.defaultRole || 'resident').toLowerCase()) as 'superadmin' | 'admin' | 'resident' | 'provider' | 'security' | 'maintenance' | 'accountant' | 'cleaning',
             defaultRole: userData.Role || userData.role || data.defaultRole,
             condominiumId: userData.CondominiumId || userData.condominiumId || data.condominiumId
           }

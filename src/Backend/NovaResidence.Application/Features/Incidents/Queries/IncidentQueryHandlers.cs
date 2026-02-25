@@ -5,6 +5,34 @@ using NovaResidence.Application.Common.Interfaces;
 
 namespace NovaResidence.Application.Features.Incidents.Queries;
 
+internal static class IncidentReporterHelpers
+{
+    public static bool IsResidentRole(string defaultRole)
+    {
+        var role = defaultRole.Trim();
+        return role.Equals("Resident", StringComparison.OrdinalIgnoreCase)
+            || role.Equals("Owner", StringComparison.OrdinalIgnoreCase)
+            || role.Equals("Tenant", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string GetRoleLabel(string defaultRole)
+    {
+        return defaultRole.Trim().ToLowerInvariant() switch
+        {
+            "resident" => "Residente",
+            "owner" => "Residente",
+            "tenant" => "Residente",
+            "admin" or "condominiumadmin" => "Administrador",
+            "subadmin" => "Subadministrador",
+            "superadmin" => "Super Administrador",
+            "maintenance" => "Mantenimiento",
+            "securityguard" => "Vigilancia",
+            "cleaning" => "Limpieza",
+            _ => defaultRole
+        };
+    }
+}
+
 public class GetIncidentQueryHandler : IRequestHandler<GetIncidentQuery, Result<IncidentDetailDto>>
 {
     private readonly IApplicationDbContext _context;
@@ -18,6 +46,7 @@ public class GetIncidentQueryHandler : IRequestHandler<GetIncidentQuery, Result<
     {
         var incident = await _context.Incidents
             .Include(i => i.Comments)
+            .Include(i => i.Attachments)
             .FirstOrDefaultAsync(i => i.Id == request.IncidentId, cancellationToken);
 
         if (incident == null)
@@ -35,6 +64,8 @@ public class GetIncidentQueryHandler : IRequestHandler<GetIncidentQuery, Result<
         var users = await _context.Users
             .Where(u => commentUserIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}", cancellationToken);
+
+        var reporterRole = reportedBy?.DefaultRole ?? "Unknown";
 
         var dto = new IncidentDetailDto(
             incident.Id,
@@ -59,6 +90,8 @@ public class GetIncidentQueryHandler : IRequestHandler<GetIncidentQuery, Result<
             incident.EstimatedCost,
             incident.ActualCost,
             reportedBy != null ? $"{reportedBy.FirstName} {reportedBy.LastName}" : "Unknown",
+            IncidentReporterHelpers.IsResidentRole(reporterRole),
+            IncidentReporterHelpers.GetRoleLabel(reporterRole),
             assignedTo != null ? $"{assignedTo.FirstName} {assignedTo.LastName}" : null,
             unit?.UnitNumber,
             incident.CreatedAt,
@@ -69,7 +102,15 @@ public class GetIncidentQueryHandler : IRequestHandler<GetIncidentQuery, Result<
                 c.Content,
                 c.IsInternal,
                 c.CreatedAt
-            )).OrderBy(c => c.CreatedAt).ToList()
+            )).OrderBy(c => c.CreatedAt).ToList(),
+            incident.Attachments.Select(a => new IncidentAttachmentDto(
+                a.Id,
+                a.FileName,
+                a.FileUrl,
+                a.ContentType,
+                a.FileSize,
+                a.CreatedAt
+            )).OrderByDescending(a => a.CreatedAt).ToList()
         );
 
         return Result.Success(dto);
@@ -100,6 +141,7 @@ public class GetCondominiumIncidentsQueryHandler : IRequestHandler<GetCondominiu
             query = query.Where(i => i.Priority == request.Priority.Value);
 
         var incidents = await query
+            .Include(i => i.Attachments)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
 
@@ -109,7 +151,7 @@ public class GetCondominiumIncidentsQueryHandler : IRequestHandler<GetCondominiu
             .ToList();
         var users = await _context.Users
             .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}", cancellationToken);
+            .ToDictionaryAsync(u => u.Id, u => new { Name = $"{u.FirstName} {u.LastName}", Role = u.DefaultRole }, cancellationToken);
 
         var unitIds = incidents.Where(i => i.UnitId.HasValue).Select(i => i.UnitId!.Value).Distinct().ToList();
         var units = await _context.Units
@@ -127,9 +169,12 @@ public class GetCondominiumIncidentsQueryHandler : IRequestHandler<GetCondominiu
             i.Status,
             IncidentEnumHelpers.GetStatusName(i.Status),
             i.Location,
-            users.GetValueOrDefault(i.ReportedById, "Unknown"),
-            i.AssignedToId.HasValue ? users.GetValueOrDefault(i.AssignedToId.Value, "Unknown") : null,
+            users.TryGetValue(i.ReportedById, out var reporter) ? reporter.Name : "Unknown",
+            users.TryGetValue(i.ReportedById, out var reporterData) && IncidentReporterHelpers.IsResidentRole(reporterData.Role),
+            users.TryGetValue(i.ReportedById, out var roleData) ? IncidentReporterHelpers.GetRoleLabel(roleData.Role) : "Desconocido",
+            i.AssignedToId.HasValue && users.TryGetValue(i.AssignedToId.Value, out var assignedUser) ? assignedUser.Name : null,
             i.UnitId.HasValue ? units.GetValueOrDefault(i.UnitId.Value, "") : null,
+            i.Attachments.Count,
             i.CreatedAt,
             i.ResolvedAt
         )).ToList();
@@ -150,6 +195,7 @@ public class GetUnitIncidentsQueryHandler : IRequestHandler<GetUnitIncidentsQuer
     public async Task<Result<List<IncidentListDto>>> Handle(GetUnitIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _context.Incidents
+            .Include(i => i.Attachments)
             .Where(i => i.UnitId == request.UnitId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -160,7 +206,7 @@ public class GetUnitIncidentsQueryHandler : IRequestHandler<GetUnitIncidentsQuer
             .ToList();
         var users = await _context.Users
             .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}", cancellationToken);
+            .ToDictionaryAsync(u => u.Id, u => new { Name = $"{u.FirstName} {u.LastName}", Role = u.DefaultRole }, cancellationToken);
 
         var unit = await _context.Units.FindAsync(new object[] { request.UnitId }, cancellationToken);
 
@@ -175,9 +221,12 @@ public class GetUnitIncidentsQueryHandler : IRequestHandler<GetUnitIncidentsQuer
             i.Status,
             IncidentEnumHelpers.GetStatusName(i.Status),
             i.Location,
-            users.GetValueOrDefault(i.ReportedById, "Unknown"),
-            i.AssignedToId.HasValue ? users.GetValueOrDefault(i.AssignedToId.Value, "Unknown") : null,
+            users.TryGetValue(i.ReportedById, out var reporter) ? reporter.Name : "Unknown",
+            users.TryGetValue(i.ReportedById, out var reporterData) && IncidentReporterHelpers.IsResidentRole(reporterData.Role),
+            users.TryGetValue(i.ReportedById, out var roleData) ? IncidentReporterHelpers.GetRoleLabel(roleData.Role) : "Desconocido",
+            i.AssignedToId.HasValue && users.TryGetValue(i.AssignedToId.Value, out var assignedUser) ? assignedUser.Name : null,
             unit?.UnitNumber,
+            i.Attachments.Count,
             i.CreatedAt,
             i.ResolvedAt
         )).ToList();
@@ -198,6 +247,7 @@ public class GetMyIncidentsQueryHandler : IRequestHandler<GetMyIncidentsQuery, R
     public async Task<Result<List<IncidentListDto>>> Handle(GetMyIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _context.Incidents
+            .Include(i => i.Attachments)
             .Where(i => i.ReportedById == request.UserId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -208,7 +258,7 @@ public class GetMyIncidentsQueryHandler : IRequestHandler<GetMyIncidentsQuery, R
             .ToList();
         var users = await _context.Users
             .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}", cancellationToken);
+            .ToDictionaryAsync(u => u.Id, u => new { Name = $"{u.FirstName} {u.LastName}", Role = u.DefaultRole }, cancellationToken);
 
         var unitIds = incidents.Where(i => i.UnitId.HasValue).Select(i => i.UnitId!.Value).Distinct().ToList();
         var units = await _context.Units
@@ -226,9 +276,12 @@ public class GetMyIncidentsQueryHandler : IRequestHandler<GetMyIncidentsQuery, R
             i.Status,
             IncidentEnumHelpers.GetStatusName(i.Status),
             i.Location,
-            users.GetValueOrDefault(i.ReportedById, "Unknown"),
-            i.AssignedToId.HasValue ? users.GetValueOrDefault(i.AssignedToId.Value, "Unknown") : null,
+            users.TryGetValue(i.ReportedById, out var reporter) ? reporter.Name : "Unknown",
+            users.TryGetValue(i.ReportedById, out var reporterData) && IncidentReporterHelpers.IsResidentRole(reporterData.Role),
+            users.TryGetValue(i.ReportedById, out var roleData) ? IncidentReporterHelpers.GetRoleLabel(roleData.Role) : "Desconocido",
+            i.AssignedToId.HasValue && users.TryGetValue(i.AssignedToId.Value, out var assignedUser) ? assignedUser.Name : null,
             i.UnitId.HasValue ? units.GetValueOrDefault(i.UnitId.Value, "") : null,
+            i.Attachments.Count,
             i.CreatedAt,
             i.ResolvedAt
         )).ToList();
@@ -249,6 +302,7 @@ public class GetAssignedIncidentsQueryHandler : IRequestHandler<GetAssignedIncid
     public async Task<Result<List<IncidentListDto>>> Handle(GetAssignedIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _context.Incidents
+            .Include(i => i.Attachments)
             .Where(i => i.AssignedToId == request.UserId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -259,7 +313,7 @@ public class GetAssignedIncidentsQueryHandler : IRequestHandler<GetAssignedIncid
             .ToList();
         var users = await _context.Users
             .Where(u => userIds.Contains(u.Id))
-            .ToDictionaryAsync(u => u.Id, u => $"{u.FirstName} {u.LastName}", cancellationToken);
+            .ToDictionaryAsync(u => u.Id, u => new { Name = $"{u.FirstName} {u.LastName}", Role = u.DefaultRole }, cancellationToken);
 
         var unitIds = incidents.Where(i => i.UnitId.HasValue).Select(i => i.UnitId!.Value).Distinct().ToList();
         var units = await _context.Units
@@ -277,9 +331,12 @@ public class GetAssignedIncidentsQueryHandler : IRequestHandler<GetAssignedIncid
             i.Status,
             IncidentEnumHelpers.GetStatusName(i.Status),
             i.Location,
-            users.GetValueOrDefault(i.ReportedById, "Unknown"),
-            i.AssignedToId.HasValue ? users.GetValueOrDefault(i.AssignedToId.Value, "Unknown") : null,
+            users.TryGetValue(i.ReportedById, out var reporter) ? reporter.Name : "Unknown",
+            users.TryGetValue(i.ReportedById, out var reporterData) && IncidentReporterHelpers.IsResidentRole(reporterData.Role),
+            users.TryGetValue(i.ReportedById, out var roleData) ? IncidentReporterHelpers.GetRoleLabel(roleData.Role) : "Desconocido",
+            i.AssignedToId.HasValue && users.TryGetValue(i.AssignedToId.Value, out var assignedUser) ? assignedUser.Name : null,
             i.UnitId.HasValue ? units.GetValueOrDefault(i.UnitId.Value, "") : null,
+            i.Attachments.Count,
             i.CreatedAt,
             i.ResolvedAt
         )).ToList();

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { 
   Users, Search, Edit, Trash2, Eye, 
-  Shield, Building2, UserCheck, UserX, 
-  Crown, Home, Wrench, Calculator, Briefcase,
+  Building2, UserCheck, UserX, 
+  Crown, Home,
   MoreVertical, Mail, Key, X, RefreshCw,
   CheckCircle, AlertCircle
 } from 'lucide-react';
-import { userManagementService, UserListItem, ROLE_CONFIG } from '../../lib/userManagementService';
+import { userManagementService, UserListItem } from '../../lib/userManagementService';
 
 const ROLE_ICONS: Record<string, React.ElementType> = {
   'SuperAdmin': Crown,
@@ -456,6 +456,7 @@ export default function UsersManagement() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">Nueva Contraseña</label>
                 <input
                   type="password"
+                  autoComplete="new-password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Mínimo 6 caracteres"
@@ -467,6 +468,7 @@ export default function UsersManagement() {
                 <label className="block text-sm font-medium text-gray-300 mb-2">Confirmar Contraseña</label>
                 <input
                   type="password"
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repite la contraseña"

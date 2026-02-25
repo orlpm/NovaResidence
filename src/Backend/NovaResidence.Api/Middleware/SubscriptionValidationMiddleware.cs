@@ -22,6 +22,8 @@ public class SubscriptionValidationMiddleware
         "/api/auth",
         "/api/subscriptions",
         "/api/subscription-plans",
+        "/api/condominiums",
+        "/api/dashboard",
         "/health",
         "/swagger"
     };
@@ -125,7 +127,7 @@ public class SubscriptionValidationMiddleware
             SubscriptionStatus.Expired => "Tu período de prueba gratuito ha terminado. Realiza el pago para continuar usando la plataforma.",
             SubscriptionStatus.Suspended => "Tu suscripción ha sido suspendida por falta de pago. Realiza el pago pendiente para reactivar el acceso.",
             SubscriptionStatus.Cancelled => "Tu suscripción ha sido cancelada. Contacta al administrador para reactivarla.",
-            SubscriptionStatus.PastDue => "Tu pago está vencido. Realiza el pago para evitar la suspensión del servicio.",
+            SubscriptionStatus.PastDue => "Tu pago está vencido. Tienes 5 días de tolerancia antes de la suspensión del servicio.",
             _ => "Tu suscripción no está activa. Realiza el pago correspondiente."
         };
     }

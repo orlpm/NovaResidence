@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Navbar from '../components/Navbar'
 import AdminRegistrationWizard from '../components/auth/AdminRegistrationWizard'
+import { useBackgroundPattern } from '../components/BackgroundPattern'
 import { 
   Building2, 
   Users, 
@@ -37,8 +38,10 @@ export default function Home() {
     setIsRegistrationOpen(true)
   }
 
+  const bgPattern = useBackgroundPattern('community')
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950" style={bgPattern}>
       <Navbar />
 
       {/* Admin Registration Wizard Modal */}

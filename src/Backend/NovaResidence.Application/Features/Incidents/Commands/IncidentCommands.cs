@@ -13,7 +13,8 @@ public record CreateIncidentCommand(
     IncidentType Type,
     IncidentPriority Priority,
     Guid? UnitId = null,
-    string? Location = null
+    string? Location = null,
+    string? PhotoUrl = null
 ) : IRequest<Result<Guid>>;
 
 // Update Incident

@@ -72,6 +72,14 @@ export const PERMISSIONS = {
   RESERVATIONS_DELETE: 'reservations.delete',
   RESERVATIONS_MANAGE: 'reservations.manage',
   RESERVATIONS_VIEW_ALL: 'reservations.view_all',
+
+  // Common Areas
+  COMMON_AREAS_VIEW: 'common_areas.view',
+  COMMON_AREAS_MANAGE: 'common_areas.manage',
+
+  // Condominium Maps
+  MAPS_VIEW: 'maps.view',
+  MAPS_MANAGE: 'maps.manage',
   
   // Settings
   SETTINGS_VIEW: 'settings.view',

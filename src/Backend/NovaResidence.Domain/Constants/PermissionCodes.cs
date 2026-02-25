@@ -74,6 +74,14 @@ public static class PermissionCodes
     public const string RESERVATIONS_DELETE = "reservations.delete";
     public const string RESERVATIONS_MANAGE = "reservations.manage";
     public const string RESERVATIONS_VIEW_ALL = "reservations.view_all";
+
+    // Common Areas (non-reservable spaces)
+    public const string COMMON_AREAS_VIEW = "common_areas.view";
+    public const string COMMON_AREAS_MANAGE = "common_areas.manage";
+
+    // Condominium Maps
+    public const string MAPS_VIEW = "maps.view";
+    public const string MAPS_MANAGE = "maps.manage";
     
     // Settings
     public const string SETTINGS_VIEW = "settings.view";

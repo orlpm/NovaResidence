@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, Check, CheckCheck, Trash2, X } from 'lucide-react'
+import { Bell, CheckCheck, Trash2, X } from 'lucide-react'
 import { 
   notificationsService, 
   NotificationDto, 
@@ -13,7 +13,7 @@ import {
 import { useAuthStore } from '../stores/authStore'
 
 interface NotificationBellProps {
-  condominiumId: string
+  condominiumId?: string
   isAdmin?: boolean
 }
 

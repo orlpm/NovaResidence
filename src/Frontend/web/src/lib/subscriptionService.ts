@@ -187,6 +187,14 @@ class SubscriptionService {
     return response.data;
   }
 
+  /** Change plan for an existing subscription */
+  async changePlan(subscriptionId: string, planId: string) {
+    const response = await apiClient.post(`/Subscriptions/${subscriptionId}/change-plan`, {
+      planId
+    });
+    return response.data;
+  }
+
   /** Get all subscriptions (SuperAdmin) */
   async getAllSubscriptions(status?: string, page: number = 1, pageSize: number = 20) {
     const params = new URLSearchParams();
@@ -207,10 +215,11 @@ class SubscriptionService {
     return response.data;
   }
 
-  /** Extend a subscription by N months (SuperAdmin) */
-  async extendSubscription(subscriptionId: string, months: number, reason?: string) {
+  /** Extend a subscription by months and/or days (SuperAdmin) */
+  async extendSubscription(subscriptionId: string, months: number, days: number = 0, reason?: string) {
     const response = await apiClient.post(`/Subscriptions/${subscriptionId}/extend`, {
       months,
+      days,
       reason
     });
     return response.data;

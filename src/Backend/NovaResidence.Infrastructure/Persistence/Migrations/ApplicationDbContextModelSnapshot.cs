@@ -642,6 +642,10 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                     b.Property<int>("PaymentMethod")
                         .HasColumnType("int");
 
+                    b.Property<string>("ProofImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<Guid?>("ReceivedById")
                         .HasColumnType("uniqueidentifier");
 
@@ -1773,6 +1777,83 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                     b.ToTable("Condominiums", "condo");
                 });
 
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Condominiums.CondominiumCommonArea", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("CoordinateX")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<decimal?>("CoordinateY")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("ImageUrlsJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BuildingId");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Type");
+
+                    b.ToTable("CondominiumCommonAreas", (string)null);
+                });
+
             modelBuilder.Entity("NovaResidence.Domain.Entities.Condominiums.Reservation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2244,6 +2325,166 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                     b.ToTable("IncidentComments", (string)null);
                 });
 
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Maps.CondominiumMap", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BackgroundImageUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ScopeReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("ScopeType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("ScopeType");
+
+                    b.ToTable("CondominiumMaps", (string)null);
+                });
+
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Maps.CondominiumMapMarker", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AmenityId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CommonAreaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CondominiumMapId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("CoordinateX")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<decimal>("CoordinateY")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ExternalReference")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<bool>("LayerEnabledByDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LayerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("MarkerColor")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("MarkerType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Tooltip")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid?>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumMapId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("LayerName");
+
+                    b.HasIndex("MarkerType");
+
+                    b.ToTable("CondominiumMapMarkers", (string)null);
+                });
+
             modelBuilder.Entity("NovaResidence.Domain.Entities.Notifications.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2543,6 +2784,135 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsActive");
 
                     b.ToTable("SubscriptionPlans", "billing");
+                });
+
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Visits.Visit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ApprovedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("CheckInAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CheckOutAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CheckedInById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("CheckedOutById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CondominiumId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("ExpectedArrival")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpectedDeparture")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Purpose")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("RejectedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("RequestedById")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("VehicleDescription")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("VehiclePlate")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("VisitorCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisitorEmail")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("VisitorIdentification")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("VisitorName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("VisitorPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CondominiumId");
+
+                    b.HasIndex("ExpectedArrival");
+
+                    b.HasIndex("RequestedById");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Type");
+
+                    b.HasIndex("UnitId");
+
+                    b.ToTable("Visits", (string)null);
                 });
 
             modelBuilder.Entity("NovaResidence.Domain.Entities.Authentication.CondominiumRolePermission", b =>
@@ -2859,6 +3229,14 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Condominiums.CondominiumCommonArea", b =>
+                {
+                    b.HasOne("NovaResidence.Domain.Entities.Condominiums.Building", null)
+                        .WithMany()
+                        .HasForeignKey("BuildingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("NovaResidence.Domain.Entities.Condominiums.Reservation", b =>
                 {
                     b.HasOne("NovaResidence.Domain.Entities.Condominiums.Amenity", "Amenity")
@@ -2914,6 +3292,15 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                     b.HasOne("NovaResidence.Domain.Entities.Incidents.Incident", null)
                         .WithMany("Comments")
                         .HasForeignKey("IncidentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Maps.CondominiumMapMarker", b =>
+                {
+                    b.HasOne("NovaResidence.Domain.Entities.Maps.CondominiumMap", null)
+                        .WithMany("Markers")
+                        .HasForeignKey("CondominiumMapId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -3020,6 +3407,11 @@ namespace NovaResidence.Infrastructure.Persistence.Migrations
                     b.Navigation("Attachments");
 
                     b.Navigation("Comments");
+                });
+
+            modelBuilder.Entity("NovaResidence.Domain.Entities.Maps.CondominiumMap", b =>
+                {
+                    b.Navigation("Markers");
                 });
 
             modelBuilder.Entity("NovaResidence.Domain.Entities.Subscriptions.Subscription", b =>

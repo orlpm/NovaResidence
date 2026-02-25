@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import Modal from '../Modal'
 import AdminRegistrationStep from '../onboarding/steps/AdminRegistrationStep'
 import PlanSelectionStep from '../onboarding/steps/PlanSelectionStep'
+import { apiClient } from '../../lib/apiClient'
 
 interface AdminRegistrationWizardProps {
   isOpen: boolean
@@ -22,6 +23,17 @@ interface RegistrationData {
     role: 'admin'
   }
   selectedPlan?: 'basico' | 'profesional' | 'empresarial'
+}
+
+interface RegisterResponse {
+  data?: {
+    userId?: string
+    token?: string
+  }
+  userId?: string
+  token?: string
+  message?: string
+  errors?: string[]
 }
 
 export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, skipPlanSelection }: AdminRegistrationWizardProps) {
@@ -74,32 +86,25 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
     }
   }
 
+  const registerAdmin = async (adminData: RegistrationData['admin']) => {
+    const response = await apiClient.post<RegisterResponse>('/auth/register', {
+      email: adminData.email,
+      password: adminData.password,
+      firstName: adminData.firstName,
+      lastName: adminData.lastName,
+      phoneNumber: adminData.phoneNumber,
+      role: 'Admin',
+      selectedPlan: registrationData.selectedPlan
+    })
+
+    return response.data
+  }
+
   // Versión que acepta datos directamente (para evitar problemas de sincronización de estado)
   const handleFinishWithData = async (adminData: typeof registrationData.admin) => {
     try {
       console.log('Enviando datos de registro:', adminData)
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: adminData.email,
-          password: adminData.password,
-          firstName: adminData.firstName,
-          lastName: adminData.lastName,
-          phoneNumber: adminData.phoneNumber,
-          role: 'Admin',
-          selectedPlan: registrationData.selectedPlan
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        const errorMessage = data.message || data.errors?.[0] || 'Error al registrar'
-        throw new Error(errorMessage)
-      }
+      const data = await registerAdmin(adminData)
 
       console.log('Usuario administrador creado:', data)
       
@@ -109,47 +114,30 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
         userId: data.data?.userId || data.userId
       }))
       
-      if (data.data?.token || data.token) {
-        localStorage.setItem('auth_token', data.data?.token || data.token)
+      const token = data.data?.token ?? data.token
+      if (token) {
+        localStorage.setItem('auth_token', token)
       }
       
       onClose()
       
       setTimeout(() => {
-        navigate('/admin/dashboard')
+        navigate('/auth/login')
       }, 300)
     } catch (error: any) {
       console.error('Error al crear usuario administrador:', error)
-      alert(error.message || 'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.')
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors?.[0] ||
+        error?.message ||
+        'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.'
+      alert(errorMessage)
     }
   }
 
   const handleFinish = async () => {
     try {
-      // Llamar al endpoint para crear administrador (usa proxy de vite)
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: registrationData.admin.email,
-          password: registrationData.admin.password,
-          firstName: registrationData.admin.firstName,
-          lastName: registrationData.admin.lastName,
-          phoneNumber: registrationData.admin.phoneNumber,
-          role: 'Admin', // Tipo de usuario: Administrador
-          selectedPlan: registrationData.selectedPlan // Puede ser undefined si no seleccionó
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        // Mostrar mensaje de error del backend
-        const errorMessage = data.message || data.errors?.[0] || 'Error al registrar'
-        throw new Error(errorMessage)
-      }
+      const data = await registerAdmin(registrationData.admin)
 
       console.log('Usuario administrador creado:', data)
       
@@ -160,20 +148,26 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
       }))
       
       // Guardar token si viene en la respuesta
-      if (data.data?.token || data.token) {
-        localStorage.setItem('auth_token', data.data?.token || data.token)
+      const token = data.data?.token ?? data.token
+      if (token) {
+        localStorage.setItem('auth_token', token)
       }
       
       // Cerrar modal
       onClose()
       
-      // Redirigir al dashboard de admin
+      // Redirigir al login para que inicie sesión
       setTimeout(() => {
-        navigate('/admin/dashboard')
+        navigate('/auth/login')
       }, 300)
     } catch (error: any) {
       console.error('Error al crear usuario administrador:', error)
-      alert(error.message || 'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.')
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors?.[0] ||
+        error?.message ||
+        'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.'
+      alert(errorMessage)
     }
   }
 

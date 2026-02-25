@@ -9,6 +9,7 @@ import {
   type SubscriptionDetail,
   type SubscriptionPlan
 } from '../../lib/subscriptionService';
+import { useAuthStore } from '../../stores/authStore';
 
 const STATUS_UI: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType; description: string }> = {
   Trial:     { label: 'Período de Prueba Gratis', color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-500/10',     border: 'border-blue-200 dark:border-blue-500/30', icon: Gift,          description: 'Estás disfrutando de tu mes de prueba gratuito. Cuando finalice, necesitarás realizar un pago para continuar.' },
@@ -20,8 +21,10 @@ const STATUS_UI: Record<string, { label: string; color: string; bg: string; bord
 };
 
 export default function SubscriptionStatusPage() {
+  const { user } = useAuthStore();
   const [subscription, setSubscription] = useState<SubscriptionDetail | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [noSubscription, setNoSubscription] = useState(false);
 
@@ -33,12 +36,13 @@ export default function SubscriptionStatusPage() {
   const [payReference, setPayReference] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [payLoading, setPayLoading] = useState(false);
+  const [planChanging, setPlanChanging] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     fetchCondominiumAndSubscription();
     subscriptionService.getPlans().then(setPlans).catch(() => {});
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (feedback) {
@@ -50,28 +54,56 @@ export default function SubscriptionStatusPage() {
   const fetchCondominiumAndSubscription = async () => {
     try {
       setLoading(true);
-      // Use the "my" endpoint - the backend resolves the user from the JWT
-      const sub = await subscriptionService.getMySubscription();
+      const sub = user?.id
+        ? await subscriptionService.getSubscriptionByUser(user.id)
+        : await subscriptionService.getMySubscription();
       setSubscription(sub);
+      setSelectedPlanId(sub.plan.id);
+      setNoSubscription(false);
+      return sub;
     } catch (error: any) {
       if (error?.response?.status === 404 || error?.response?.status === 401) {
+        setSubscription(null);
+        setSelectedPlanId('');
         setNoSubscription(true);
       } else {
         console.error('Error fetching subscription:', error);
         setFeedback({ type: 'error', message: 'Error al cargar la suscripción' });
       }
+      return null;
     } finally {
       setLoading(false);
     }
+  };
+
+  const estimateMonthlyAmount = (planId: string, currentSubscription: SubscriptionDetail) => {
+    if (!planId || planId === currentSubscription.plan.id) return currentSubscription.monthlyAmount;
+    const selected = plans.find(p => p.id === planId);
+    if (!selected) return currentSubscription.monthlyAmount;
+    if (selected.isCustom && selected.fixedMonthlyPrice != null) return selected.fixedMonthlyPrice;
+    return selected.pricePerUnit * Math.max(currentSubscription.billedUnits, 1);
   };
 
   const handlePayment = async () => {
     if (!subscription) return;
     setPayLoading(true);
     try {
-      const amount = parseFloat(payAmount) || subscription.monthlyAmount * payMonths;
+      let currentSubscription = subscription;
+
+      if (selectedPlanId && selectedPlanId !== subscription.plan.id) {
+        setPlanChanging(true);
+        await subscriptionService.changePlan(subscription.id, selectedPlanId);
+        const refreshed = user?.id
+          ? await subscriptionService.getSubscriptionByUser(user.id)
+          : await subscriptionService.getMySubscription();
+        setSubscription(refreshed);
+        currentSubscription = refreshed;
+        setPlanChanging(false);
+      }
+
+      const amount = parseFloat(payAmount) || currentSubscription.monthlyAmount * payMonths;
       await subscriptionService.registerPayment(
-        subscription.id,
+        currentSubscription.id,
         amount,
         payMonths,
         payMethod,
@@ -82,12 +114,11 @@ export default function SubscriptionStatusPage() {
       setShowPayment(false);
       setPayReference('');
       setPayNotes('');
-      // Reload
-      const sub = await subscriptionService.getMySubscription();
-      setSubscription(sub);
+      await fetchCondominiumAndSubscription();
     } catch (error: any) {
       setFeedback({ type: 'error', message: error?.response?.data?.message || 'Error al registrar el pago' });
     } finally {
+      setPlanChanging(false);
       setPayLoading(false);
     }
   };
@@ -112,28 +143,87 @@ export default function SubscriptionStatusPage() {
 
   if (noSubscription) {
     return (
-      <div className="max-w-2xl mx-auto py-16 text-center">
-        <div className="p-4 rounded-2xl bg-gray-100 dark:bg-gray-800 inline-block mb-6">
-          <CreditCard className="w-12 h-12 text-gray-400" />
+      <div className="max-w-5xl mx-auto py-10 space-y-8">
+        <div className="text-center">
+          <div className="p-4 rounded-2xl bg-gray-100 dark:bg-gray-800 inline-block mb-6">
+            <CreditCard className="w-12 h-12 text-gray-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Sin Suscripción</h2>
+          <p className="text-gray-500 dark:text-gray-400">
+            Aún no tienes una suscripción activa. Crea un condominio para obtener tu período de prueba gratuito.
+          </p>
+          <button
+            onClick={fetchCondominiumAndSubscription}
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-sky-500 text-white hover:bg-sky-600 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" /> Reintentar
+          </button>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Sin Suscripción</h2>
-        <p className="text-gray-500 dark:text-gray-400">
-          Aún no tienes una suscripción activa. Crea un condominio para obtener tu período de prueba gratuito.
-        </p>
+
+        {plans.length > 0 && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-sky-500" />
+              Planes Disponibles
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {plans.map(plan => {
+                const features = subscriptionService.parseFeatures(plan.features);
+                return (
+                  <div
+                    key={plan.id}
+                    className={`rounded-2xl border-2 p-6 transition-all ${
+                      plan.isRecommended
+                        ? 'border-indigo-300 dark:border-indigo-500/30 bg-white dark:bg-gray-800'
+                        : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    {plan.isRecommended && (
+                      <span className="inline-block text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-500/10 px-2 py-1 rounded-full mb-3">
+                        ⭐ Recomendado
+                      </span>
+                    )}
+                    <h4 className="text-lg font-bold text-gray-900 dark:text-white">{plan.name}</h4>
+                    <div className="mt-2">
+                      <span className="text-3xl font-bold text-gray-900 dark:text-white">${plan.pricePerUnit}</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-sm"> /unidad/mes</span>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {plan.minUnits}–{plan.maxUnits || '∞'} unidades · {plan.trialDays} días de prueba
+                    </p>
+                    {features.length > 0 && (
+                      <ul className="mt-4 space-y-2">
+                        {features.map((f, i) => (
+                          <li key={i} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                            <ChevronRight className="w-3 h-3 text-sky-500 shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   if (!subscription) return null;
 
-  const statusText = subscription.statusText;
-  const ui = getStatusUI(statusText);
+  const STATUS_KEYS = ['Trial', 'Active', 'PastDue', 'Suspended', 'Cancelled', 'Expired'];
+  const statusKey = STATUS_KEYS[subscription.status] || 'Expired';
+  const ui = getStatusUI(statusKey);
   const StatusIcon = ui.icon;
   const daysRemaining = subscription.daysRemaining;
   const progressPercent = Math.min(100, (daysRemaining / 30) * 100);
   const isUrgent = daysRemaining <= 7;
   const isWarning = daysRemaining <= 15 && daysRemaining > 7;
-  const needsPayment = ['PastDue', 'Suspended', 'Expired'].includes(statusText);
+  const needsPayment = ['PastDue', 'Suspended', 'Expired'].includes(statusKey);
+  const selectedPlanChanged = !!selectedPlanId && selectedPlanId !== subscription.plan.id;
+  const selectedMonthlyAmount = estimateMonthlyAmount(selectedPlanId, subscription);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -170,7 +260,7 @@ export default function SubscriptionStatusPage() {
             <p className="text-gray-600 dark:text-gray-300 mt-1">{ui.description}</p>
 
             {/* Days remaining bar */}
-            {statusText !== 'Cancelled' && (
+            {statusKey !== 'Cancelled' && (
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Tiempo restante</span>
@@ -206,26 +296,26 @@ export default function SubscriptionStatusPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <InfoCard icon={Building2} label="Plan" value={subscription.plan.name} sub={subscription.plan.isCustom ? 'Plan personalizado' : `$${subscription.plan.pricePerUnit}/unidad`} />
         <InfoCard icon={DollarSign} label="Monto Mensual" value={`$${subscription.monthlyAmount.toLocaleString()} MXN`} sub={`${subscription.billedUnits} unidades facturadas`} />
-        <InfoCard icon={Calendar} label="Vencimiento" value={formatDate(subscription.currentPeriodEnd)} sub={statusText === 'Trial' ? `Prueba hasta ${formatDate(subscription.trialEndDate)}` : `Desde ${formatDate(subscription.currentPeriodStart)}`} />
+        <InfoCard icon={Calendar} label="Vencimiento" value={formatDate(subscription.currentPeriodEnd)} sub={statusKey === 'Trial' ? `Prueba hasta ${formatDate(subscription.trialEndDate)}` : `Desde ${formatDate(subscription.currentPeriodStart)}`} />
         <InfoCard icon={Timer} label="Último Pago" value={formatDate(subscription.lastPaymentDate)} sub={subscription.recentPayments.length > 0 ? `${subscription.recentPayments.length} pago(s) registrados` : 'Sin pagos aún'} />
       </div>
 
       {/* Pay / Renew Button */}
-      {(needsPayment || isUrgent || isWarning || statusText === 'Trial') && (
+      {(needsPayment || isUrgent || isWarning || statusKey === 'Trial') && (
         <div className="bg-gradient-to-r from-sky-500/10 to-blue-600/10 dark:from-sky-500/5 dark:to-blue-600/5 rounded-2xl border border-sky-200 dark:border-sky-500/20 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {needsPayment ? '⚠️ Pago requerido' : statusText === 'Trial' ? '🎁 Tu prueba gratis termina pronto' : '🔄 Renovar suscripción'}
+                {needsPayment ? '⚠️ Pago requerido' : statusKey === 'Trial' ? '🎁 Tu prueba gratis termina pronto' : '🔄 Renovar suscripción'}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {needsPayment
                   ? 'Realiza tu pago para restaurar el acceso a la plataforma.'
-                  : `Monto mensual: $${subscription.monthlyAmount.toLocaleString()} MXN`}
+                  : `Monto mensual: $${selectedMonthlyAmount.toLocaleString()} MXN`}
               </p>
             </div>
             <button
-              onClick={() => { setShowPayment(!showPayment); setPayAmount((subscription.monthlyAmount * payMonths).toString()); }}
+              onClick={() => { setShowPayment(!showPayment); setPayAmount((selectedMonthlyAmount * payMonths).toString()); }}
               className="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all flex items-center gap-2"
             >
               <CreditCard className="w-5 h-5" />
@@ -237,13 +327,38 @@ export default function SubscriptionStatusPage() {
           {showPayment && (
             <div className="mt-6 pt-6 border-t border-sky-200 dark:border-sky-500/20">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plan a pagar</label>
+                  <select
+                    value={selectedPlanId}
+                    onChange={(e) => {
+                      const newPlanId = e.target.value;
+                      setSelectedPlanId(newPlanId);
+                      const newMonthly = estimateMonthlyAmount(newPlanId, subscription);
+                      setPayAmount((newMonthly * payMonths).toString());
+                    }}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
+                  >
+                    {plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name} {plan.id === subscription.plan.id ? '(actual)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedPlanChanged && (
+                    <p className="text-xs text-sky-600 dark:text-sky-400 mt-1">
+                      Se actualizará tu suscripción al plan seleccionado antes de registrar el pago.
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Meses a pagar</label>
                   <div className="flex gap-2">
                     {[1, 2, 3, 6, 12].map(m => (
                       <button
                         key={m}
-                        onClick={() => { setPayMonths(m); setPayAmount((subscription.monthlyAmount * m).toString()); }}
+                        onClick={() => { setPayMonths(m); setPayAmount((selectedMonthlyAmount * m).toString()); }}
                         className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                           payMonths === m
                             ? 'bg-sky-500 text-white'
@@ -265,7 +380,7 @@ export default function SubscriptionStatusPage() {
                     className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    ${subscription.monthlyAmount.toLocaleString()} × {payMonths} mes(es) = ${(subscription.monthlyAmount * payMonths).toLocaleString()} MXN
+                    ${selectedMonthlyAmount.toLocaleString()} × {payMonths} mes(es) = ${(selectedMonthlyAmount * payMonths).toLocaleString()} MXN
                   </p>
                 </div>
 
@@ -316,11 +431,11 @@ export default function SubscriptionStatusPage() {
                 </button>
                 <button
                   onClick={handlePayment}
-                  disabled={payLoading}
+                  disabled={payLoading || planChanging}
                   className="px-6 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-medium rounded-lg shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 disabled:opacity-50 flex items-center gap-2"
                 >
                   {payLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  Confirmar Pago
+                  {planChanging ? 'Actualizando plan...' : 'Confirmar Pago'}
                 </button>
               </div>
             </div>
@@ -419,6 +534,18 @@ export default function SubscriptionStatusPage() {
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {!isCurrent && (
+                    <button
+                      onClick={() => {
+                        setSelectedPlanId(plan.id);
+                        setShowPayment(true);
+                        setPayAmount((estimateMonthlyAmount(plan.id, subscription) * payMonths).toString());
+                      }}
+                      className="mt-4 w-full px-4 py-2 rounded-lg border border-sky-300 dark:border-sky-500/40 text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-500/10 transition-colors"
+                    >
+                      Seleccionar este plan
+                    </button>
                   )}
                 </div>
               );

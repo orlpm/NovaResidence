@@ -38,6 +38,21 @@ public static class BillingEnumNames
     public static string GetStatusName(ChargeStatus status) =>
         ChargeStatusNames.TryGetValue(status, out var name) ? name : status.ToString();
 
+    public static readonly Dictionary<PaymentMethod, string> PaymentMethodNames = new()
+    {
+        { PaymentMethod.Cash, "Efectivo" },
+        { PaymentMethod.BankTransfer, "Transferencia Bancaria" },
+        { PaymentMethod.CreditCard, "Tarjeta de Crédito" },
+        { PaymentMethod.DebitCard, "Tarjeta de Débito" },
+        { PaymentMethod.Check, "Cheque" },
+        { PaymentMethod.SPEI, "SPEI" },
+        { PaymentMethod.PayPal, "PayPal" },
+        { PaymentMethod.Other, "Otro" }
+    };
+
+    public static string GetPaymentMethodName(PaymentMethod method) =>
+        PaymentMethodNames.TryGetValue(method, out var name) ? name : method.ToString();
+
     public static (ChargeStatus status, string statusName, bool isOverdue) ComputeStatus(ChargeStatus currentStatus, DateTime dueDate, decimal balance)
     {
         // If already paid, cancelled, or forgiven, use that status
@@ -101,13 +116,20 @@ public class GetChargeQueryHandler : IRequestHandler<GetChargeQuery, Result<Char
                 p.Id,
                 p.Amount,
                 p.PaymentMethod,
+                BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
                 p.ReferenceNumber,
                 p.Notes,
                 p.PaymentDate,
                 p.IsVerified,
                 p.VerifiedAt,
                 p.IsRefunded,
-                p.RefundReason
+                p.RefundReason,
+                p.ProofImageUrl,
+                p.ChargeId,
+                charge.Concept,
+                charge.Unit.UnitNumber,
+                charge.Unit.Building?.Name,
+                charge.CondominiumId
             )).ToList()
         );
 
@@ -129,6 +151,7 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
         var query = _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .Where(c => c.CondominiumId == request.CondominiumId && !c.IsDeleted);
 
         if (request.Month.HasValue)
@@ -151,6 +174,12 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
         var charges = rawCharges.Select(c =>
         {
             var (status, statusName, isOverdue) = BillingEnumNames.ComputeStatus(c.Status, c.DueDate, c.Balance);
+            var payments = c.Payments.Select(p => new ChargePaymentDto(
+                p.Id, p.Amount, p.PaymentMethod,
+                BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
+                p.ReferenceNumber, p.PaymentDate,
+                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl
+            )).ToList();
             return new ChargeListDto(
                 c.Id,
                 c.UnitId,
@@ -168,7 +197,9 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
                 c.DueDate,
                 c.BillingPeriodMonth,
                 c.BillingPeriodYear,
-                c.CreatedAt
+                c.CreatedAt,
+                payments.Any(p => !p.IsVerified && !p.IsRefunded),
+                payments
             );
         }).ToList();
 
@@ -190,6 +221,7 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
         var query = _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .Where(c => c.UnitId == request.UnitId && !c.IsDeleted);
 
         if (request.Month.HasValue)
@@ -208,6 +240,12 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
         var charges = rawCharges.Select(c =>
         {
             var (status, statusName, isOverdue) = BillingEnumNames.ComputeStatus(c.Status, c.DueDate, c.Balance);
+            var payments = c.Payments.Select(p => new ChargePaymentDto(
+                p.Id, p.Amount, p.PaymentMethod,
+                BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
+                p.ReferenceNumber, p.PaymentDate,
+                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl
+            )).ToList();
             return new ChargeListDto(
                 c.Id,
                 c.UnitId,
@@ -225,7 +263,9 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
                 c.DueDate,
                 c.BillingPeriodMonth,
                 c.BillingPeriodYear,
-                c.CreatedAt
+                c.CreatedAt,
+                payments.Any(p => !p.IsVerified && !p.IsRefunded),
+                payments
             );
         }).ToList();
 
@@ -416,6 +456,7 @@ public class GetOverdueChargesQueryHandler : IRequestHandler<GetOverdueChargesQu
         var rawCharges = await _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
+            .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .Where(c => c.CondominiumId == request.CondominiumId 
                 && !c.IsDeleted
                 && c.Balance > 0
@@ -425,26 +466,84 @@ public class GetOverdueChargesQueryHandler : IRequestHandler<GetOverdueChargesQu
             .ThenBy(c => c.DueDate)
             .ToListAsync(cancellationToken);
 
-        var charges = rawCharges.Select(c => new ChargeListDto(
-            c.Id,
-            c.UnitId,
-            c.Unit.UnitNumber,
-            c.Unit.Building!.Name,
-            c.Concept,
-            c.FeeType,
-            BillingEnumNames.GetFeeTypeName(c.FeeType),
-            c.Amount,
-            c.PaidAmount,
-            c.Balance,
-            ChargeStatus.Overdue,
-            "Vencido",
-            true,
-            c.DueDate,
-            c.BillingPeriodMonth,
-            c.BillingPeriodYear,
-            c.CreatedAt
-        )).ToList();
+        var charges = rawCharges.Select(c =>
+        {
+            var payments = c.Payments.Select(p => new ChargePaymentDto(
+                p.Id, p.Amount, p.PaymentMethod,
+                BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
+                p.ReferenceNumber, p.PaymentDate,
+                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl
+            )).ToList();
+            return new ChargeListDto(
+                c.Id,
+                c.UnitId,
+                c.Unit.UnitNumber,
+                c.Unit.Building!.Name,
+                c.Concept,
+                c.FeeType,
+                BillingEnumNames.GetFeeTypeName(c.FeeType),
+                c.Amount,
+                c.PaidAmount,
+                c.Balance,
+                ChargeStatus.Overdue,
+                "Vencido",
+                true,
+                c.DueDate,
+                c.BillingPeriodMonth,
+                c.BillingPeriodYear,
+                c.CreatedAt,
+                payments.Any(p => !p.IsVerified && !p.IsRefunded),
+                payments
+            );
+        }).ToList();
 
         return Result.Success(charges);
+    }
+}
+
+public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPaymentsQuery, Result<List<PaymentDto>>>
+{
+    private readonly IApplicationDbContext _context;
+
+    public GetPendingPaymentsQueryHandler(IApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<Result<List<PaymentDto>>> Handle(GetPendingPaymentsQuery request, CancellationToken cancellationToken)
+    {
+        var payments = await _context.Payments
+            .Include(p => p.Charge)
+                .ThenInclude(c => c.Unit)
+                    .ThenInclude(u => u.Building)
+            .Where(p => !p.IsDeleted
+                && !p.IsVerified
+                && !p.IsRefunded
+                && p.Charge.CondominiumId == request.CondominiumId
+                && !p.Charge.IsDeleted)
+            .OrderByDescending(p => p.PaymentDate)
+            .ToListAsync(cancellationToken);
+
+        var dtos = payments.Select(p => new PaymentDto(
+            p.Id,
+            p.Amount,
+            p.PaymentMethod,
+            BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
+            p.ReferenceNumber,
+            p.Notes,
+            p.PaymentDate,
+            p.IsVerified,
+            p.VerifiedAt,
+            p.IsRefunded,
+            p.RefundReason,
+            p.ProofImageUrl,
+            p.ChargeId,
+            p.Charge.Concept,
+            p.Charge.Unit.UnitNumber,
+            p.Charge.Unit.Building?.Name,
+            p.Charge.CondominiumId
+        )).ToList();
+
+        return Result.Success(dtos);
     }
 }

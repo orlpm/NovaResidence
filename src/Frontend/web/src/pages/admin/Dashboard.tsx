@@ -5,6 +5,7 @@ import OnboardingWizard from '../../components/onboarding/OnboardingWizard'
 import type { OnboardingData } from '../../types/onboarding'
 import { condominiumService, UserCondominiumDto } from '../../lib/condominiumService'
 import { dashboardService, DashboardStatsDto, RecentActivityDto } from '../../lib/dashboardService'
+import { subscriptionService, type SubscriptionDetail } from '../../lib/subscriptionService'
 import { useAuthStore } from '../../stores/authStore'
 
 interface RecentActivity {
@@ -27,6 +28,8 @@ function AdminDashboard() {
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [_wizardData, setWizardData] = useState<OnboardingData | null>(null)
   const [userPlan, setUserPlan] = useState<string | null>(null)
+  const [subscription, setSubscription] = useState<SubscriptionDetail | null>(null)
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true)
   const [stats, setStats] = useState<DashboardStatsDto | null>(null)
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
 
@@ -36,16 +39,41 @@ function AdminDashboard() {
       setTimeout(() => setShowOnboardingSuccess(false), 5000)
     }
 
-    // Cargar plan del usuario
-    const registrationData = localStorage.getItem('admin_registration_data')
-    if (registrationData) {
-      const data = JSON.parse(registrationData)
-      setUserPlan(data.selectedPlan || null)
+    // Cargar suscripción primero, luego condominios (el middleware necesita la suscripción creada)
+    const init = async () => {
+      await loadSubscriptionInfo()
+      await loadCondominiums()
     }
-
-    // Cargar condominios desde el backend (esto también cargará las stats)
-    loadCondominiums()
+    init()
   }, [location])
+
+  const loadSubscriptionInfo = async () => {
+    setIsLoadingSubscription(true)
+    try {
+      const sub = _user?.id
+        ? await subscriptionService.getSubscriptionByUser(_user.id)
+        : await subscriptionService.getMySubscription()
+
+      setSubscription(sub)
+      setUserPlan(sub.plan?.name ?? null)
+    } catch (error: any) {
+      if (error?.response?.status === 404 || error?.response?.status === 401) {
+        setSubscription(null)
+
+        const registrationData = localStorage.getItem('admin_registration_data')
+        if (registrationData) {
+          const data = JSON.parse(registrationData)
+          setUserPlan(data.selectedPlan || null)
+        } else {
+          setUserPlan(null)
+        }
+      } else {
+        console.error('Error loading subscription info:', error)
+      }
+    } finally {
+      setIsLoadingSubscription(false)
+    }
+  }
 
   const loadDashboardStats = async (condominiumIds?: string[]) => {
     setIsLoadingStats(true)
@@ -197,51 +225,66 @@ function AdminDashboard() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent mb-2">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent mb-1 sm:mb-2">
                 Dashboard Administrativo
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
                 Gestiona y supervisa todos los aspectos de tu condominio
               </p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 flex-shrink-0">
               {/* Botón Agregar Condominio */}
               {!isLoadingCondominiums && condominiums.length > 0 && !showWizard && (
                 <button
                   onClick={handleAddAnotherCondominium}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-green-500/30 transition-all font-medium"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-lg hover:shadow-green-500/30 transition-all font-medium text-sm sm:text-base"
                 >
-                  <Plus className="w-5 h-5" />
-                  <span>Agregar Condominio</span>
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden xs:inline">Agregar Condominio</span>
+                  <span className="xs:hidden">Agregar</span>
                 </button>
               )}
               {/* Indicador de Plan */}
               <div className="text-right">
-              {userPlan ? (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl shadow-lg">
-                  <CheckCircle2 className="w-5 h-5" />
+              {isLoadingSubscription ? (
+                <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-xs sm:text-sm font-medium">Cargando plan...</span>
+                </div>
+              ) : (subscription || userPlan) ? (
+                <div className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 text-white rounded-xl shadow-lg ${subscription?.status === 0 || subscription?.statusText === 'Período de Prueba' ? 'bg-gradient-to-r from-blue-500 to-cyan-600' : 'bg-gradient-to-r from-sky-500 to-blue-600'}`}>
+                  <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs opacity-90">Plan Activo</p>
-                    <p className="font-bold capitalize">{userPlan}</p>
+                    {subscription?.status === 0 || subscription?.statusText === 'Período de Prueba' ? (
+                      <>
+                        <p className="text-[10px] sm:text-xs opacity-90">Período de Prueba</p>
+                        <p className="text-sm sm:text-base font-bold">{subscription?.daysRemaining != null ? `${subscription.daysRemaining} días restantes` : 'Activo'}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[10px] sm:text-xs opacity-90">Plan Asignado</p>
+                        <p className="text-sm sm:text-base font-bold capitalize">{subscription?.plan?.name || userPlan}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (
-                <div className="inline-flex flex-col items-end gap-2">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-700">
-                    <AlertCircle className="w-5 h-5" />
+                <div className="inline-flex flex-col items-end gap-1.5 sm:gap-2">
+                  <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 rounded-xl border border-amber-200 dark:border-amber-700">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs">Sin Plan Activo</p>
-                      <p className="font-semibold text-sm">Modo Gratuito</p>
+                      <p className="text-[10px] sm:text-xs">Sin Plan Activo</p>
+                      <p className="font-semibold text-xs sm:text-sm">Modo Gratuito</p>
                     </div>
                   </div>
                   <button
-                    onClick={() => navigate('/admin/plans')}
-                    className="text-sm text-sky-600 dark:text-sky-400 hover:underline font-medium"
+                    onClick={() => navigate('/admin/subscription')}
+                    className="text-xs sm:text-sm text-sky-600 dark:text-sky-400 hover:underline font-medium"
                   >
                     Ver Planes Disponibles
                   </button>

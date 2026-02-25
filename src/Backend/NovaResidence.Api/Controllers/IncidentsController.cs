@@ -12,10 +12,12 @@ namespace NovaResidence.Api.Controllers;
 public class IncidentsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly IWebHostEnvironment _env;
 
-    public IncidentsController(IMediator mediator)
+    public IncidentsController(IMediator mediator, IWebHostEnvironment env)
     {
         _mediator = mediator;
+        _env = env;
     }
 
     [HttpGet("{id:guid}")]
@@ -90,7 +92,8 @@ public class IncidentsController : ControllerBase
             request.Type,
             request.Priority,
             request.UnitId,
-            request.Location
+            request.Location,
+            request.PhotoUrl
         );
 
         var result = await _mediator.Send(command);
@@ -99,6 +102,35 @@ public class IncidentsController : ControllerBase
             return BadRequest(result.Errors);
         
         return CreatedAtAction(nameof(GetIncident), new { id = result.Value }, result.Value);
+    }
+
+    [HttpPost("upload-photo")]
+    public async Task<ActionResult<string>> UploadIncidentPhoto([FromForm] IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No se proporcionó archivo");
+
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest("Formato de archivo no válido. Use JPG, PNG o WEBP.");
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest("La imagen no debe superar los 5MB.");
+
+        var uploadsFolder = Path.Combine(_env.ContentRootPath, "uploads", "incident-photos");
+        Directory.CreateDirectory(uploadsFolder);
+
+        var uniqueFileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var fileUrl = $"/uploads/incident-photos/{uniqueFileName}";
+        return Ok(fileUrl);
     }
 
     [HttpPut("{id:guid}")]
@@ -236,6 +268,7 @@ public class CreateIncidentRequest
     public IncidentPriority Priority { get; set; }
     public Guid? UnitId { get; set; }
     public string? Location { get; set; }
+    public string? PhotoUrl { get; set; }
 }
 
 public record UpdateIncidentRequest(
