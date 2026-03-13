@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Building2, MapPin, Plus, X, ChevronLeft, AlertCircle } from 'lucide-react'
+import { geoCatalogService, type CountryCatalogItem, type StateCatalogItem } from '../../../lib/geoCatalogService'
 
 interface CondominiumInfoStepProps {
   data: {
@@ -7,7 +8,10 @@ interface CondominiumInfoStepProps {
     address: string
     city: string
     state: string
+    stateId?: string
     zipCode: string
+    country?: string
+    countryId?: string
     sections?: string[]
   }
   onUpdate: (data: any) => void
@@ -19,6 +23,44 @@ export default function CondominiumInfoStep({ data, onUpdate, onNext, onBack }: 
   const [formData, setFormData] = useState(data)
   const [newSection, setNewSection] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [countries, setCountries] = useState<CountryCatalogItem[]>([])
+  const [states, setStates] = useState<StateCatalogItem[]>([])
+
+  useEffect(() => {
+    const loadCountries = async () => {
+      try {
+        const result = await geoCatalogService.getCountries()
+        setCountries(result)
+
+        if (!formData.countryId && result.length > 0) {
+          const mexico = result.find(c => c.code === 'MX') || result[0]
+          setFormData(prev => ({ ...prev, countryId: mexico.id, country: mexico.name }))
+        }
+      } catch {
+        setCountries([])
+      }
+    }
+
+    loadCountries()
+  }, [])
+
+  useEffect(() => {
+    const loadStates = async () => {
+      if (!formData.countryId) {
+        setStates([])
+        return
+      }
+
+      try {
+        const result = await geoCatalogService.getStates(formData.countryId)
+        setStates(result)
+      } catch {
+        setStates([])
+      }
+    }
+
+    loadStates()
+  }, [formData.countryId])
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -48,7 +90,9 @@ export default function CondominiumInfoStep({ data, onUpdate, onNext, onBack }: 
     if (!formData.name) newErrors.name = 'Nombre del condominio requerido'
     if (!formData.address) newErrors.address = 'Dirección requerida'
     if (!formData.city) newErrors.city = 'Ciudad requerida'
-    if (!formData.state) newErrors.state = 'Estado requerido'
+    if (!formData.countryId) newErrors.country = 'País requerido'
+    if (states.length > 0 && !formData.stateId) newErrors.state = 'Estado requerido'
+    if (states.length === 0 && !formData.state?.trim()) newErrors.state = 'Estado / provincia requerido'
     if (!formData.zipCode) newErrors.zipCode = 'Código postal requerido'
 
     setErrors(newErrors)
@@ -118,7 +162,7 @@ export default function CondominiumInfoStep({ data, onUpdate, onNext, onBack }: 
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Ciudad *
@@ -140,15 +184,67 @@ export default function CondominiumInfoStep({ data, onUpdate, onNext, onBack }: 
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Estado *
+            País *
           </label>
-          <input
-            type="text"
-            value={formData.state}
-            onChange={(e) => handleChange('state', e.target.value)}
+          <select
+            value={formData.countryId || ''}
+            onChange={(e) => {
+              const selected = countries.find(c => c.id === e.target.value)
+              const nextCountryId = e.target.value
+              setFormData(prev => ({
+                ...prev,
+                countryId: nextCountryId,
+                country: selected?.name || prev.country || 'México',
+                stateId: '',
+                state: ''
+              }))
+              setErrors(prev => ({ ...prev, country: '', state: '' }))
+            }}
             className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
-            placeholder="Estado"
-          />
+          >
+            <option value="">Selecciona país</option>
+            {countries.map(country => (
+              <option key={country.id} value={country.id}>{country.name}</option>
+            ))}
+          </select>
+          {errors.country && (
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <AlertCircle className="w-4 h-4 mr-1" />
+              {errors.country}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Estado {states.length > 0 ? '*' : ''}
+          </label>
+          {states.length > 0 ? (
+            <select
+              value={formData.stateId || ''}
+              onChange={(e) => {
+                const selected = states.find(s => s.id === e.target.value)
+                setFormData(prev => ({ ...prev, stateId: e.target.value, state: selected?.name || '' }))
+                setErrors(prev => ({ ...prev, state: '' }))
+              }}
+              className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
+              disabled={!formData.countryId}
+            >
+              <option value="">Selecciona estado</option>
+              {states.map(state => (
+                <option key={state.id} value={state.id}>{state.name}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={formData.state || ''}
+              onChange={(e) => handleChange('state', e.target.value)}
+              className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
+              placeholder="Estado / provincia"
+              disabled={!formData.countryId}
+            />
+          )}
           {errors.state && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertCircle className="w-4 h-4 mr-1" />

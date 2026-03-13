@@ -10,6 +10,8 @@ namespace NovaResidence.Domain.Entities.Condominiums;
 /// </summary>
 public class Resident : BaseEntity
 {
+    public static readonly TimeSpan InvitationValidity = TimeSpan.FromDays(7);
+
     public Guid UnitId { get; private set; }
     public Unit? Unit { get; private set; }
     
@@ -68,6 +70,22 @@ public class Resident : BaseEntity
 
     public string FullName => $"{FirstName} {LastName}";
 
+    public bool HasActiveInvitation()
+    {
+        return !string.IsNullOrWhiteSpace(InvitationToken) && !IsRegistered && !IsInvitationExpired();
+    }
+
+    public bool IsInvitationExpired(DateTime? currentUtc = null)
+    {
+        if (string.IsNullOrWhiteSpace(InvitationToken) || !InvitationSentAt.HasValue)
+        {
+            return true;
+        }
+
+        var now = currentUtc ?? DateTime.UtcNow;
+        return InvitationSentAt.Value.Add(InvitationValidity) < now;
+    }
+
     public void Update(string firstName, string lastName, string email, string phoneNumber)
     {
         Guard.Against.NullOrWhiteSpace(firstName, nameof(firstName));
@@ -91,7 +109,6 @@ public class Resident : BaseEntity
         UserId = userId;
         IsRegistered = true;
         RegisteredAt = DateTime.UtcNow;
-        InvitationToken = null; // Clear the token after registration
     }
 
     public void Deactivate(DateTime? moveOutDate = null)

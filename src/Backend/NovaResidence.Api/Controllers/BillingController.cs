@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Ardalis.Result;
+using NovaResidence.Api.Security;
 using NovaResidence.Application.Features.Billing.Commands;
 using NovaResidence.Application.Features.Billing.Queries;
 using NovaResidence.Domain.Enums;
@@ -9,15 +11,18 @@ namespace NovaResidence.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class BillingController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IWebHostEnvironment _env;
+    private readonly ITenantAccessService _tenantAccessService;
 
-    public BillingController(IMediator mediator, IWebHostEnvironment env)
+    public BillingController(IMediator mediator, IWebHostEnvironment env, ITenantAccessService tenantAccessService)
     {
         _mediator = mediator;
         _env = env;
+        _tenantAccessService = tenantAccessService;
     }
 
     #region Charges
@@ -25,13 +30,16 @@ public class BillingController : ControllerBase
     [HttpGet("charges/{id:guid}")]
     public async Task<ActionResult<ChargeDetailDto>> GetCharge(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessChargeAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetChargeQuery(id));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -43,12 +51,15 @@ public class BillingController : ControllerBase
         [FromQuery] ChargeStatus? status = null,
         [FromQuery] FeeType? feeType = null)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetCondominiumChargesQuery(
             condominiumId, month, year, status, feeType));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -59,28 +70,41 @@ public class BillingController : ControllerBase
         [FromQuery] int? year = null,
         [FromQuery] ChargeStatus? status = null)
     {
+        if (!await _tenantAccessService.CanAccessUnitAsync(User, unitId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetUnitChargesQuery(unitId, month, year, status));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     [HttpGet("charges/overdue/{condominiumId:guid}")]
     public async Task<ActionResult<List<ChargeListDto>>> GetOverdueCharges(Guid condominiumId)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetOverdueChargesQuery(condominiumId));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     [HttpPost("charges")]
     public async Task<ActionResult<Guid>> CreateCharge([FromBody] CreateChargeRequest request)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, request.CondominiumId)
+            || !await _tenantAccessService.CanAccessUnitAsync(User, request.UnitId)
+            || (request.ResidentId.HasValue && !await _tenantAccessService.CanAccessUserAsync(User, request.ResidentId.Value)))
+        {
+            return TenantForbidden();
+        }
+
         var command = new CreateChargeCommand(
             request.CondominiumId,
             request.UnitId,
@@ -97,16 +121,19 @@ public class BillingController : ControllerBase
         );
 
         var result = await _mediator.Send(command);
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return CreatedAtAction(nameof(GetCharge), new { id = result.Value }, result.Value);
     }
 
     [HttpPost("charges/bulk")]
     public async Task<ActionResult<int>> CreateBulkCharges([FromBody] CreateBulkChargesRequest request)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, request.CondominiumId))
+            return TenantForbidden();
+
         var command = new CreateBulkChargesCommand(
             request.CondominiumId,
             request.Concept,
@@ -120,62 +147,74 @@ public class BillingController : ControllerBase
         );
 
         var result = await _mediator.Send(command);
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     [HttpPost("charges/{id:guid}/cancel")]
     public async Task<ActionResult> CancelCharge(Guid id, [FromBody] CancelChargeRequest request)
     {
+        if (!await _tenantAccessService.CanAccessChargeAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new CancelChargeCommand(id, request.Reason));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
     [HttpPost("charges/{id:guid}/forgive")]
     public async Task<ActionResult> ForgiveCharge(Guid id, [FromBody] ForgiveChargeRequest request)
     {
+        if (!await _tenantAccessService.CanAccessChargeAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new ForgiveChargeCommand(id, request.Reason));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
     [HttpPost("charges/{id:guid}/apply-late-fee")]
     public async Task<ActionResult> ApplyLateFee(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessChargeAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new ApplyLateFeeCommand(id));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
     [HttpDelete("charges/{id:guid}")]
     public async Task<ActionResult> DeleteCharge(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessChargeAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new DeleteChargeCommand(id));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
@@ -185,11 +224,14 @@ public class BillingController : ControllerBase
         [FromQuery] int? month = null,
         [FromQuery] int? year = null)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new DeleteChargesByCondominiumCommand(condominiumId, month, year));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -200,6 +242,12 @@ public class BillingController : ControllerBase
     [HttpPost("payments")]
     public async Task<ActionResult<Guid>> RecordPayment([FromBody] RecordPaymentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessChargeAsync(User, request.ChargeId)
+            || (request.ReceivedById.HasValue && !await _tenantAccessService.CanAccessUserAsync(User, request.ReceivedById.Value)))
+        {
+            return TenantForbidden();
+        }
+
         var command = new RecordPaymentCommand(
             request.ChargeId,
             request.Amount,
@@ -212,12 +260,12 @@ public class BillingController : ControllerBase
         );
 
         var result = await _mediator.Send(command);
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -232,7 +280,7 @@ public class BillingController : ControllerBase
         if (!allowedExtensions.Contains(ext))
             return BadRequest("Formato de archivo no válido. Use JPG, PNG, PDF o WEBP.");
 
-        if (file.Length > 5 * 1024 * 1024) // 5MB limit
+        if (file.Length > 5 * 1024 * 1024)
             return BadRequest("El archivo no debe superar los 5MB.");
 
         var uploadsFolder = Path.Combine(_env.ContentRootPath, "uploads", "payment-proofs");
@@ -253,6 +301,9 @@ public class BillingController : ControllerBase
     [HttpGet("payments/pending/{condominiumId:guid}")]
     public async Task<ActionResult<List<PaymentDto>>> GetPendingPayments(Guid condominiumId)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetPendingPaymentsQuery(condominiumId));
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
@@ -262,26 +313,38 @@ public class BillingController : ControllerBase
     [HttpPost("payments/{id:guid}/verify")]
     public async Task<ActionResult> VerifyPayment(Guid id, [FromBody] VerifyPaymentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessPaymentAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.VerifiedById))
+        {
+            return TenantForbidden();
+        }
+
         var result = await _mediator.Send(new VerifyPaymentCommand(id, request.VerifiedById));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
     [HttpPost("payments/{id:guid}/refund")]
     public async Task<ActionResult> RefundPayment(Guid id, [FromBody] RefundPaymentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessPaymentAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.RefundedById))
+        {
+            return TenantForbidden();
+        }
+
         var result = await _mediator.Send(new RefundPaymentCommand(id, request.Reason, request.RefundedById));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
@@ -292,24 +355,30 @@ public class BillingController : ControllerBase
     [HttpGet("balance/unit/{unitId:guid}")]
     public async Task<ActionResult<UnitBalanceDto>> GetUnitBalance(Guid unitId)
     {
+        if (!await _tenantAccessService.CanAccessUnitAsync(User, unitId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetUnitBalanceQuery(unitId));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     [HttpGet("balances/condominium/{condominiumId:guid}")]
     public async Task<ActionResult<List<UnitBalanceDto>>> GetCondominiumBalances(Guid condominiumId)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetCondominiumBalancesQuery(condominiumId));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -319,11 +388,14 @@ public class BillingController : ControllerBase
         [FromQuery] int month,
         [FromQuery] int year)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetBillingSummaryQuery(condominiumId, month, year));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -334,17 +406,23 @@ public class BillingController : ControllerBase
     [HttpGet("fee-configurations/{condominiumId:guid}")]
     public async Task<ActionResult<List<FeeConfigurationDto>>> GetFeeConfigurations(Guid condominiumId)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetFeeConfigurationsQuery(condominiumId));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     [HttpPost("fee-configurations")]
     public async Task<ActionResult<Guid>> CreateFeeConfiguration([FromBody] CreateFeeConfigurationRequest request)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, request.CondominiumId))
+            return TenantForbidden();
+
         var command = new CreateFeeConfigurationCommand(
             request.CondominiumId,
             request.Name,
@@ -360,10 +438,10 @@ public class BillingController : ControllerBase
         );
 
         var result = await _mediator.Send(command);
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
@@ -383,12 +461,12 @@ public class BillingController : ControllerBase
         );
 
         var result = await _mediator.Send(command);
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
@@ -396,12 +474,12 @@ public class BillingController : ControllerBase
     public async Task<ActionResult> ToggleFeeConfiguration(Guid id)
     {
         var result = await _mediator.Send(new ToggleFeeConfigurationCommand(id));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
@@ -409,42 +487,53 @@ public class BillingController : ControllerBase
     public async Task<ActionResult> DeleteFeeConfiguration(Guid id)
     {
         var result = await _mediator.Send(new DeleteFeeConfigurationCommand(id));
-        
+
         if (!result.IsSuccess)
-            return result.Status == ResultStatus.NotFound 
-                ? NotFound(result.Errors) 
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
                 : BadRequest(result.Errors);
-        
+
         return NoContent();
     }
 
     [HttpDelete("fee-configurations/condominium/{condominiumId:guid}")]
     public async Task<ActionResult<int>> DeleteAllFeeConfigurations(Guid condominiumId)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new DeleteAllFeeConfigurationsCommand(condominiumId));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     [HttpPost("generate-monthly")]
     public async Task<ActionResult<List<Guid>>> GenerateMonthlyCharges([FromBody] GenerateMonthlyChargesRequest request)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, request.CondominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GenerateMonthlyChargesCommand(
-            request.CondominiumId, 
-            request.Month, 
+            request.CondominiumId,
+            request.Month,
             request.Year
         ));
-        
+
         if (!result.IsSuccess)
             return BadRequest(result.Errors);
-        
+
         return Ok(result.Value);
     }
 
     #endregion
+
+    private ActionResult TenantForbidden()
+    {
+        return StatusCode(StatusCodes.Status403Forbidden, new[] { "No tienes acceso a este condominio" });
+    }
 }
 
 // Request DTOs

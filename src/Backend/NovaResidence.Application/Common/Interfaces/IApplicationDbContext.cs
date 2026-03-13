@@ -26,6 +26,8 @@ public interface IApplicationDbContext
     DbSet<Domain.Entities.Condominiums.Amenity> Amenities { get; }
     DbSet<Domain.Entities.Condominiums.Reservation> Reservations { get; }
     DbSet<Domain.Entities.Condominiums.Resident> Residents { get; }
+    DbSet<Domain.Entities.Localization.GeoCountry> GeoCountries { get; }
+    DbSet<Domain.Entities.Localization.GeoState> GeoStates { get; }
     DbSet<Domain.Entities.Maps.CondominiumMap> CondominiumMaps { get; }
     DbSet<Domain.Entities.Maps.CondominiumMapMarker> CondominiumMapMarkers { get; }
     
@@ -52,6 +54,10 @@ public interface IApplicationDbContext
     DbSet<Domain.Entities.Communications.ForumPost> ForumPosts { get; }
     DbSet<Domain.Entities.Communications.ForumComment> ForumComments { get; }
     DbSet<Domain.Entities.Communications.ForumPostAttachment> ForumPostAttachments { get; }
+
+    // Procedures Module
+    DbSet<Domain.Entities.Procedures.ResidentProcedure> ResidentProcedures { get; }
+    DbSet<Domain.Entities.Procedures.ProcedureTemplate> ProcedureTemplates { get; }
     
     // Notifications Module
     DbSet<Domain.Entities.Notifications.Notification> Notifications { get; }

@@ -13,6 +13,8 @@ public class Condominium : BaseEntity
     public string Name { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public Address Address { get; private set; } = null!;
+    public Guid? CountryId { get; private set; }
+    public Guid? StateId { get; private set; }
     public string? TaxId { get; private set; } // RFC in Mexico
     public string? LegalName { get; private set; }
     public bool IsActive { get; private set; } = true;
@@ -36,7 +38,9 @@ public class Condominium : BaseEntity
         Guid subscriptionPlanId,
         string? description = null,
         string? taxId = null,
-        string? legalName = null)
+        string? legalName = null,
+        Guid? countryId = null,
+        Guid? stateId = null)
     {
         Guard.Against.NullOrWhiteSpace(name, nameof(name));
         Guard.Against.Null(address, nameof(address));
@@ -46,6 +50,8 @@ public class Condominium : BaseEntity
             Name = name,
             Description = description,
             Address = address,
+            CountryId = countryId,
+            StateId = stateId,
             TaxId = taxId,
             LegalName = legalName,
             SubscriptionPlanId = subscriptionPlanId,
@@ -56,11 +62,13 @@ public class Condominium : BaseEntity
         return condominium;
     }
 
-    public void Update(string name, string? description, Address address, string? taxId, string? legalName)
+    public void Update(string name, string? description, Address address, string? taxId, string? legalName, Guid? countryId = null, Guid? stateId = null)
     {
         Name = Guard.Against.NullOrWhiteSpace(name, nameof(name));
         Description = description;
         Address = Guard.Against.Null(address, nameof(address));
+        CountryId = countryId;
+        StateId = stateId;
         TaxId = taxId;
         LegalName = legalName;
     }

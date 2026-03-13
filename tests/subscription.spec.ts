@@ -4,21 +4,49 @@ const API_BASE = 'http://localhost:5001/api';
 const SUPERADMIN_EMAIL = 'superadmin@novaresidence.com';
 const SUPERADMIN_PASSWORD = 'Pass123.';
 
-let authToken = '';
+type LoginResult = {
+  token: string;
+  userId: string;
+};
 
-// Helper: login via API and get token
-async function loginAPI(request: APIRequestContext, email: string, password: string): Promise<string> {
+type TestAdminContext = {
+  authToken: string;
+  adminUserId: string;
+  adminEmail: string;
+  adminPassword: string;
+  planId: string;
+  condominiumId: string;
+  subscriptionId: string;
+};
+
+let testContext: TestAdminContext;
+
+function unwrapData<T = any>(payload: any): T {
+  if (payload?.data !== undefined) return payload.data as T;
+  return payload as T;
+}
+
+function uniqueEmail(prefix: string): string {
+  return `${prefix}.${Date.now()}@e2e.local`;
+}
+
+async function loginAPI(request: APIRequestContext, email: string, password: string): Promise<LoginResult> {
   const response = await request.post(`${API_BASE}/auth/login`, {
     data: { email, password }
   });
   expect(response.ok()).toBeTruthy();
-  const data = await response.json();
-  const token = data.data?.accessToken || data.accessToken;
+
+  const payload = unwrapData(await response.json());
+  const token = payload?.accessToken || payload?.AccessToken;
+  const user = payload?.user || payload?.User || {};
+  const userId = user?.id || user?.Id || payload?.userId || payload?.UserId;
+
   expect(token).toBeTruthy();
-  return token;
+  expect(userId).toBeTruthy();
+
+  return { token, userId };
 }
 
-// Helper: login via browser
 async function loginUI(page: Page, email: string, password: string) {
   await page.goto('/auth/login');
   await page.waitForLoadState('networkidle');
@@ -26,6 +54,115 @@ async function loginUI(page: Page, email: string, password: string) {
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
   await page.waitForURL(/\/(superadmin|admin|resident)/, { timeout: 15000 });
+}
+
+async function registerConfirmedAdminUser(request: APIRequestContext): Promise<{ email: string; password: string; userId: string }> {
+  const email = uniqueEmail('subscription.admin');
+  const password = 'Pass123.';
+
+  const registerResponse = await request.post(`${API_BASE}/auth/register`, {
+    data: {
+      email,
+      password,
+      firstName: 'Subscription',
+      lastName: 'Admin',
+      phoneNumber: '5512345678',
+      role: 'admin'
+    }
+  });
+
+  expect(registerResponse.ok()).toBeTruthy();
+  const registerPayload = unwrapData(await registerResponse.json());
+  const userId = registerPayload?.userId || registerPayload?.UserId;
+
+  expect(userId).toBeTruthy();
+  return { email, password, userId };
+}
+
+async function getFirstPlanId(request: APIRequestContext): Promise<string> {
+  const plansRes = await request.get(`${API_BASE}/SubscriptionPlans`);
+  expect(plansRes.ok()).toBeTruthy();
+
+  const plans = unwrapData<any[]>(await plansRes.json());
+  expect(Array.isArray(plans)).toBeTruthy();
+  expect(plans.length).toBeGreaterThan(0);
+
+  return plans[0].id as string;
+}
+
+async function createTestCondominium(request: APIRequestContext, token: string, userId: string): Promise<string> {
+  const timestamp = Date.now();
+  const createResponse = await request.post(`${API_BASE}/condominiums`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      userId,
+      name: `Condo Suscripcion ${timestamp}`,
+      description: 'Condominio de prueba para flujo de suscripciones',
+      street: 'Av. Insurgentes 100',
+      city: 'Ciudad de Mexico',
+      state: 'Ciudad de Mexico',
+      postalCode: '06600',
+      country: 'Mexico',
+      countryId: null,
+      stateId: null,
+      neighborhood: 'Centro',
+      buildings: [
+        {
+          name: 'Torre Suscripciones',
+          type: 'vertical',
+          section: 'A',
+          totalFloors: 2,
+          startsAtGroundFloor: true,
+          units: Array.from({ length: 10 }, (_, index) => ({
+            unitNumber: `S-${timestamp.toString().slice(-4)}-${index + 1}`,
+            floor: index < 5 ? 1 : 2,
+            isCommercial: false,
+            area: 70,
+            bedrooms: 2,
+            bathrooms: 1,
+            monthlyMaintenanceFee: 1000
+          }))
+        }
+      ]
+    }
+  });
+
+  expect(createResponse.status()).toBe(201);
+  const payload = unwrapData(await createResponse.json());
+  const condominiumId = payload?.condominiumId || payload?.CondominiumId;
+  expect(condominiumId).toBeTruthy();
+
+  return condominiumId as string;
+}
+
+async function createSubscription(request: APIRequestContext, authToken: string, adminUserId: string, planId: string): Promise<string> {
+  const response = await request.post(`${API_BASE}/Subscriptions`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+    data: {
+      adminUserId,
+      planId,
+      unitCount: 10
+    }
+  });
+
+  if (response.status() === 409) {
+    const existingResponse = await request.get(`${API_BASE}/Subscriptions/user/${adminUserId}`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+
+    expect(existingResponse.status()).toBe(200);
+    const existingPayload = await existingResponse.json();
+    const existingSubscriptionId = existingPayload?.id || existingPayload?.Id;
+    expect(existingSubscriptionId).toBeTruthy();
+    return existingSubscriptionId as string;
+  }
+
+  expect(response.status()).toBe(201);
+  const payload = await response.json();
+  const subscriptionId = payload?.id || payload?.Id;
+  expect(subscriptionId).toBeTruthy();
+
+  return subscriptionId as string;
 }
 
 // ─────────────────────────────────────────────────
@@ -77,115 +214,86 @@ test.describe('Subscription Plans API', () => {
 // TEST SUITE: Subscription Lifecycle
 // ─────────────────────────────────────────────────
 test.describe('Subscription Lifecycle', () => {
-  let planId = '';
-  let condominiumId = '';
-  let subscriptionId = '';
-
   test.beforeAll(async ({ request }) => {
-    // Login as superadmin
-    authToken = await loginAPI(request, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+    const superadmin = await loginAPI(request, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+    const planId = await getFirstPlanId(request);
+    const admin = await registerConfirmedAdminUser(request);
+    const condominiumId = await createTestCondominium(request, superadmin.token, admin.userId);
+    const subscriptionId = await createSubscription(request, superadmin.token, admin.userId, planId);
 
-    // Get the first plan
-    const plansRes = await request.get(`${API_BASE}/SubscriptionPlans`);
-    const plans = await plansRes.json();
-    planId = plans[0].id;
-
-    // Get or create a test condominium
-    const condosRes = await request.get(`${API_BASE}/condominiums`, {
-      headers: { Authorization: `Bearer ${authToken}` }
-    });
-    const condos = await condosRes.json();
-    
-    if (condos.length > 0) {
-      condominiumId = condos[0].id;
-    }
+    testContext = {
+      authToken: superadmin.token,
+      adminUserId: admin.userId,
+      adminEmail: admin.email,
+      adminPassword: admin.password,
+      planId,
+      condominiumId,
+      subscriptionId
+    };
   });
 
   test('should create a subscription with free trial', async ({ request }) => {
-    test.skip(!condominiumId, 'No condominium available for testing');
-
-    const response = await request.post(`${API_BASE}/Subscriptions`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-      data: {
-        condominiumId,
-        planId,
-        unitCount: 10
-      }
+    const detailResponse = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
     });
 
-    // Might be 201 (created) or 409 (already exists)
-    if (response.status() === 409) {
-      // Already has a subscription — fetch existing
-      const statusRes = await request.get(`${API_BASE}/Subscriptions/status/${condominiumId}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      expect(statusRes.status()).toBe(200);
-      
-      const detailRes = await request.get(`${API_BASE}/Subscriptions/condominium/${condominiumId}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      if (detailRes.ok()) {
-        const detail = await detailRes.json();
-        subscriptionId = detail.id;
-      }
-      return;
-    }
+    expect(detailResponse.status()).toBe(200);
+    const detail = await detailResponse.json();
 
-    expect(response.status()).toBe(201);
-    const data = await response.json();
-    subscriptionId = data.id;
-    expect(data.status).toBeDefined();
-    expect(data.monthlyAmount).toBeGreaterThan(0);
+    expect(detail.id).toBe(testContext.subscriptionId);
+    expect(detail.adminUserId).toBe(testContext.adminUserId);
+    expect(detail.status).not.toBeUndefined();
+    expect(detail.monthlyAmount).toBeGreaterThan(0);
+    expect(detail.billedUnits).toBe(10);
   });
 
   test('should get subscription status', async ({ request }) => {
-    test.skip(!condominiumId, 'No condominium available');
-
-    const response = await request.get(`${API_BASE}/Subscriptions/status/${condominiumId}`, {
-      headers: { Authorization: `Bearer ${authToken}` }
+    const response = await request.get(`${API_BASE}/Subscriptions/status/${testContext.adminUserId}`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
     });
     
     expect(response.status()).toBe(200);
     const status = await response.json();
     
-    expect(status.hasSubscription).toBe(true);
-    expect(status.status).toBeTruthy();
-    expect(status.planName).toBeTruthy();
-    expect(status.monthlyAmount).toBeGreaterThanOrEqual(0);
+    expect(status.hasSubscription ?? status.HasSubscription).toBe(true);
+    expect(status.status ?? status.Status).toBeTruthy();
+    expect(status.planName ?? status.PlanName).toBeTruthy();
+    expect(status.monthlyAmount ?? status.MonthlyAmount).toBeGreaterThanOrEqual(0);
+    expect(status.billedUnits ?? status.BilledUnits).toBe(10);
   });
 
   test('should get full subscription detail', async ({ request }) => {
-    test.skip(!condominiumId, 'No condominium available');
-
-    const response = await request.get(`${API_BASE}/Subscriptions/condominium/${condominiumId}`, {
-      headers: { Authorization: `Bearer ${authToken}` }
+    const response = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
     });
-
-    if (response.status() === 404) {
-      test.skip(true, 'No subscription found');
-      return;
-    }
 
     expect(response.status()).toBe(200);
     const detail = await response.json();
     
-    subscriptionId = detail.id;
+    expect(detail.id).toBe(testContext.subscriptionId);
     expect(detail.plan).toBeTruthy();
     expect(detail.plan.name).toBeTruthy();
-    expect(detail.billedUnits).toBeGreaterThan(0);
+    expect(detail.billedUnits).toBe(10);
     expect(detail.statusText).toBeTruthy();
+    expect(detail.condominiumCount).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(detail.condominiums)).toBeTruthy();
   });
 
   test('should register a payment and extend subscription', async ({ request }) => {
-    test.skip(!subscriptionId, 'No subscription to pay for');
+    const beforeResponse = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
+    });
+    expect(beforeResponse.status()).toBe(200);
+    const beforeDetail = await beforeResponse.json();
+    const beforePeriodEnd = new Date(beforeDetail.currentPeriodEnd as string);
 
-    const response = await request.post(`${API_BASE}/Subscriptions/${subscriptionId}/payments`, {
-      headers: { Authorization: `Bearer ${authToken}` },
+    const response = await request.post(`${API_BASE}/Subscriptions/${testContext.subscriptionId}/payments`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` },
       data: {
         amount: 490,
         monthsPaid: 1,
         paymentMethod: 'BankTransfer',
-        referenceNumber: 'TEST-PAY-001',
+        referenceNumber: `TEST-PAY-${Date.now()}`,
         notes: 'Playwright test payment'
       }
     });
@@ -193,14 +301,25 @@ test.describe('Subscription Lifecycle', () => {
     expect(response.status()).toBe(200);
     const result = await response.json();
     
-    expect(result.paymentId).toBeTruthy();
-    expect(result.newStatus).toBe('Active');
-    expect(result.currentPeriodEnd).toBeTruthy();
+    expect(result.paymentId ?? result.PaymentId).toBeTruthy();
+    expect(result.newStatus ?? result.NewStatus).toBe('Active');
+    expect(result.currentPeriodEnd ?? result.CurrentPeriodEnd).toBeTruthy();
+
+    const afterResponse = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
+    });
+    expect(afterResponse.status()).toBe(200);
+    const afterDetail = await afterResponse.json();
+    const afterPeriodEnd = new Date(afterDetail.currentPeriodEnd as string);
+
+    expect(afterPeriodEnd.getTime()).toBeGreaterThan(beforePeriodEnd.getTime());
+    expect(Array.isArray(afterDetail.recentPayments)).toBeTruthy();
+    expect(afterDetail.recentPayments.length).toBeGreaterThan(0);
   });
 
   test('should list all subscriptions (SuperAdmin)', async ({ request }) => {
     const response = await request.get(`${API_BASE}/Subscriptions`, {
-      headers: { Authorization: `Bearer ${authToken}` }
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
     });
 
     expect(response.status()).toBe(200);
@@ -278,18 +397,16 @@ test.describe('UI - Subscription Flow', () => {
 // ─────────────────────────────────────────────────
 test.describe('Payment Required API Flow', () => {
   test('subscription status endpoint returns proper structure', async ({ request }) => {
-    authToken = await loginAPI(request, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
-    
-    // Status for a non-existent condominium
-    const fakeId = '00000000-0000-0000-0000-000000000000';
-    const response = await request.get(`${API_BASE}/Subscriptions/status/${fakeId}`, {
-      headers: { Authorization: `Bearer ${authToken}` }
+    const auth = await loginAPI(request, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
+
+    const response = await request.get(`${API_BASE}/Subscriptions/status/${auth.userId}`, {
+      headers: { Authorization: `Bearer ${auth.token}` }
     });
-    
+
     expect(response.status()).toBe(200);
     const status = await response.json();
-    expect(status.hasSubscription).toBe(false);
-    expect(status.isAccessGranted).toBe(false);
+    expect(status.HasSubscription ?? status.hasSubscription).not.toBeUndefined();
+    expect(status.IsAccessGranted ?? status.isAccessGranted).not.toBeUndefined();
   });
 
   test('price calculation shows correct amounts per plan', async ({ request }) => {

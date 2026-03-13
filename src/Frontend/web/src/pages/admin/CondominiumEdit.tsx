@@ -2,12 +2,34 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Building2, MapPin, FileText } from 'lucide-react'
 import { condominiumService } from '../../lib/condominiumService'
+import { geoCatalogService, type CountryCatalogItem, type StateCatalogItem } from '../../lib/geoCatalogService'
+
+function getApiErrorMessage(error: any): string {
+  const payload = error?.response?.data
+  const directMessage = payload?.message || payload?.error || error?.message
+
+  if (directMessage && typeof directMessage === 'string') {
+    return directMessage
+  }
+
+  if (payload?.errors && typeof payload.errors === 'object') {
+    const first = Object.values(payload.errors).flat()[0]
+    if (typeof first === 'string' && first.trim()) {
+      return first
+    }
+  }
+
+  return 'Error al guardar cambios'
+}
 
 export default function CondominiumEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [countries, setCountries] = useState<CountryCatalogItem[]>([])
+  const [states, setStates] = useState<StateCatalogItem[]>([])
+  const [formError, setFormError] = useState<string | null>(null)
   const [condoName, setCondoName] = useState('')
   const [formData, setFormData] = useState({
     name: '',
@@ -15,14 +37,48 @@ export default function CondominiumEdit() {
     street: '',
     city: '',
     state: '',
-    postalCode: ''
+    stateId: '',
+    postalCode: '',
+    country: 'México',
+    countryId: ''
   })
+
+  useEffect(() => {
+    loadCountries()
+  }, [])
 
   useEffect(() => {
     if (id) {
       loadCondominium()
     }
   }, [id])
+
+  useEffect(() => {
+    const loadStates = async () => {
+      if (!formData.countryId) {
+        setStates([])
+        return
+      }
+
+      try {
+        const response = await geoCatalogService.getStates(formData.countryId)
+        setStates(response)
+      } catch {
+        setStates([])
+      }
+    }
+
+    loadStates()
+  }, [formData.countryId])
+
+  const loadCountries = async () => {
+    try {
+      const response = await geoCatalogService.getCountries()
+      setCountries(response)
+    } catch {
+      setCountries([])
+    }
+  }
 
   const loadCondominium = async () => {
     try {
@@ -34,18 +90,46 @@ export default function CondominiumEdit() {
         street: data.street,
         city: data.city,
         state: data.state,
-        postalCode: data.postalCode
+        stateId: data.stateId || '',
+        postalCode: data.postalCode,
+        country: data.country || 'México',
+        countryId: data.countryId || ''
       })
     } catch (error) {
       console.error('Failed to load condominium', error)
-      alert("Error cargando el condominio")
+      setFormError('Error cargando el condominio')
     } finally {
       setLoading(false)
     }
   }
 
+  const validateForm = () => {
+    if (!formData.countryId) {
+      setFormError('Selecciona un país válido')
+      return false
+    }
+
+    if (states.length > 0 && !formData.stateId) {
+      setFormError('Selecciona un estado para el país elegido')
+      return false
+    }
+
+    if (!formData.state.trim()) {
+      setFormError('El estado o provincia es obligatorio')
+      return false
+    }
+
+    return true
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError(null)
+
+    if (!validateForm()) {
+      return
+    }
+
     setSaving(true)
     try {
       await condominiumService.updateCondominium(id!, {
@@ -54,13 +138,15 @@ export default function CondominiumEdit() {
         street: formData.street,
         city: formData.city,
         state: formData.state,
+        stateId: formData.stateId || undefined,
         postalCode: formData.postalCode,
-        country: 'México'
+        country: formData.country,
+        countryId: formData.countryId
       })
       navigate(`/admin/condominiums/${id}`)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update condominium', error)
-      alert("Error al guardar cambios")
+      setFormError(getApiErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -71,6 +157,28 @@ export default function CondominiumEdit() {
       ...prev,
       [e.target.name]: e.target.value
     }))
+  }
+
+  const handleCountryChange = (value: string) => {
+    const selected = countries.find(c => c.id === value)
+    setFormData(prev => ({
+      ...prev,
+      countryId: value,
+      country: selected?.name || prev.country,
+      state: '',
+      stateId: ''
+    }))
+    setFormError(null)
+  }
+
+  const handleStateChange = (value: string) => {
+    const selected = states.find(s => s.id === value)
+    setFormData(prev => ({
+      ...prev,
+      stateId: value,
+      state: selected?.name || ''
+    }))
+    setFormError(null)
   }
 
   if (loading) {
@@ -98,6 +206,12 @@ export default function CondominiumEdit() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {formError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300 px-4 py-3">
+            {formError}
+          </div>
+        )}
+
         {/* Basic Info Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
@@ -192,19 +306,51 @@ export default function CondominiumEdit() {
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  País <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={formData.countryId}
+                  onChange={(e) => handleCountryChange(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Selecciona país</option>
+                  {countries.map(country => (
+                    <option key={country.id} value={country.id}>{country.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Estado / Provincia <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  name="state"
-                  required
-                  value={formData.state}
-                  onChange={handleChange}
-                  placeholder="Ej: CDMX"
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                />
+                {states.length > 0 ? (
+                  <select
+                    required
+                    value={formData.stateId}
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <option value="">Selecciona estado</option>
+                    {states.map(state => (
+                      <option key={state.id} value={state.id}>{state.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    name="state"
+                    required
+                    value={formData.state}
+                    onChange={handleChange}
+                    placeholder="Ej: CDMX"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                )}
               </div>
             </div>
 

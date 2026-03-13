@@ -11,5 +11,7 @@ public record UpdateCondominiumCommand(
     string City,
     string State,
     string PostalCode,
-    string Country
+    string Country,
+    Guid? CountryId,
+    Guid? StateId
 ) : IRequest<Result>;

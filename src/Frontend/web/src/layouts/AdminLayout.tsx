@@ -20,7 +20,8 @@ import {
   CalendarCheck,
   MessageSquare,
   Shield,
-  UserCheck
+  UserCheck,
+  ClipboardCheck
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -52,6 +53,7 @@ const navigation = [
   { name: 'Facturación', href: '/admin/billing', icon: CreditCard },
   { name: 'Incidencias', href: '/admin/incidents', icon: AlertCircle },
   { name: 'Visitas', href: '/admin/visits', icon: UserCheck },
+  { name: 'Trámites', href: '/admin/procedures', icon: ClipboardCheck },
   { name: 'Comunicaciones', href: '/admin/communications', icon: MessageSquare },
   { name: 'Reportes', href: '/admin/reports', icon: FileText },
   { name: 'Mi Suscripción', href: '/admin/subscription', icon: CreditCard },
@@ -100,8 +102,8 @@ function AdminLayout() {
     fetchCondominiumId()
   }, [user])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate('/')
   }
 

@@ -328,18 +328,25 @@ export default function Amenities() {
                   </div>
                   
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      amenity.isActive 
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                    }`}>
-                      {amenity.isActive ? 'Activa' : 'Inactiva'}
-                    </span>
-                    {amenity.requiresReservation && (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                        Requiere reservación
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        amenity.isActive 
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                      }`}>
+                        {amenity.isActive ? 'Activa' : 'Inactiva'}
                       </span>
-                    )}
+                      {amenity.requiresReservation && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                          Requiere reservación
+                        </span>
+                      )}
+                      {amenity.requiresApproval && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                          Aprobación manual
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -425,6 +432,7 @@ function AmenityFormModal({ isOpen, onClose, onSuccess, condominiumId, amenity, 
     type: amenity?.typeId || 1,
     capacity: amenity?.capacity || 10,
     requiresReservation: amenity?.requiresReservation ?? true,
+    requiresApproval: amenity?.requiresApproval ?? false,
     openingTime: amenity?.openingTime || '08:00',
     closingTime: amenity?.closingTime || '22:00',
     reservationFee: amenity?.reservationFee || null,
@@ -452,6 +460,7 @@ function AmenityFormModal({ isOpen, onClose, onSuccess, condominiumId, amenity, 
           description: formData.description,
           capacity: formData.capacity,
           requiresReservation: formData.requiresReservation,
+          requiresApproval: formData.requiresApproval,
           openingTime: formData.openingTime,
           closingTime: formData.closingTime,
           reservationFee: formData.reservationFee,
@@ -468,6 +477,7 @@ function AmenityFormModal({ isOpen, onClose, onSuccess, condominiumId, amenity, 
           type: formData.type,
           capacity: formData.capacity,
           requiresReservation: formData.requiresReservation,
+          requiresApproval: formData.requiresApproval,
           openingTime: formData.openingTime,
           closingTime: formData.closingTime,
           reservationFee: formData.reservationFee,
@@ -628,6 +638,22 @@ function AmenityFormModal({ isOpen, onClose, onSuccess, condominiumId, amenity, 
                 </span>
               </label>
             </div>
+
+            {formData.requiresReservation && (
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.requiresApproval}
+                    onChange={(e) => setFormData({ ...formData, requiresApproval: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Requiere aprobación administrativa antes de confirmar la reservación
+                  </span>
+                </label>
+              </div>
+            )}
 
             {/* Reservation Fee */}
             {formData.requiresReservation && (

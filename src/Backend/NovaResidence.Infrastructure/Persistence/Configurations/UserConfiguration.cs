@@ -34,6 +34,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PhoneNumber)
             .HasMaxLength(20);
 
+        builder.Property(u => u.EmailConfirmationTokenHash)
+            .HasMaxLength(128);
+
+        builder.Property(u => u.PasswordResetTokenHash)
+            .HasMaxLength(128);
+
         // Owned collection for UserCondominiumRole
         builder.OwnsMany(u => u.CondominiumRoles, cr =>
         {

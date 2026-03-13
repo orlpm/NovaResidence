@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, CheckCheck, Trash2, X } from 'lucide-react'
 import { 
   notificationsService, 
@@ -11,6 +11,7 @@ import {
   NotificationPriority
 } from '../lib/notificationsService'
 import { useAuthStore } from '../stores/authStore'
+import { condominiumService } from '../lib/condominiumService'
 
 interface NotificationBellProps {
   condominiumId?: string
@@ -22,9 +23,20 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
   const [summary, setSummary] = useState<NotificationSummaryDto | null>(null)
   const [loading, setLoading] = useState(false)
   const [markingAllRead, setMarkingAllRead] = useState(false)
+  const [resolvedCondominiumId, setResolvedCondominiumId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuthStore()
+  const effectiveCondominiumId = condominiumId ?? resolvedCondominiumId
+  const roleBasePath = (() => {
+    const firstSegment = location.pathname.split('/').filter(Boolean)[0]
+    if (firstSegment) {
+      return `/${firstSegment}`
+    }
+
+    return isAdmin ? '/admin' : '/resident'
+  })()
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -37,13 +49,45 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    const resolveCondominiumId = async () => {
+      if (condominiumId) {
+        setResolvedCondominiumId(null)
+        return
+      }
+
+      if (user?.condominiumId) {
+        setResolvedCondominiumId(user.condominiumId)
+        return
+      }
+
+      if (!user?.id) {
+        setResolvedCondominiumId(null)
+        return
+      }
+
+      try {
+        const condominiums = await condominiumService.getUserCondominiums(user.id)
+        setResolvedCondominiumId(condominiums[0]?.id ?? null)
+      } catch (error) {
+        console.error('Error resolving condominium for notifications:', error)
+        setResolvedCondominiumId(null)
+      }
+    }
+
+    resolveCondominiumId()
+  }, [condominiumId, user?.condominiumId, user?.id])
+
   // Fetch notification summary
   const fetchSummary = async () => {
-    if (!user?.id || !condominiumId) return
+    if (!user?.id || !effectiveCondominiumId) {
+      setSummary(null)
+      return
+    }
     
     try {
       setLoading(true)
-      const data = await notificationsService.getNotificationSummary(user.id, condominiumId, 8)
+      const data = await notificationsService.getNotificationSummary(user.id, effectiveCondominiumId, 8)
       setSummary(data)
     } catch (error) {
       console.error('Error fetching notifications:', error)
@@ -59,7 +103,7 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
     // Refresh every 30 seconds
     const interval = setInterval(fetchSummary, 30000)
     return () => clearInterval(interval)
-  }, [user?.id, condominiumId])
+  }, [user?.id, effectiveCondominiumId])
 
   // Refetch when dropdown opens
   useEffect(() => {
@@ -82,17 +126,17 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
     }
 
     // Navigate to related content
-    const url = getNotificationActionUrl(notification, isAdmin)
+    const url = getNotificationActionUrl(notification, roleBasePath)
     setIsOpen(false)
     navigate(url)
   }
 
   const handleMarkAllAsRead = async () => {
-    if (!user?.id || !condominiumId) return
+    if (!user?.id || !effectiveCondominiumId) return
     
     try {
       setMarkingAllRead(true)
-      await notificationsService.markAllAsRead(user.id, condominiumId)
+      await notificationsService.markAllAsRead(user.id, effectiveCondominiumId)
       await fetchSummary()
     } catch (error) {
       console.error('Error marking all as read:', error)
@@ -185,6 +229,16 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
                 <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto" />
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Cargando...</p>
               </div>
+            ) : !effectiveCondominiumId ? (
+              <div className="p-8 text-center">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Bell className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">Notificaciones no disponibles</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                  No se pudo resolver el condominio asociado a este usuario
+                </p>
+              </div>
             ) : summary?.recentNotifications.length === 0 ? (
               <div className="p-8 text-center">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -202,7 +256,7 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={`
-                      flex items-start gap-3 p-4 cursor-pointer transition-all
+                      group flex items-start gap-3 p-4 cursor-pointer transition-all
                       border-l-4 ${getPriorityColor(notification.priority)}
                       ${notification.isRead 
                         ? 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800' 
@@ -257,20 +311,6 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
             )}
           </div>
 
-          {/* Footer */}
-          {summary && summary.totalCount > 0 && (
-            <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-              <button
-                onClick={() => {
-                  setIsOpen(false)
-                  navigate(isAdmin ? '/admin/notifications' : '/resident/notifications')
-                }}
-                className="w-full py-2 text-sm font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors"
-              >
-                Ver todas las notificaciones ({summary.totalCount})
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

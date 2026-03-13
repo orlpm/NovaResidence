@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { residentService } from '../../lib/residentService';
 import { billingService } from '../../lib/billingService';
 import { reservationService, ReservationStatus } from '../../lib/reservationService';
-import { incidentService } from '../../lib/incidentService';
+import { incidentService, IncidentStatus } from '../../lib/incidentService';
 import { 
   CreditCardIcon, 
   CalendarIcon, 
@@ -25,9 +25,18 @@ interface DashboardData {
   buildingName: string;
 }
 
+interface RecentActivityItem {
+  id: string;
+  type: 'incident' | 'reservation' | 'payment';
+  title: string;
+  description: string;
+  timestamp: string;
+}
+
 function ResidentDashboard() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
+  const [recentActivities, setRecentActivities] = useState<RecentActivityItem[]>([]);
   const [data, setData] = useState<DashboardData>({
     balance: 0,
     overdueAmount: 0,
@@ -43,14 +52,50 @@ function ResidentDashboard() {
     loadDashboardData();
   }, [user?.id]);
 
+  const formatRelativeTime = (timestamp: string) => {
+    const now = Date.now();
+    const value = new Date(timestamp).getTime();
+    const diff = now - value;
+
+    if (Number.isNaN(value) || diff < 0) {
+      return 'Hace un momento';
+    }
+
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 1) return 'Hace un momento';
+    if (minutes < 60) return `Hace ${minutes} minuto${minutes === 1 ? '' : 's'}`;
+    if (hours < 24) return `Hace ${hours} hora${hours === 1 ? '' : 's'}`;
+    return `Hace ${days} día${days === 1 ? '' : 's'}`;
+  };
+
+  const getRecentActivityIcon = (type: RecentActivityItem['type']) => {
+    switch (type) {
+      case 'incident':
+        return <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />;
+      case 'reservation':
+        return <CalendarIcon className="h-5 w-5 text-blue-500" />;
+      case 'payment':
+        return <CreditCardIcon className="h-5 w-5 text-green-500" />;
+      default:
+        return <ClockIcon className="h-5 w-5 text-gray-400" />;
+    }
+  };
+
   const loadDashboardData = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setRecentActivities([]);
+      return;
+    }
     
     try {
       // Obtener información del residente
       const resident = await residentService.getResidentInfo(user.id);
       
       if (!resident || !resident.unitId) {
+        setRecentActivities([]);
         setLoading(false);
         return;
       }
@@ -66,6 +111,8 @@ function ResidentDashboard() {
         buildingName: resident.buildingName || ''
       };
 
+      const activityItems: RecentActivityItem[] = [];
+
       // Cargar balance
       try {
         const balanceData = await billingService.getUnitBalance(resident.unitId);
@@ -77,6 +124,26 @@ function ResidentDashboard() {
         dashboardData.overdueAmount = overdueCharges > 0 ? dashboardData.balance : 0;
       } catch (e) {
         console.warn('Error loading balance:', e);
+      }
+
+      try {
+        const unitCharges = await billingService.getUnitCharges(resident.unitId);
+        const paymentActivities = unitCharges
+          .flatMap((charge) =>
+            charge.payments.map((payment) => ({
+              id: payment.id,
+              type: 'payment' as const,
+              title: 'Pago registrado',
+              description: `${charge.concept} - $${payment.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`,
+              timestamp: payment.paymentDate
+            }))
+          )
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
+          .slice(0, 5);
+
+        activityItems.push(...paymentActivities);
+      } catch (e) {
+        console.warn('Error loading payment activity:', e);
       }
 
       // Cargar reservaciones
@@ -92,6 +159,23 @@ function ResidentDashboard() {
           )[0];
           dashboardData.nextReservation = `${next.amenityName} - ${new Date(next.reservationDate).toLocaleDateString('es-ES')}`;
         }
+
+        const reservationActivities = reservations
+          .map((reservation) => ({
+            id: reservation.id,
+            type: 'reservation' as const,
+            title: reservation.status === ReservationStatus.Confirmed
+              ? 'Reservación confirmada'
+              : reservation.status === ReservationStatus.Pending
+                ? 'Reservación pendiente'
+                : 'Actualización de reservación',
+            description: `${reservation.amenityName} - ${new Date(reservation.reservationDate).toLocaleDateString('es-ES')}`,
+            timestamp: reservation.createdAt
+          }))
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
+          .slice(0, 5);
+
+        activityItems.push(...reservationActivities);
       } catch (e) {
         console.warn('Error loading reservations:', e);
       }
@@ -100,15 +184,34 @@ function ResidentDashboard() {
       try {
         const incidents = await incidentService.getMyIncidents(user.id);
         dashboardData.openIncidentsCount = incidents.filter(
-          (i: any) => i.status !== 'Resolved' && i.status !== 'Closed'
+          (incident) => incident.status !== IncidentStatus.Resolved && incident.status !== IncidentStatus.Closed
         ).length;
+
+        const incidentActivities = incidents
+          .map((incident) => ({
+            id: incident.id,
+            type: 'incident' as const,
+            title: 'Incidente reportado',
+            description: `${incident.title} - ${incident.statusName}`,
+            timestamp: incident.createdAt
+          }))
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
+          .slice(0, 5);
+
+        activityItems.push(...incidentActivities);
       } catch (e) {
         console.warn('Error loading incidents:', e);
       }
 
       setData(dashboardData);
+      setRecentActivities(
+        activityItems
+          .sort((left, right) => new Date(right.timestamp).getTime() - new Date(left.timestamp).getTime())
+          .slice(0, 6)
+      );
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      setRecentActivities([]);
     } finally {
       setLoading(false);
     }
@@ -230,40 +333,33 @@ function ResidentDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Actividad Reciente</h2>
-          <div className="space-y-4">
-            <div className="flex items-start space-x-3 pb-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex-shrink-0 mt-1">
-                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Incidente reportado</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Fuga de agua en cocina - En progreso</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Hace 2 horas</p>
-              </div>
+          {recentActivities.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 dark:border-gray-700 p-6 text-center">
+              <ClockIcon className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-900 dark:text-white">Sin actividad reciente</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Aquí aparecerán tus pagos, reservaciones e incidentes más recientes.
+              </p>
             </div>
-            
-            <div className="flex items-start space-x-3 pb-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex-shrink-0 mt-1">
-                <CalendarIcon className="h-5 w-5 text-blue-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Reservación confirmada</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Piscina - 24 Enero 10:00 AM</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Ayer</p>
-              </div>
+          ) : (
+            <div className="space-y-4">
+              {recentActivities.map((activity, index) => (
+                <div
+                  key={activity.id}
+                  className={`flex items-start space-x-3 ${index < recentActivities.length - 1 ? 'pb-4 border-b border-gray-200 dark:border-gray-700' : ''}`}
+                >
+                  <div className="flex-shrink-0 mt-1">
+                    {getRecentActivityIcon(activity.type)}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{activity.title}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{activity.description}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{formatRelativeTime(activity.timestamp)}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 mt-1">
-                <CreditCardIcon className="h-5 w-5 text-green-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">Pago recibido</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Cuota de mantenimiento - $1,200</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Hace 3 días</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 p-6">

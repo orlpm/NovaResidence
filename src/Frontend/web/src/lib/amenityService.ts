@@ -15,6 +15,7 @@ export interface AmenityListDto {
   typeId: number
   capacity: number
   requiresReservation: boolean
+  requiresApproval: boolean
   isActive: boolean
   reservationFee: number | null
   openingTime: string
@@ -36,6 +37,7 @@ export interface CreateAmenityRequest {
   type: number
   capacity: number
   requiresReservation: boolean
+  requiresApproval?: boolean
   openingTime: string
   closingTime: string
   reservationFee?: number | null
@@ -49,6 +51,7 @@ export interface UpdateAmenityRequest {
   description?: string
   capacity: number
   requiresReservation: boolean
+  requiresApproval?: boolean
   openingTime: string
   closingTime: string
   reservationFee?: number | null

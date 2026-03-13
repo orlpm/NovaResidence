@@ -432,6 +432,7 @@ public class SubscriptionsController : ControllerBase
             request.Notes,
             request.ProofUrl);
 
+        _context.SubscriptionPayments.Add(payment);
         subscription.RecordPayment(payment);
         await _context.SaveChangesAsync();
 

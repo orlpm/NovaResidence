@@ -5,6 +5,8 @@ import Modal from '../Modal'
 import AdminRegistrationStep from '../onboarding/steps/AdminRegistrationStep'
 import PlanSelectionStep from '../onboarding/steps/PlanSelectionStep'
 import { apiClient } from '../../lib/apiClient'
+import { saveAdminRegistrationData } from '../../lib/adminOnboardingFlow'
+import { getApiErrorMessage } from '../../lib/apiErrors'
 
 interface AdminRegistrationWizardProps {
   isOpen: boolean
@@ -17,6 +19,7 @@ interface RegistrationData {
   admin: {
     email: string
     password: string
+    confirmPassword: string
     firstName: string
     lastName: string
     phoneNumber: string
@@ -52,6 +55,7 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
     admin: {
       email: '',
       password: '',
+      confirmPassword: '',
       firstName: '',
       lastName: '',
       phoneNumber: '',
@@ -108,11 +112,16 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
 
       console.log('Usuario administrador creado:', data)
       
-      localStorage.setItem('admin_registration_data', JSON.stringify({
-        admin: adminData,
+      saveAdminRegistrationData({
+        admin: {
+          email: adminData.email,
+          firstName: adminData.firstName,
+          lastName: adminData.lastName,
+          phoneNumber: adminData.phoneNumber
+        },
         selectedPlan: registrationData.selectedPlan,
         userId: data.data?.userId || data.userId
-      }))
+      })
       
       const token = data.data?.token ?? data.token
       if (token) {
@@ -124,14 +133,9 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
       setTimeout(() => {
         navigate('/auth/login')
       }, 300)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear usuario administrador:', error)
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.errors?.[0] ||
-        error?.message ||
-        'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.'
-      alert(errorMessage)
+      alert(getApiErrorMessage(error, 'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.'))
     }
   }
 
@@ -142,10 +146,16 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
       console.log('Usuario administrador creado:', data)
       
       // Guardar datos en localStorage incluyendo el plan seleccionado
-      localStorage.setItem('admin_registration_data', JSON.stringify({
-        ...registrationData,
+      saveAdminRegistrationData({
+        admin: {
+          email: registrationData.admin.email,
+          firstName: registrationData.admin.firstName,
+          lastName: registrationData.admin.lastName,
+          phoneNumber: registrationData.admin.phoneNumber
+        },
+        selectedPlan: registrationData.selectedPlan,
         userId: data.data?.userId || data.userId
-      }))
+      })
       
       // Guardar token si viene en la respuesta
       const token = data.data?.token ?? data.token
@@ -160,14 +170,9 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
       setTimeout(() => {
         navigate('/auth/login')
       }, 300)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error al crear usuario administrador:', error)
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.errors?.[0] ||
-        error?.message ||
-        'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.'
-      alert(errorMessage)
+      alert(getApiErrorMessage(error, 'Hubo un error al crear tu cuenta. Por favor intenta nuevamente.'))
     }
   }
 

@@ -108,6 +108,8 @@ public class CondominiumsController : ControllerBase
             State: request.State,
             PostalCode: request.PostalCode,
             Country: request.Country ?? "México",
+            CountryId: request.CountryId,
+            StateId: request.StateId,
             Neighborhood: request.Neighborhood,
             Buildings: request.Buildings.Select(b => new CreateBuildingDto(
                 Name: b.Name,
@@ -137,6 +139,14 @@ public class CondominiumsController : ControllerBase
                 ApiResponse<CreateCondominiumResponse>.SuccessResponse(result.Value, "Condominium created successfully"));
         }
 
+        if (result.Status == Ardalis.Result.ResultStatus.Invalid)
+        {
+            return BadRequest(ApiResponse<CreateCondominiumResponse>.FailureResponse(
+                result.ValidationErrors.FirstOrDefault()?.ErrorMessage
+                ?? result.Errors.FirstOrDefault()
+                ?? "Datos inválidos para crear el condominio"));
+        }
+
         return BadRequest(ApiResponse<CreateCondominiumResponse>.FailureResponse(
             result.Errors.FirstOrDefault() ?? "Error creating condominium"));
     }
@@ -157,7 +167,9 @@ public class CondominiumsController : ControllerBase
             request.City,
             request.State,
             request.PostalCode,
-            request.Country ?? "México"
+            request.Country ?? "México",
+            request.CountryId,
+            request.StateId
         );
 
         var result = await _mediator.Send(command);
@@ -165,6 +177,14 @@ public class CondominiumsController : ControllerBase
         if (result.IsSuccess)
         {
             return Ok(ApiResponse<object>.SuccessResponse(null, "Condominium updated successfully"));
+        }
+
+        if (result.Status == Ardalis.Result.ResultStatus.Invalid)
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse(
+                result.ValidationErrors.FirstOrDefault()?.ErrorMessage
+                ?? result.Errors.FirstOrDefault()
+                ?? "Datos inválidos para actualizar el condominio"));
         }
 
         return NotFound(ApiResponse<object>.FailureResponse("Condominium not found"));
@@ -236,6 +256,8 @@ public record CreateCondominiumRequest(
     string State,
     string PostalCode,
     string? Country,
+    Guid? CountryId,
+    Guid? StateId,
     string? Neighborhood,
     List<BuildingRequest> Buildings
 );
@@ -266,4 +288,6 @@ public record UpdateCondominiumRequest(
     string City,
     string State,
     string PostalCode,
-    string? Country);
+    string? Country,
+    Guid? CountryId,
+    Guid? StateId);

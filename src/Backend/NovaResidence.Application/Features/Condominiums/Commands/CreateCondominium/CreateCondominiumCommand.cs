@@ -13,6 +13,8 @@ public record CreateCondominiumCommand(
     string State,
     string PostalCode,
     string Country,
+    Guid? CountryId,
+    Guid? StateId,
     string? Neighborhood,
     // Buildings and Units
     List<CreateBuildingDto> Buildings

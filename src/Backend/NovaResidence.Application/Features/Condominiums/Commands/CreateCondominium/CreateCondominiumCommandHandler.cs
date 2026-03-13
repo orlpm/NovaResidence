@@ -3,6 +3,7 @@ using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Condominiums;
+using NovaResidence.Domain.Entities.Localization;
 using NovaResidence.Domain.Entities.Subscriptions;
 using NovaResidence.Domain.ValueObjects;
 using Microsoft.Extensions.Logging;
@@ -33,13 +34,71 @@ public class CreateCondominiumCommandHandler : IRequestHandler<CreateCondominium
 
         try
         {
+            var resolvedCountryId = request.CountryId;
+            var resolvedStateId = request.StateId;
+            var countryName = request.Country;
+            var stateName = request.State;
+
+            if (request.StateId.HasValue)
+            {
+                var state = await _dbContext.GeoStates
+                    .Include(s => s.Country)
+                    .FirstOrDefaultAsync(s => s.Id == request.StateId.Value, cancellationToken);
+
+                if (state == null)
+                    return Result<CreateCondominiumResponse>.Invalid(new[] { new ValidationError { Identifier = nameof(request.StateId), ErrorMessage = "Estado no encontrado" } });
+
+                resolvedStateId = state.Id;
+                resolvedCountryId = state.CountryId;
+                stateName = state.Name;
+                countryName = state.Country?.Name ?? request.Country;
+
+                if (request.CountryId.HasValue && request.CountryId.Value != state.CountryId)
+                {
+                    return Result<CreateCondominiumResponse>.Invalid(new[]
+                    {
+                        new ValidationError
+                        {
+                            Identifier = nameof(request.CountryId),
+                            ErrorMessage = "El estado seleccionado no pertenece al país indicado"
+                        }
+                    });
+                }
+            }
+            else if (request.CountryId.HasValue)
+            {
+                var country = await _dbContext.GeoCountries
+                    .FirstOrDefaultAsync(c => c.Id == request.CountryId.Value, cancellationToken);
+
+                if (country == null)
+                    return Result<CreateCondominiumResponse>.Invalid(new[] { new ValidationError { Identifier = nameof(request.CountryId), ErrorMessage = "País no encontrado" } });
+
+                resolvedCountryId = country.Id;
+                countryName = country.Name;
+
+                var hasActiveStates = await _dbContext.GeoStates
+                    .AnyAsync(s => s.CountryId == country.Id && s.IsActive, cancellationToken);
+
+                if (hasActiveStates)
+                {
+                    return Result<CreateCondominiumResponse>.Invalid(new[]
+                    {
+                        new ValidationError
+                        {
+                            Identifier = nameof(request.StateId),
+                            ErrorMessage = "Debes seleccionar un estado para el país indicado"
+                        }
+                    });
+                }
+            }
+
             // Create address value object
             var address = Address.Create(
                 street: request.Street,
                 city: request.City,
-                state: request.State,
+                state: stateName,
                 postalCode: request.PostalCode,
-                country: request.Country,
+                country: countryName,
                 neighborhood: request.Neighborhood
             );
 
@@ -52,6 +111,9 @@ public class CreateCondominiumCommandHandler : IRequestHandler<CreateCondominium
                 address: address,
                 subscriptionPlanId: subscriptionPlanId,
                 description: request.Description
+                ,
+                countryId: resolvedCountryId,
+                stateId: resolvedStateId
             );
 
             int totalUnits = 0;

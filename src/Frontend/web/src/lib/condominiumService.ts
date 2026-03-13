@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient'
-import type { OnboardingData } from '../components/onboarding/OnboardingWizard'
+import type { OnboardingData } from '../types/onboarding'
 
 // API Request/Response types
 export interface CreateCondominiumRequest {
@@ -9,8 +9,10 @@ export interface CreateCondominiumRequest {
   street: string
   city: string
   state: string
+  stateId?: string
   postalCode: string
   country: string
+  countryId?: string
   neighborhood?: string
   buildings: BuildingRequest[]
 }
@@ -89,6 +91,8 @@ export interface CondominiumApiResponse {
     state: string
     postalCode: string
     country: string
+    countryId?: string | null
+    stateId?: string | null
   }
   isActive: boolean
   totalBuildings: number
@@ -106,8 +110,10 @@ export interface CondominiumDetailDto {
   street: string
   city: string
   state: string
+  stateId?: string | null
   postalCode: string
   country: string
+  countryId?: string | null
   isActive: boolean
   totalBuildings: number
   totalUnits: number
@@ -137,8 +143,10 @@ export function transformWizardDataToRequest(
     street: data.condominium.address,
     city: data.condominium.city,
     state: data.condominium.state,
+    stateId: data.condominium.stateId,
     postalCode: data.condominium.zipCode,
-    country: 'México',
+    country: data.condominium.country || 'México',
+    countryId: data.condominium.countryId,
     neighborhood: '',
     buildings: data.buildings.map((building) => ({
       name: building.name,
@@ -238,8 +246,10 @@ class CondominiumService {
       street: apiData.address.street,
       city: apiData.address.city,
       state: apiData.address.state,
+      stateId: apiData.address.stateId,
       postalCode: apiData.address.postalCode,
       country: apiData.address.country,
+      countryId: apiData.address.countryId,
       isActive: apiData.isActive,
       totalBuildings: apiData.totalBuildings,
       totalUnits: apiData.totalUnits,
@@ -254,8 +264,10 @@ class CondominiumService {
     street: string
     city: string
     state: string
+    stateId?: string
     postalCode: string
     country?: string
+    countryId?: string
   }): Promise<void> {
     await apiClient.put(`/condominiums/${id}`, data)
   }

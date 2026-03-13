@@ -83,6 +83,13 @@ function Condominiums() {
     setOpenMenuId(null)
   }
 
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, condoId: string) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleViewDetails(condoId)
+    }
+  }
+
   const handleEdit = (condoId: string) => {
     navigate(`/admin/condominiums/${condoId}/edit`)
     setOpenMenuId(null)
@@ -221,7 +228,11 @@ function Condominiums() {
           {filteredCondominiums.map((condo) => (
             <div
               key={condo.id}
-              className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 transition-all duration-300 group"
+              role="button"
+              tabIndex={0}
+              onClick={() => handleViewDetails(condo.id)}
+              onKeyDown={(event) => handleCardKeyDown(event, condo.id)}
+              className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-gray-900/50 transition-all duration-300 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
             >
               {/* Card Header */}
               <div className="p-5 border-b border-gray-100 dark:border-gray-700">
@@ -245,7 +256,11 @@ function Condominiums() {
                   </div>
                   
                   {/* Menu */}
-                  <div className="relative" ref={openMenuId === condo.id ? menuRef : null}>
+                  <div
+                    className="relative"
+                    ref={openMenuId === condo.id ? menuRef : null}
+                    onClick={(event) => event.stopPropagation()}
+                  >
                     <button
                       onClick={() => setOpenMenuId(openMenuId === condo.id ? null : condo.id)}
                       className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

@@ -18,6 +18,7 @@ public class Amenity : BaseEntity
     
     public int Capacity { get; private set; }
     public bool RequiresReservation { get; private set; }
+    public bool RequiresApproval { get; private set; }
     public bool IsActive { get; private set; }
     
     public decimal? ReservationFee { get; private set; }
@@ -41,6 +42,7 @@ public class Amenity : BaseEntity
         AmenityType type,
         int capacity,
         bool requiresReservation,
+        bool requiresApproval,
         TimeSpan openingTime,
         TimeSpan closingTime,
         decimal? reservationFee = null)
@@ -58,6 +60,7 @@ public class Amenity : BaseEntity
             Type = type,
             Capacity = capacity,
             RequiresReservation = requiresReservation,
+            RequiresApproval = requiresApproval,
             IsActive = true,
             ReservationFee = reservationFee,
             MaxReservationHours = 4,
@@ -97,6 +100,12 @@ public class Amenity : BaseEntity
     public void SetRequiresReservation(bool requiresReservation)
     {
         RequiresReservation = requiresReservation;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetRequiresApproval(bool requiresApproval)
+    {
+        RequiresApproval = requiresApproval;
         UpdatedAt = DateTime.UtcNow;
     }
     
@@ -150,6 +159,7 @@ public class Reservation : BaseEntity
         DateTime startDateTime,
         DateTime endDateTime,
         int numberOfGuests,
+        bool requiresApproval = false,
         decimal? fee = null,
         string? notes = null)
     {
@@ -172,7 +182,7 @@ public class Reservation : BaseEntity
             EndDateTime = endDateTime,
             NumberOfGuests = numberOfGuests,
             Notes = notes,
-            Status = ReservationStatus.Pending,
+            Status = requiresApproval ? ReservationStatus.Pending : ReservationStatus.Confirmed,
             Fee = fee,
             IsPaid = fee == null || fee == 0,
             CreatedAt = DateTime.UtcNow

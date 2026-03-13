@@ -87,10 +87,21 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
                 && p.PaymentDate >= request.StartDate && p.PaymentDate <= request.EndDate)
             .ToListAsync(ct);
 
-        var totalCharged = charges.Sum(c => c.Amount);
-        var totalCollected = charges.Sum(c => c.PaidAmount);
-        var totalPending = charges.Where(c => c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid).Sum(c => c.Balance);
-        var totalOverdue = charges.Where(c => c.Status == ChargeStatus.Overdue || (c.Balance > 0 && c.DueDate < DateTime.UtcNow)).Sum(c => c.Balance);
+        var chargeSnapshots = charges.Select(c => new
+        {
+            Charge = c,
+            Outstanding = BillingEnumNames.GetOutstandingBalance(c.Status, c.DueDate, c.Balance),
+            EffectiveStatus = BillingEnumNames.GetEffectiveStatus(c.Status, c.DueDate, c.Balance)
+        }).ToList();
+
+        var totalCharged = chargeSnapshots.Sum(c => c.Charge.Amount);
+        var totalCollected = chargeSnapshots.Sum(c => c.Charge.PaidAmount);
+        var totalPending = chargeSnapshots
+            .Where(c => c.EffectiveStatus == ChargeStatus.Pending || c.EffectiveStatus == ChargeStatus.PartiallyPaid)
+            .Sum(c => c.Outstanding);
+        var totalOverdue = chargeSnapshots
+            .Where(c => c.EffectiveStatus == ChargeStatus.Overdue)
+            .Sum(c => c.Outstanding);
         var collectionRate = totalCharged > 0 ? Math.Round(totalCollected / totalCharged * 100, 1) : 0;
         var unverifiedPayments = payments.Count(p => !p.IsVerified && !p.IsRefunded);
 
@@ -127,20 +138,20 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
 
         // Delinquent units (top 10)
         var now = DateTime.UtcNow;
-        var delinquent = charges
-            .Where(c => c.Balance > 0 && c.DueDate < now)
-            .GroupBy(c => new { c.Unit.UnitNumber, BuildingName = c.Unit.Building!.Name })
+        var delinquent = chargeSnapshots
+            .Where(c => c.EffectiveStatus == ChargeStatus.Overdue)
+            .GroupBy(c => new { c.Charge.Unit.UnitNumber, BuildingName = c.Charge.Unit.Building!.Name })
             .Select(g => new DelinquentUnitDto(g.Key.UnitNumber, g.Key.BuildingName,
-                g.Sum(c => c.Balance), g.Count(),
-                (int)(now - g.Min(c => c.DueDate)).TotalDays))
+                g.Sum(c => c.Outstanding), g.Count(),
+                (int)(now - g.Min(c => c.Charge.DueDate)).TotalDays))
             .OrderByDescending(d => d.OverdueAmount)
             .Take(10).ToList();
 
         return Result.Success(new FinancialReportDto(
             totalCharged, totalCollected, totalPending, totalOverdue, collectionRate,
-            charges.Count, charges.Count(c => c.Status == ChargeStatus.Paid),
-            charges.Count(c => c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid),
-            charges.Count(c => c.Status == ChargeStatus.Overdue),
+            chargeSnapshots.Count, chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Paid),
+            chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Pending || c.EffectiveStatus == ChargeStatus.PartiallyPaid),
+            chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Overdue),
             unverifiedPayments, monthlyTrend, byFeeType, byMethod, delinquent));
     }
 }

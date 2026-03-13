@@ -1,24 +1,32 @@
-import { useState, useEffect } from 'react'
-import { ChevronLeft, CheckCircle2, Clock } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronLeft, CheckCircle2, Clock, Sparkles, TimerReset } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import OnboardingWizard from '../../components/onboarding/OnboardingWizard'
 import type { OnboardingData } from '../../types/onboarding'
+import { loadSavedOnboardingState, saveOnboardingState } from '../../lib/onboardingStorage'
+import { markAdminOnboardingCompleted } from '../../lib/adminOnboardingFlow'
+import { useAuthStore } from '../../stores/authStore'
 
 export default function AdminOnboarding() {
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const savedState = loadSavedOnboardingState(user?.id)
   const [isExpanded, setIsExpanded] = useState(true)
-  const [wizardData, setWizardData] = useState<OnboardingData | null>(null)
-  const [completionPercentage, setCompletionPercentage] = useState(0)
+  const [wizardData, setWizardData] = useState<OnboardingData | null>(savedState?.data ?? null)
+  const [wizardStep, setWizardStep] = useState(savedState?.currentStep ?? 1)
+  const [completionPercentage, setCompletionPercentage] = useState(() => {
+    if (!savedState?.data) return 0
 
-  // Load saved wizard data from localStorage
-  useEffect(() => {
-    const savedData = localStorage.getItem('onboarding_wizard_data')
-    if (savedData) {
-      const data = JSON.parse(savedData)
-      setWizardData(data)
-      calculateCompletion(data)
-    }
-  }, [])
+    let completed = 0
+    const total = 4
+
+    if (savedState.data.condominium?.name) completed++
+    if (savedState.data.buildingTypes && (savedState.data.buildingTypes.vertical || savedState.data.buildingTypes.horizontal)) completed++
+    if (savedState.data.buildings && savedState.data.buildings.length > 0) completed++
+    if (savedState.data.invitationMethod) completed++
+
+    return Math.round((completed / total) * 100)
+  })
 
   const calculateCompletion = (data: OnboardingData) => {
     let completed = 0
@@ -34,8 +42,10 @@ export default function AdminOnboarding() {
 
   const handleWizardComplete = (data: OnboardingData) => {
     setWizardData(data)
+    setWizardStep(4)
     calculateCompletion(data)
-    localStorage.setItem('onboarding_wizard_data', JSON.stringify(data))
+    saveOnboardingState({ currentStep: 4, data, userId: user?.id })
+    markAdminOnboardingCompleted(user?.id)
     
     // After 2 seconds, redirect to dashboard
     setTimeout(() => {
@@ -61,6 +71,29 @@ export default function AdminOnboarding() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Section */}
         <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          <div className="mb-6 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-2xl bg-sky-50 p-4 ring-1 ring-sky-100 dark:bg-sky-950/30 dark:ring-sky-900/40">
+              <div className="flex items-start gap-3">
+                <Sparkles className="mt-0.5 h-5 w-5 text-sky-600 dark:text-sky-300" />
+                <div>
+                  <p className="font-semibold text-sky-900 dark:text-sky-100">Ruta rápida si tienes poco tiempo</p>
+                  <p className="mt-1 text-sm text-sky-800 dark:text-sky-200">Completa primero nombre del condominio, tipo de edificios y unidades. Las invitaciones a residentes pueden afinarse después.</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-100 dark:bg-amber-950/30 dark:ring-amber-900/40">
+              <div className="flex items-start gap-3">
+                <TimerReset className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-300" />
+                <div>
+                  <p className="font-semibold text-amber-900 dark:text-amber-100">Alta incompleta</p>
+                  <p className="mt-1 text-sm text-amber-800 dark:text-amber-200">
+                    {savedState ? `Retomamos tu progreso desde el paso ${savedState.currentStep}.` : 'Si sales del flujo, guardaremos tu avance para retomarlo después.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-600 to-blue-600 bg-clip-text text-transparent">
@@ -108,7 +141,7 @@ export default function AdminOnboarding() {
                   <p className="text-sky-100 text-sm mt-1">
                     {completionPercentage === 100
                       ? 'Tu condominio está listo para usar'
-                      : `Paso ${wizardData ? Object.values(wizardData).filter(v => v).length : 0} de 6`}
+                      : `Paso ${wizardData ? wizardStep : 1} de 4`}
                   </p>
                 </div>
               </div>
@@ -126,6 +159,8 @@ export default function AdminOnboarding() {
               <OnboardingWizard
                 onComplete={handleWizardComplete}
                 isEmbedded={true}
+                initialData={wizardData || undefined}
+                initialStep={wizardStep}
               />
             </div>
           )}

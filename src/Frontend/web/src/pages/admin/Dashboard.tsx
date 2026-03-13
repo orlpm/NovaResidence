@@ -3,14 +3,25 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, Clock, Home, Users, CreditCard, TrendingUp, Plus, BarChart3, Calendar, Building2, Loader2 } from 'lucide-react'
 import OnboardingWizard from '../../components/onboarding/OnboardingWizard'
 import type { OnboardingData } from '../../types/onboarding'
+import { loadSavedOnboardingState, saveOnboardingState } from '../../lib/onboardingStorage'
 import { condominiumService, UserCondominiumDto } from '../../lib/condominiumService'
 import { dashboardService, DashboardStatsDto, RecentActivityDto } from '../../lib/dashboardService'
 import { subscriptionService, type SubscriptionDetail } from '../../lib/subscriptionService'
 import { useAuthStore } from '../../stores/authStore'
+import { getAdminRegistrationData, markAdminOnboardingCompleted } from '../../lib/adminOnboardingFlow'
+import { getApiErrorMessage } from '../../lib/apiErrors'
+
+function sameUserId(left?: string, right?: string) {
+  if (!left || !right) {
+    return false
+  }
+
+  return left.trim().toLowerCase() === right.trim().toLowerCase()
+}
 
 interface RecentActivity {
   id: string
-  type: 'invitation' | 'payment' | 'incident' | 'resident'
+  type: 'invitation' | 'payment' | 'incident' | 'resident' | 'reservation'
   title: string
   description: string
   timestamp: Date
@@ -32,6 +43,10 @@ function AdminDashboard() {
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true)
   const [stats, setStats] = useState<DashboardStatsDto | null>(null)
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
+
+  const goToCondominiumDetails = (condominiumId: string) => {
+    navigate(`/admin/condominiums/${condominiumId}`)
+  }
 
   useEffect(() => {
     if (location.state?.onboardingComplete) {
@@ -56,19 +71,28 @@ function AdminDashboard() {
 
       setSubscription(sub)
       setUserPlan(sub.plan?.name ?? null)
+
+      const registrationData = getAdminRegistrationData()
+      if (sameUserId(registrationData?.userId, _user?.id) && condominiums.length > 0) {
+        markAdminOnboardingCompleted(_user?.id)
+      }
     } catch (error: any) {
-      if (error?.response?.status === 404 || error?.response?.status === 401) {
+      if (error?.response?.status === 404) {
         setSubscription(null)
 
-        const registrationData = localStorage.getItem('admin_registration_data')
-        if (registrationData) {
-          const data = JSON.parse(registrationData)
-          setUserPlan(data.selectedPlan || null)
-        } else {
-          setUserPlan(null)
-        }
+        const registrationData = getAdminRegistrationData()
+        const storedPlan = registrationData && sameUserId(registrationData.userId, _user?.id)
+          ? registrationData.selectedPlan ?? null
+          : null
+
+        setUserPlan(storedPlan || null)
+      } else if (error?.response?.status === 401) {
+        setSubscription(null)
+        setUserPlan(null)
       } else {
         console.error('Error loading subscription info:', error)
+        setSubscription(null)
+        setUserPlan(null)
       }
     } finally {
       setIsLoadingSubscription(false)
@@ -94,6 +118,7 @@ function AdminDashboard() {
     } catch (error) {
       console.error('Error loading dashboard stats:', error)
       // Fallback a datos por defecto si hay error
+      setRecentActivities([])
       setStats({
         totalUnits: 0,
         occupiedUnits: 0,
@@ -135,11 +160,11 @@ function AdminDashboard() {
         setShowWizard(false)
       }
     } catch (error) {
-      console.error('Error loading condominiums:', error)
+      console.error('Error loading condominiums:', getApiErrorMessage(error, 'Error loading condominiums'))
       // En caso de error, verificar localStorage como fallback
-      const savedData = localStorage.getItem('onboarding_wizard_data')
-      if (savedData) {
-        const data = JSON.parse(savedData)
+      const savedState = loadSavedOnboardingState(_user?.id)
+      if (savedState) {
+        const data = savedState.data
         setWizardData(data)
         if (data.condominium && data.buildings?.length > 0 && data.invitationMethod) {
           setShowWizard(false)
@@ -158,7 +183,8 @@ function AdminDashboard() {
 
   const handleWizardComplete = async (data: OnboardingData) => {
     setWizardData(data)
-    localStorage.setItem('onboarding_wizard_data', JSON.stringify(data))
+    saveOnboardingState({ currentStep: 4, data, userId: _user?.id })
+    markAdminOnboardingCompleted(_user?.id)
     setShowWizard(false)
     setShowOnboardingSuccess(true)
     setTimeout(() => setShowOnboardingSuccess(false), 5000)
@@ -182,6 +208,8 @@ function AdminDashboard() {
         return <CreditCard className="w-5 h-5 text-green-600 dark:text-green-400" />
       case 'incident':
         return <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+      case 'reservation':
+        return <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
       default:
         return <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
     }
@@ -305,6 +333,26 @@ function AdminDashboard() {
           </div>
         )}
 
+        {!isLoadingCondominiums && showWizard && (
+          <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
+            <p className="font-semibold">Alta incompleta detectada</p>
+            <p className="mt-1">Si vas con poco tiempo, termina primero el nombre del condominio, edificios y unidades. Podrás regresar a invitaciones y detalles finos después.</p>
+          </div>
+        )}
+
+        {!isLoadingCondominiums && subscription && (subscription.status === 0 || subscription.daysRemaining <= 7) && !showWizard && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+            <p className="font-semibold">Renovación self-service disponible</p>
+            <p className="mt-1">Tu suscripción puede gestionarse desde la plataforma. Si tu prueba termina pronto, entra a Mi Suscripción y registra el pago sin intervención manual del equipo.</p>
+            <button
+              onClick={() => navigate('/admin/subscription')}
+              className="mt-3 inline-flex font-semibold text-amber-700 underline-offset-4 hover:underline dark:text-amber-300"
+            >
+              Ir a Mi Suscripción
+            </button>
+          </div>
+        )}
+
         {/* Lista de Condominios */}
         {!isLoadingCondominiums && condominiums.length > 0 && !showWizard && (
           <div className="mb-8">
@@ -315,7 +363,16 @@ function AdminDashboard() {
               {condominiums.map((condo) => (
                 <div
                   key={condo.id}
-                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl transition-all"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => goToCondominiumDetails(condo.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      goToCondominiumDetails(condo.id)
+                    }
+                  }}
+                  className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 hover:shadow-xl transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center">
@@ -439,21 +496,29 @@ function AdminDashboard() {
                 </h3>
               </div>
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="mt-1">{getActivityIcon(activity.type)}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <h4 className="font-semibold text-gray-900 dark:text-white">{activity.title}</h4>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{formatTime(activity.timestamp)}</span>
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
-                      </div>
-                      {getStatusBadge(activity.status)}
-                    </div>
+                {recentActivities.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <Calendar className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                    <p className="font-medium text-gray-500 dark:text-gray-400">No hay actividad reciente</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Las nuevas acciones aparecerán aquí</p>
                   </div>
-                ))}
+                ) : (
+                  recentActivities.map((activity) => (
+                    <div key={activity.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        <div className="mt-1">{getActivityIcon(activity.type)}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h4 className="font-semibold text-gray-900 dark:text-white">{activity.title}</h4>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">{formatTime(activity.timestamp)}</span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{activity.description}</p>
+                        </div>
+                        {getStatusBadge(activity.status)}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -461,7 +526,11 @@ function AdminDashboard() {
           {/* Action Cards */}
           <div className="space-y-6">
             {/* Add New Resident */}
-            <button className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 animate-in fade-in-50 text-left">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/residents')}
+              className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in-50 text-left focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+            >
               <div className="flex items-center gap-4 mb-3">
                 <div className="w-12 h-12 bg-sky-100 dark:bg-sky-900/30 rounded-xl flex items-center justify-center">
                   <Plus className="w-6 h-6 text-sky-600 dark:text-sky-400" />
@@ -472,7 +541,11 @@ function AdminDashboard() {
             </button>
 
             {/* Reports */}
-            <button className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 animate-in fade-in-50 text-left">
+            <button
+              type="button"
+              onClick={() => navigate('/admin/reports')}
+              className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in-50 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+            >
               <div className="flex items-center gap-4 mb-3">
                 <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
                   <BarChart3 className="w-6 h-6 text-purple-600 dark:text-purple-400" />

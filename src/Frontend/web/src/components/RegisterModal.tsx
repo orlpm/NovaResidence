@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Mail, Lock, User, Phone, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react'
 import Modal from './Modal'
-
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
+import { authService } from '../lib/authService'
+import { getApiErrorMessage } from '../lib/apiErrors'
 
 interface RegisterModalProps {
   isOpen: boolean
@@ -53,32 +53,22 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          phoneNumber: formData.phoneNumber,
-          role: 'User'
-        }),
+      await authService.register({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        role: 'Resident'
       })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || data.errors?.[0] || 'Error al registrar')
-      }
       
       setSuccess(true)
       setTimeout(() => {
         handleClose()
         onSwitchToLogin()
       }, 2000)
-    } catch (err: any) {
-      setError(err.message || 'Error al registrar. Por favor intenta de nuevo.')
+    } catch (error) {
+      setError(getApiErrorMessage(error, 'Error al registrar. Por favor intenta de nuevo.'))
     } finally {
       setLoading(false)
     }
@@ -99,7 +89,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Crear Cuenta" maxWidth="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Registro de residente" maxWidth="lg">
       {success ? (
         <div className="flex flex-col items-center justify-center py-8">
           <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
@@ -107,11 +97,16 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }: Regi
           </div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">¡Cuenta creada exitosamente!</h3>
           <p className="text-gray-600 dark:text-gray-400 text-center">
-            Redirigiendo al inicio de sesión...
+            Redirigiendo al inicio de sesión de residente...
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
+            <p className="font-semibold">¿Eres administrador?</p>
+            <p className="mt-1">Usa la ruta pública Alta de Administrador para crear tu cuenta y continuar con el onboarding del condominio.</p>
+          </div>
+
           {error && (
             <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-800 dark:text-red-400">
               <AlertCircle className="w-5 h-5 flex-shrink-0" />

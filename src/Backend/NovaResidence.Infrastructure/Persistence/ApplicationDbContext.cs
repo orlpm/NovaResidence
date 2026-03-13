@@ -8,8 +8,10 @@ using NovaResidence.Domain.Entities.Billing;
 using NovaResidence.Domain.Entities.Communications;
 using NovaResidence.Domain.Entities.Notifications;
 using NovaResidence.Domain.Entities.Subscriptions;
+using NovaResidence.Domain.Entities.Localization;
 using NovaResidence.Domain.Entities.Visits;
 using NovaResidence.Domain.Entities.Maps;
+using NovaResidence.Domain.Entities.Procedures;
 using System.Reflection;
 
 // Aliases for disambiguation
@@ -44,6 +46,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<CommonAreaReservation> CommonAreaReservations => Set<CommonAreaReservation>();
     public DbSet<CondominiumCommonArea> CondominiumCommonAreas => Set<CondominiumCommonArea>();
     public DbSet<Resident> Residents => Set<Resident>();
+    public DbSet<GeoCountry> GeoCountries => Set<GeoCountry>();
+    public DbSet<GeoState> GeoStates => Set<GeoState>();
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<CondominiumMap> CondominiumMaps => Set<CondominiumMap>();
@@ -75,6 +79,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     
     // Visits Module
     public DbSet<Visit> Visits => Set<Visit>();
+
+    // Procedures Module
+    public DbSet<ResidentProcedure> ResidentProcedures => Set<ResidentProcedure>();
+    public DbSet<ProcedureTemplate> ProcedureTemplates => Set<ProcedureTemplate>();
     
     // Notifications Module
     public DbSet<Notification> Notifications => Set<Notification>();
@@ -100,6 +108,8 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<CommonAreaReservation>().HasQueryFilter(r => !r.IsDeleted);
         modelBuilder.Entity<CondominiumCommonArea>().HasQueryFilter(ca => !ca.IsDeleted);
         modelBuilder.Entity<Resident>().HasQueryFilter(r => !r.IsDeleted);
+        modelBuilder.Entity<GeoCountry>().HasQueryFilter(c => !c.IsDeleted);
+        modelBuilder.Entity<GeoState>().HasQueryFilter(s => !s.IsDeleted);
         modelBuilder.Entity<Amenity>().HasQueryFilter(a => !a.IsDeleted);
         modelBuilder.Entity<Reservation>().HasQueryFilter(r => !r.IsDeleted);
         modelBuilder.Entity<CondominiumMap>().HasQueryFilter(m => !m.IsDeleted);
@@ -123,6 +133,10 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         
         // Visits query filters
         modelBuilder.Entity<Visit>().HasQueryFilter(v => !v.IsDeleted);
+
+        // Procedures query filters
+        modelBuilder.Entity<ResidentProcedure>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<ProcedureTemplate>().HasQueryFilter(p => !p.IsDeleted);
         
         // Communications query filters
         modelBuilder.Entity<Announcement>().HasQueryFilter(a => !a.IsDeleted);

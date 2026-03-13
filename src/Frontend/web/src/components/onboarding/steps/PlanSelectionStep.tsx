@@ -14,14 +14,14 @@ const plans = [
     id: 'basico' as const,
     name: 'Básico',
     icon: Zap,
-    price: '$999',
-    period: '/mes',
-    description: 'Perfecto para condominios pequeños',
+    price: '$49',
+    period: '/unidad/mes',
+    description: 'Ideal para condominios pequeños de 1 a 20 unidades',
     features: [
-      'Hasta 50 unidades',
-      'Gestión de pagos',
-      'Portal de residentes',
-      'Reportes básicos',
+      '1 a 20 unidades',
+      'Gestión de residentes',
+      'Cobros y pagos',
+      'Incidencias básicas',
       'Soporte por email',
       '1 administrador'
     ],
@@ -31,17 +31,16 @@ const plans = [
     id: 'profesional' as const,
     name: 'Profesional',
     icon: Star,
-    price: '$2,499',
-    period: '/mes',
-    description: 'Ideal para condominios medianos',
+    price: '$39',
+    period: '/unidad/mes',
+    description: 'Para condominios medianos de 21 a 100 unidades',
     features: [
-      'Hasta 200 unidades',
+      '21 a 100 unidades',
       'Todo lo del plan Básico',
-      'Gestión de incidencias',
-      'Reservaciones',
       'Reportes avanzados',
-      'Hasta 3 administradores',
-      'App móvil',
+      'Comunicaciones y encuestas',
+      'Reserva de amenidades',
+      '3 administradores',
       'Soporte prioritario'
     ],
     color: 'from-sky-500 to-blue-600',
@@ -51,18 +50,17 @@ const plans = [
     id: 'empresarial' as const,
     name: 'Empresarial',
     icon: Crown,
-    price: '$4,999',
-    period: '/mes',
-    description: 'Para condominios grandes y múltiples propiedades',
+    price: '$29',
+    period: '/unidad/mes',
+    description: 'Para desarrollos grandes de 101 a 500 unidades',
     features: [
-      'Unidades ilimitadas',
+      '101 a 500 unidades',
       'Todo lo del plan Profesional',
+      'Integraciones avanzadas',
       'Multi-condominio',
       'API personalizada',
-      'Reportes personalizados',
       'Administradores ilimitados',
       'Soporte 24/7',
-      'Gerente de cuenta dedicado',
       'Capacitación incluida'
     ],
     color: 'from-purple-500 to-pink-500'
@@ -88,7 +86,7 @@ export default function PlanSelectionStep({ selectedPlan, onUpdate, onNext, onBa
           Selecciona tu Plan
         </h3>
         <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Elige el plan que mejor se adapte a las necesidades de tu condominio. Puedes cambiar de plan en cualquier momento.
+          Elige el plan que mejor se adapte al tamaño de tu condominio. Los precios mostrados son por unidad al mes y puedes cambiar de plan más adelante.
         </p>
       </div>
 

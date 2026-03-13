@@ -53,11 +53,28 @@ public static class BillingEnumNames
     public static string GetPaymentMethodName(PaymentMethod method) =>
         PaymentMethodNames.TryGetValue(method, out var name) ? name : method.ToString();
 
+    public static ChargeStatus GetEffectiveStatus(ChargeStatus currentStatus, DateTime dueDate, decimal balance)
+    {
+        var (status, _, _) = ComputeStatus(currentStatus, dueDate, balance);
+        return status;
+    }
+
+    public static decimal GetOutstandingBalance(ChargeStatus currentStatus, DateTime dueDate, decimal balance)
+    {
+        var effectiveStatus = GetEffectiveStatus(currentStatus, dueDate, balance);
+        return effectiveStatus is ChargeStatus.Pending or ChargeStatus.PartiallyPaid or ChargeStatus.Overdue
+            ? balance
+            : 0m;
+    }
+
     public static (ChargeStatus status, string statusName, bool isOverdue) ComputeStatus(ChargeStatus currentStatus, DateTime dueDate, decimal balance)
     {
         // If already paid, cancelled, or forgiven, use that status
         if (currentStatus == ChargeStatus.Paid || currentStatus == ChargeStatus.Cancelled || currentStatus == ChargeStatus.Forgiven)
             return (currentStatus, GetStatusName(currentStatus), false);
+
+        if (balance <= 0)
+            return (ChargeStatus.Paid, GetStatusName(ChargeStatus.Paid), false);
 
         // Check if overdue based on due date
         var isOverdue = DateTime.UtcNow.Date > dueDate.Date && balance > 0;
@@ -297,9 +314,14 @@ public class GetUnitBalanceQueryHandler : IRequestHandler<GetUnitBalanceQuery, R
 
         var totalDue = charges.Sum(c => c.Amount);
         var totalPaid = charges.Sum(c => c.PaidAmount);
-        var balance = charges.Sum(c => c.Balance);
-        var pendingCharges = charges.Count(c => c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid);
-        var overdueCharges = charges.Count(c => c.Status == ChargeStatus.Overdue);
+        var chargeSnapshots = charges.Select(c => new
+        {
+            Outstanding = BillingEnumNames.GetOutstandingBalance(c.Status, c.DueDate, c.Balance),
+            EffectiveStatus = BillingEnumNames.GetEffectiveStatus(c.Status, c.DueDate, c.Balance)
+        }).ToList();
+        var balance = chargeSnapshots.Sum(c => c.Outstanding);
+        var pendingCharges = chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Pending || c.EffectiveStatus == ChargeStatus.PartiallyPaid);
+        var overdueCharges = chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Overdue);
 
         var dto = new UnitBalanceDto(
             unit.Id,
@@ -341,15 +363,20 @@ public class GetCondominiumBalancesQueryHandler : IRequestHandler<GetCondominium
         var balances = units.Select(unit =>
         {
             var unitCharges = charges.Where(c => c.UnitId == unit.Id).ToList();
+            var chargeSnapshots = unitCharges.Select(c => new
+            {
+                Outstanding = BillingEnumNames.GetOutstandingBalance(c.Status, c.DueDate, c.Balance),
+                EffectiveStatus = BillingEnumNames.GetEffectiveStatus(c.Status, c.DueDate, c.Balance)
+            }).ToList();
             return new UnitBalanceDto(
                 unit.Id,
                 unit.UnitNumber,
                 unit.Building.Name,
                 unitCharges.Sum(c => c.Amount),
                 unitCharges.Sum(c => c.PaidAmount),
-                unitCharges.Sum(c => c.Balance),
-                unitCharges.Count(c => c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid),
-                unitCharges.Count(c => c.Status == ChargeStatus.Overdue)
+                chargeSnapshots.Sum(c => c.Outstanding),
+                chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Pending || c.EffectiveStatus == ChargeStatus.PartiallyPaid),
+                chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Overdue)
             );
         })
         .OrderByDescending(b => b.Balance)
@@ -411,14 +438,26 @@ public class GetBillingSummaryQueryHandler : IRequestHandler<GetBillingSummaryQu
                 && !c.IsDeleted)
             .ToListAsync(cancellationToken);
 
-        var totalCharged = charges.Sum(c => c.Amount);
-        var totalCollected = charges.Sum(c => c.PaidAmount);
-        var totalPending = charges.Where(c => c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid).Sum(c => c.Balance);
-        var totalOverdue = charges.Where(c => c.Status == ChargeStatus.Overdue).Sum(c => c.Balance);
-        var totalCharges = charges.Count;
-        var paidCharges = charges.Count(c => c.Status == ChargeStatus.Paid);
-        var pendingCharges = charges.Count(c => c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid);
-        var overdueCharges = charges.Count(c => c.Status == ChargeStatus.Overdue);
+        var chargeSnapshots = charges.Select(c => new
+        {
+            c.Amount,
+            c.PaidAmount,
+            Outstanding = BillingEnumNames.GetOutstandingBalance(c.Status, c.DueDate, c.Balance),
+            EffectiveStatus = BillingEnumNames.GetEffectiveStatus(c.Status, c.DueDate, c.Balance)
+        }).ToList();
+
+        var totalCharged = chargeSnapshots.Sum(c => c.Amount);
+        var totalCollected = chargeSnapshots.Sum(c => c.PaidAmount);
+        var totalPending = chargeSnapshots
+            .Where(c => c.EffectiveStatus == ChargeStatus.Pending || c.EffectiveStatus == ChargeStatus.PartiallyPaid)
+            .Sum(c => c.Outstanding);
+        var totalOverdue = chargeSnapshots
+            .Where(c => c.EffectiveStatus == ChargeStatus.Overdue)
+            .Sum(c => c.Outstanding);
+        var totalCharges = chargeSnapshots.Count;
+        var paidCharges = chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Paid);
+        var pendingCharges = chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Pending || c.EffectiveStatus == ChargeStatus.PartiallyPaid);
+        var overdueCharges = chargeSnapshots.Count(c => c.EffectiveStatus == ChargeStatus.Overdue);
         var collectionRate = totalCharged > 0 ? (totalCollected / totalCharged) * 100 : 0;
 
         var dto = new BillingSummaryDto(
@@ -459,7 +498,7 @@ public class GetOverdueChargesQueryHandler : IRequestHandler<GetOverdueChargesQu
             .Include(c => c.Payments.Where(p => !p.IsDeleted))
             .Where(c => c.CondominiumId == request.CondominiumId 
                 && !c.IsDeleted
-                && c.Balance > 0
+                && c.Amount > c.PaidAmount
                 && (c.Status == ChargeStatus.Overdue || c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid)
                 && c.DueDate < now)
             .OrderBy(c => c.Unit.UnitNumber)

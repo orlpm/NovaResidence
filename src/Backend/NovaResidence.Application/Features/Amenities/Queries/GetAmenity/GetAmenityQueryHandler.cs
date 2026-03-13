@@ -40,6 +40,7 @@ public class GetAmenityQueryHandler : IRequestHandler<GetAmenityQuery, Result<Am
             TypeId: (int)amenity.Type,
             Capacity: amenity.Capacity,
             RequiresReservation: amenity.RequiresReservation,
+            RequiresApproval: amenity.RequiresApproval,
             IsActive: amenity.IsActive,
             ReservationFee: amenity.ReservationFee,
             MinReservationHours: amenity.MinReservationHours,

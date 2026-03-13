@@ -4,6 +4,7 @@ import { residentService } from '../lib/residentService';
 import { apiClient } from '../lib/apiClient';
 import { Building2, User, Mail, Phone, Lock, ArrowRight, Home, UserCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getApiErrorMessage } from '../lib/apiErrors';
 
 export default function RegisterResident() {
   const { unitId, token } = useParams<{ unitId: string; token: string }>();
@@ -11,6 +12,7 @@ export default function RegisterResident() {
 
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(true);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   const [residentInfo, setResidentInfo] = useState<any>(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -23,8 +25,9 @@ export default function RegisterResident() {
 
   useEffect(() => {
     if (!unitId || !token) {
-      toast.error('Enlace de invitación inválido');
-      navigate('/auth/login');
+      setVerificationError('Enlace de invitación inválido');
+      setVerifying(false);
+      setLoading(false);
       return;
     }
 
@@ -36,6 +39,7 @@ export default function RegisterResident() {
       const response = await residentService.verifyInvitation(unitId!, token!);
       if (response.success && response.data) {
         setResidentInfo(response.data);
+        setVerificationError(null);
         setFormData(prev => ({
           ...prev,
           email: response.data!.email || '',
@@ -46,13 +50,15 @@ export default function RegisterResident() {
         setVerifying(false);
         setLoading(false);
       } else {
-        toast.error('Token de invitación inválido o expirado');
-        navigate('/auth/login');
+        setVerificationError(response.message || 'Token de invitación inválido o expirado');
+        setVerifying(false);
+        setLoading(false);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error verifying token:', error);
-      toast.error(error.response?.data?.message || 'Error al verificar la invitación');
-      navigate('/auth/login');
+      setVerificationError(getApiErrorMessage(error, 'Error al verificar la invitación'));
+      setVerifying(false);
+      setLoading(false);
     }
   };
 
@@ -89,12 +95,9 @@ export default function RegisterResident() {
       } else {
         toast.error(response.data.message || 'Error en el registro');
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error registering:', error);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.errors?.[0] || 
-                          'Error al registrar usuario';
-      toast.error(errorMessage);
+      toast.error(getApiErrorMessage(error, 'Error al registrar usuario'));
     } finally {
       setLoading(false);
     }
@@ -112,6 +115,48 @@ export default function RegisterResident() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mx-auto"></div>
             <p className="mt-4 text-gray-600 dark:text-gray-400">Verificando invitación...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (verificationError) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+        <div className="fixed inset-0 bg-gradient-to-br from-sky-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-950 dark:to-gray-900 -z-10" />
+        <div className="fixed top-20 left-10 w-72 h-72 bg-sky-400/20 rounded-full blur-3xl -z-10" />
+        <div className="fixed bottom-20 right-10 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl -z-10" />
+
+        <div className="py-8">
+          <Link to="/" className="flex items-center justify-center space-x-3 group">
+            <div className="w-12 h-12 bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-sky-500/40 group-hover:shadow-sky-500/60 transition-all duration-300 group-hover:scale-110">
+              <Building2 className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <span className="text-2xl font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+                NovaResidence
+              </span>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Gestión de Condominios</p>
+            </div>
+          </Link>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center px-4 pb-8">
+          <div className="w-full max-w-md bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 text-center">
+            <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-3">Invitación no disponible</h1>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{verificationError}</p>
+            <div className="space-y-3">
+              <Link
+                to="/auth/login"
+                className="w-full inline-flex items-center justify-center py-3 px-4 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-bold text-base shadow-lg shadow-sky-500/30 hover:shadow-sky-500/50 transition-all duration-300"
+              >
+                Ir a iniciar sesión
+              </Link>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Solicita a la administración un nuevo enlace de invitación si aún necesitas completar tu alta.
+              </p>
+            </div>
           </div>
         </div>
       </div>

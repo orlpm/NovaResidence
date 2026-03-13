@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "test:e2e:guarded": "node ./scripts/playwright-guarded-runner.mjs"
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.1"
   }

@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NovaResidence.Api.Security;
 using NovaResidence.Domain.Entities.Visits;
 using NovaResidence.Domain.Enums;
 using NovaResidence.Infrastructure.Persistence;
@@ -9,15 +11,18 @@ namespace NovaResidence.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class VisitsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<VisitsController> _logger;
+    private readonly ITenantAccessService _tenantAccessService;
 
-    public VisitsController(ApplicationDbContext context, ILogger<VisitsController> logger)
+    public VisitsController(ApplicationDbContext context, ILogger<VisitsController> logger, ITenantAccessService tenantAccessService)
     {
         _context = context;
         _logger = logger;
+        _tenantAccessService = tenantAccessService;
     }
 
     /// <summary>
@@ -31,6 +36,9 @@ public class VisitsController : ControllerBase
         [FromQuery] DateTime? fromDate = null,
         [FromQuery] DateTime? toDate = null)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         try
         {
             var query = _context.Visits
@@ -81,6 +89,9 @@ public class VisitsController : ControllerBase
     [HttpGet("unit/{unitId:guid}")]
     public async Task<IActionResult> GetByUnit(Guid unitId)
     {
+        if (!await _tenantAccessService.CanAccessUnitAsync(User, unitId))
+            return TenantForbidden();
+
         try
         {
             var visits = await _context.Visits
@@ -124,6 +135,9 @@ public class VisitsController : ControllerBase
     [HttpGet("my-visits/{userId:guid}")]
     public async Task<IActionResult> GetMyVisits(Guid userId)
     {
+        if (!await _tenantAccessService.CanAccessUserAsync(User, userId))
+            return TenantForbidden();
+
         try
         {
             var visits = await _context.Visits
@@ -167,6 +181,9 @@ public class VisitsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id))
+            return TenantForbidden();
+
         try
         {
             var v = await _context.Visits
@@ -223,6 +240,13 @@ public class VisitsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateVisitRequest request)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, request.CondominiumId)
+            || !await _tenantAccessService.CanAccessUnitAsync(User, request.UnitId)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.RequestedById))
+        {
+            return TenantForbidden();
+        }
+
         try
         {
             var visit = Visit.Create(
@@ -264,6 +288,9 @@ public class VisitsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateVisitRequest request)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id))
+            return TenantForbidden();
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -305,6 +332,12 @@ public class VisitsController : ControllerBase
     [HttpPost("{id:guid}/approve")]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveVisitRequest request)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.ApprovedById))
+        {
+            return TenantForbidden();
+        }
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -333,6 +366,12 @@ public class VisitsController : ControllerBase
     [HttpPost("{id:guid}/reject")]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectVisitRequest request)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.RejectedById))
+        {
+            return TenantForbidden();
+        }
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -361,6 +400,12 @@ public class VisitsController : ControllerBase
     [HttpPost("{id:guid}/check-in")]
     public async Task<IActionResult> CheckIn(Guid id, [FromBody] CheckInVisitRequest request)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.SecurityGuardId))
+        {
+            return TenantForbidden();
+        }
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -389,6 +434,12 @@ public class VisitsController : ControllerBase
     [HttpPost("{id:guid}/check-out")]
     public async Task<IActionResult> CheckOut(Guid id, [FromBody] CheckOutVisitRequest request)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.SecurityGuardId))
+        {
+            return TenantForbidden();
+        }
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -417,6 +468,9 @@ public class VisitsController : ControllerBase
     [HttpPost("{id:guid}/cancel")]
     public async Task<IActionResult> Cancel(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id))
+            return TenantForbidden();
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -445,6 +499,9 @@ public class VisitsController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id))
+            return TenantForbidden();
+
         try
         {
             var visit = await _context.Visits.FindAsync(id);
@@ -469,6 +526,9 @@ public class VisitsController : ControllerBase
     [HttpGet("today/{condominiumId:guid}")]
     public async Task<IActionResult> GetTodayVisits(Guid condominiumId)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         try
         {
             var today = DateTime.UtcNow.Date;
@@ -537,6 +597,12 @@ public class VisitsController : ControllerBase
         VisitStatus.Expired => "Expirada",
         _ => "Desconocido"
     };
+
+    private IActionResult TenantForbidden()
+    {
+        return StatusCode(StatusCodes.Status403Forbidden,
+            ApiResponse<object>.FailureResponse("No tienes acceso a este condominio"));
+    }
 }
 
 // DTOs

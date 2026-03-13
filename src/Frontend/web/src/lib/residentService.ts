@@ -97,6 +97,7 @@ class ResidentService {
    */
   async verifyInvitation(unitId: string, token: string): Promise<{
     success: boolean
+    message?: string
     data: {
       firstName: string
       lastName: string
@@ -110,9 +111,13 @@ class ResidentService {
   }> {
     try {
       const response = await apiClient.get<{ success: boolean; data: any }>(`/residents/verify-invitation/${unitId}/${token}`)
-      return { success: response.data.success, data: response.data.data }
-    } catch (error) {
-      return { success: false, data: null }
+      return { success: response.data.success, message: undefined, data: response.data.data }
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.response?.data?.message || 'Error al verificar la invitación',
+        data: null
+      }
     }
   }
 

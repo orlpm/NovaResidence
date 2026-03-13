@@ -1,15 +1,24 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import axios from 'axios'
+import type { MouseEvent as ReactMouseEvent } from 'react'
+import { DEFAULT_API_TIMEOUT_MS, toDisplayableApiError } from '../lib/apiErrors'
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
+const authHttp = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: DEFAULT_API_TIMEOUT_MS,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
 
 export interface User {
   id: string
   email: string
   firstName: string
   lastName: string
-  role: 'superadmin' | 'admin' | 'resident' | 'provider' | 'security' | 'maintenance' | 'accountant' | 'cleaning'
+  role: 'superadmin' | 'admin' | 'subadmin' | 'resident' | 'provider' | 'security' | 'maintenance' | 'accountant' | 'cleaning'
   defaultRole?: string
   condominiumId?: string
 }
@@ -20,7 +29,8 @@ interface AuthState {
   refreshToken: string | null
   isAuthenticated: boolean
   login: (email: string, password: string) => Promise<User>
-  logout: () => void
+  logout: (optionsOrEvent?: { revokeRefreshToken?: boolean } | ReactMouseEvent<HTMLElement>) => Promise<void>
+  clearAuthData: () => void
   register: (data: RegisterData) => Promise<void>
   refreshAccessToken: () => Promise<void>
   setAuthData: (user: User, accessToken: string, refreshToken?: string) => void
@@ -34,6 +44,26 @@ interface RegisterData {
   phoneNumber?: string
 }
 
+function normalizeRole(rawRole?: string): User['role'] {
+  const role = (rawRole || '').toLowerCase().trim()
+
+  if (role === 'superadmin') return 'superadmin'
+  if (role === 'admin') return 'admin'
+  if (role === 'subadmin') return 'subadmin'
+  if (role === 'resident') return 'resident'
+  if (role === 'serviceprovider' || role === 'provider' || role === 'proveedor') return 'provider'
+  if (role === 'securityguard' || role === 'security' || role === 'vigilancia') return 'security'
+  if (role === 'maintenance' || role === 'mantenimiento') return 'maintenance'
+  if (role === 'accountant' || role === 'contador') return 'accountant'
+  if (role === 'cleaning' || role === 'limpieza') return 'cleaning'
+
+  return 'resident'
+}
+
+function isLogoutOptions(value: unknown): value is { revokeRefreshToken?: boolean } {
+  return typeof value === 'object' && value !== null && 'revokeRefreshToken' in value
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -44,7 +74,7 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email: string, password: string) => {
         try {
-          const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+          const response = await authHttp.post('/auth/login', {
             email,
             password
           })
@@ -57,14 +87,16 @@ export const useAuthStore = create<AuthState>()(
           
           // El backend puede devolver User anidado o datos directos
           const userData = data.User || data.user || data
+          const normalizedDefaultRole = userData.DefaultRole || userData.defaultRole || data.defaultRole || data.DefaultRole || userData.Role || userData.role
+          const roleSource = normalizedDefaultRole || userData.Role || userData.role
           
           const user: User = {
             id: userData.Id || userData.id || data.userId,
             email: userData.Email || userData.email || email,
             firstName: userData.FirstName || userData.firstName || '',
             lastName: userData.LastName || userData.lastName || '',
-            role: ((userData.Role || userData.role || data.defaultRole || 'resident').toLowerCase()) as 'superadmin' | 'admin' | 'resident' | 'provider' | 'security' | 'maintenance' | 'accountant' | 'cleaning',
-            defaultRole: userData.Role || userData.role || data.defaultRole,
+            role: normalizeRole(roleSource),
+            defaultRole: normalizedDefaultRole,
             condominiumId: userData.CondominiumId || userData.condominiumId || data.condominiumId
           }
 
@@ -78,11 +110,11 @@ export const useAuthStore = create<AuthState>()(
           return user
         } catch (error) {
           console.error('Login error:', error)
-          throw error
+          throw toDisplayableApiError(error, 'Error al iniciar sesión')
         }
       },
 
-      logout: () => {
+      clearAuthData: () => {
         set({
           user: null,
           accessToken: null,
@@ -91,48 +123,57 @@ export const useAuthStore = create<AuthState>()(
         })
       },
 
+      logout: async (optionsOrEvent) => {
+        const revokeRefreshToken = isLogoutOptions(optionsOrEvent)
+          ? (optionsOrEvent.revokeRefreshToken ?? true)
+          : true
+        const { refreshToken, accessToken } = get()
+
+        try {
+          if (revokeRefreshToken && refreshToken) {
+            await authHttp.post('/auth/logout', { refreshToken }, {
+              headers: {
+                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+              },
+            })
+          }
+        } catch (error) {
+          console.error('Logout error:', error)
+        } finally {
+          get().clearAuthData()
+        }
+      },
+
       register: async (data: RegisterData) => {
         try {
-          const response = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          })
-
-          if (!response.ok) throw new Error('Registration failed')
+          await authHttp.post('/auth/register', data)
 
           // Auto-login after registration
           await get().login(data.email, data.password)
         } catch (error) {
           console.error('Registration error:', error)
-          throw error
+          throw toDisplayableApiError(error, 'No se pudo completar el registro')
         }
       },
 
       refreshAccessToken: async () => {
         const { refreshToken } = get()
         if (!refreshToken) {
-          get().logout()
+          get().clearAuthData()
           return
         }
 
         try {
-          const response = await fetch('/api/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refreshToken }),
-          })
-
-          if (!response.ok) throw new Error('Token refresh failed')
-
-          const data = await response.json()
+          const response = await authHttp.post('/auth/refresh', { refreshToken })
+          const responseData = response.data
+          const data = responseData.data || responseData
           set({
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
+            accessToken: data.accessToken || data.AccessToken,
+            refreshToken: data.refreshToken || data.RefreshToken,
           })
         } catch (error) {
           console.error('Token refresh error:', error)
-          get().logout()
+          get().clearAuthData()
         }
       },
 

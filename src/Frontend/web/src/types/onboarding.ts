@@ -15,34 +15,39 @@ export interface OnboardingData {
     period: string
   }
   // Condominium Info
-  condominium?: {
+  condominium: {
     name: string
     address: string
     city: string
     state: string
+    stateId?: string
     zipCode: string
+    country?: string
+    countryId?: string
     sections?: string[]
   }
   // Building Type
-  buildingTypes?: {
+  buildingTypes: {
     vertical: boolean
     horizontal: boolean
   }
   // Units
-  buildings?: Array<{
+  buildings: Array<{
     id: string
     name: string
     type: 'vertical' | 'horizontal'
     section?: string
     numberOfUnits: number
+    startsAtGroundFloor?: boolean
     units: Array<{
       number: string
       floor?: number
+      isCommercial: boolean
       area?: number
     }>
   }>
   // Invitation Method
-  invitationMethod?: 'link' | 'manual'
+  invitationMethod: 'link' | 'manual'
   // Residents
   residents?: Array<{
     unitId: string

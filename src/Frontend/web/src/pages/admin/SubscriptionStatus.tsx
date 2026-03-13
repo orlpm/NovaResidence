@@ -249,6 +249,11 @@ export default function SubscriptionStatusPage() {
         </div>
       )}
 
+      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
+        <p className="font-semibold mb-1">Pago self-service</p>
+        <p>Si vas con poco tiempo, aquí mismo puedes cambiar de plan, indicar meses, capturar referencia y registrar el pago para continuar sin intervención manual del equipo.</p>
+      </div>
+
       {/* Status Banner */}
       <div className={`rounded-2xl border-2 p-6 ${ui.bg} ${ui.border}`}>
         <div className="flex items-start gap-4">

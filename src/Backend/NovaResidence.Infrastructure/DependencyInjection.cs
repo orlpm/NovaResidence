@@ -52,6 +52,19 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(provider => 
             provider.GetRequiredService<ApplicationDbContext>());
 
+        services.AddHttpClient("BrevoEmail", client =>
+        {
+            client.BaseAddress = new Uri("https://api.brevo.com/");
+        }).ConfigureHttpClient((provider, client) =>
+        {
+            var apiKey = configuration["Email:BrevoApiKey"];
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                client.DefaultRequestHeaders.Remove("api-key");
+                client.DefaultRequestHeaders.Add("api-key", apiKey);
+            }
+        });
+
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICondominiumRepository, CondominiumRepository>();

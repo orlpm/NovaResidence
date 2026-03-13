@@ -23,11 +23,20 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npx vite --port 3001',
-    cwd: './src/Frontend/web',
-    url: 'http://localhost:3001',
-    reuseExistingServer: true,
-    timeout: 30000,
-  },
+  webServer: [
+    {
+      command: 'dotnet run --project "./src/Backend/NovaResidence.Api/NovaResidence.Api.csproj" --urls "http://localhost:5001"',
+      cwd: '.',
+      url: 'http://localhost:5001/swagger/index.html',
+      reuseExistingServer: true,
+      timeout: 120000,
+    },
+    {
+      command: 'npx vite --port 3001',
+      cwd: './src/Frontend/web',
+      url: 'http://localhost:3001',
+      reuseExistingServer: true,
+      timeout: 30000,
+    },
+  ],
 });

@@ -260,6 +260,14 @@ export default function VisitDetail() {
       {/* Actions */}
       {(visit.status === VisitStatus.Pending || visit.status === VisitStatus.Approved) && (
         <div className="flex gap-4">
+          {visit.status === VisitStatus.Pending && (
+            <button
+              onClick={() => navigate(`/resident/visits/${visit.id}/edit`)}
+              className="flex-1 py-3 px-6 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-xl font-bold hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-all"
+            >
+              Editar Visita
+            </button>
+          )}
           <button
             onClick={handleCancel}
             className="flex-1 py-3 px-6 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-bold hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"

@@ -20,6 +20,10 @@ public class User : BaseEntity
     public DateTime? LastLoginAt { get; private set; }
     public string? RefreshToken { get; private set; }
     public DateTime? RefreshTokenExpiryTime { get; private set; }
+    public string? EmailConfirmationTokenHash { get; private set; }
+    public DateTime? EmailConfirmationTokenExpiresAt { get; private set; }
+    public string? PasswordResetTokenHash { get; private set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; private set; }
     public string DefaultRole { get; private set; } = "User"; // Admin, User, Resident
     
     // Multi-tenant: User can belong to multiple condominiums with different roles
@@ -60,6 +64,8 @@ public class User : BaseEntity
     public void ConfirmEmail()
     {
         IsEmailConfirmed = true;
+        EmailConfirmationTokenHash = null;
+        EmailConfirmationTokenExpiresAt = null;
     }
 
     public void UpdateLastLogin()
@@ -69,8 +75,50 @@ public class User : BaseEntity
 
     public void SetRefreshToken(string refreshToken, DateTime expiryTime)
     {
+        Guard.Against.NullOrWhiteSpace(refreshToken, nameof(refreshToken));
         RefreshToken = refreshToken;
         RefreshTokenExpiryTime = expiryTime;
+    }
+
+    public bool HasValidRefreshToken(string refreshToken, DateTime now)
+    {
+        return IsActive
+            && !string.IsNullOrWhiteSpace(RefreshToken)
+            && RefreshToken == refreshToken
+            && RefreshTokenExpiryTime.HasValue
+            && RefreshTokenExpiryTime.Value >= now;
+    }
+
+    public void ClearRefreshToken()
+    {
+        RefreshToken = null;
+        RefreshTokenExpiryTime = null;
+    }
+
+    public void SetEmailConfirmationToken(string tokenHash, DateTime expiresAt)
+    {
+        Guard.Against.NullOrWhiteSpace(tokenHash, nameof(tokenHash));
+        EmailConfirmationTokenHash = tokenHash;
+        EmailConfirmationTokenExpiresAt = expiresAt;
+    }
+
+    public bool CanConfirmEmail(string tokenHash, DateTime now)
+    {
+        if (IsEmailConfirmed)
+        {
+            return true;
+        }
+
+        return !string.IsNullOrWhiteSpace(EmailConfirmationTokenHash)
+            && EmailConfirmationTokenHash == tokenHash
+            && EmailConfirmationTokenExpiresAt.HasValue
+            && EmailConfirmationTokenExpiresAt.Value >= now;
+    }
+
+    public void ClearEmailConfirmationToken()
+    {
+        EmailConfirmationTokenHash = null;
+        EmailConfirmationTokenExpiresAt = null;
     }
 
     public void AddCondominiumRole(Guid condominiumId, UserRole role)
@@ -94,6 +142,30 @@ public class User : BaseEntity
     {
         Guard.Against.NullOrWhiteSpace(newPasswordHash, nameof(newPasswordHash));
         PasswordHash = newPasswordHash;
+        ClearRefreshToken();
+        PasswordResetTokenHash = null;
+        PasswordResetTokenExpiresAt = null;
+    }
+
+    public void SetPasswordResetToken(string tokenHash, DateTime expiresAt)
+    {
+        Guard.Against.NullOrWhiteSpace(tokenHash, nameof(tokenHash));
+        PasswordResetTokenHash = tokenHash;
+        PasswordResetTokenExpiresAt = expiresAt;
+    }
+
+    public bool CanResetPassword(string tokenHash, DateTime now)
+    {
+        return !string.IsNullOrWhiteSpace(PasswordResetTokenHash)
+            && PasswordResetTokenHash == tokenHash
+            && PasswordResetTokenExpiresAt.HasValue
+            && PasswordResetTokenExpiresAt.Value >= now;
+    }
+
+    public void ClearPasswordResetToken()
+    {
+        PasswordResetTokenHash = null;
+        PasswordResetTokenExpiresAt = null;
     }
 
     public void SetDefaultRole(string role)

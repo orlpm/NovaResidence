@@ -25,6 +25,9 @@ public class CondominiumConfiguration : IEntityTypeConfiguration<Condominium>
         builder.Property(c => c.LegalName)
             .HasMaxLength(300);
 
+        builder.Property(c => c.CountryId);
+        builder.Property(c => c.StateId);
+
         // Address as owned entity (Value Object)
         builder.OwnsOne(c => c.Address, address =>
         {
@@ -40,6 +43,16 @@ public class CondominiumConfiguration : IEntityTypeConfiguration<Condominium>
 
         builder.Property(c => c.IsActive).HasDefaultValue(true);
 
+        builder.HasOne<NovaResidence.Domain.Entities.Localization.GeoCountry>()
+            .WithMany()
+            .HasForeignKey(c => c.CountryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<NovaResidence.Domain.Entities.Localization.GeoState>()
+            .WithMany()
+            .HasForeignKey(c => c.StateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Relationships
         builder.HasMany(c => c.Buildings)
             .WithOne()
@@ -54,6 +67,8 @@ public class CondominiumConfiguration : IEntityTypeConfiguration<Condominium>
         // Indexes
         builder.HasIndex(c => c.IsActive);
         builder.HasIndex(c => c.SubscriptionPlanId);
+        builder.HasIndex(c => c.CountryId);
+        builder.HasIndex(c => c.StateId);
 
         // Audit fields
         builder.Property(c => c.CreatedAt).IsRequired();

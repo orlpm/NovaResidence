@@ -4,11 +4,9 @@ import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
 import { useNavigate, Link } from 'react-router-dom'
 import LoginModal from './LoginModal'
-import RegisterModal from './RegisterModal'
 
 export default function Navbar() {
   const [showLogin, setShowLogin] = useState(false)
-  const [showRegister, setShowRegister] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -34,8 +32,8 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     setUserMenuOpen(false)
     navigate('/')
   }
@@ -161,11 +159,11 @@ export default function Navbar() {
                     <span>Iniciar Sesión</span>
                   </button>
                   <button
-                    onClick={() => setShowRegister(true)}
+                    onClick={() => navigate('/alta-administrador')}
                     className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-sky-500/50 hover:scale-105 transition-all duration-300"
                   >
                     <UserPlus className="w-5 h-5" />
-                    <span>Registrarse</span>
+                    <span>Alta de Administrador</span>
                   </button>
                 </div>
               )}
@@ -247,7 +245,7 @@ export default function Navbar() {
                       Mi Dashboard
                     </Link>
                     <button
-                      onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                      onClick={async () => { await handleLogout(); setMobileMenuOpen(false); }}
                       className="w-full px-5 py-2.5 sm:py-3 border-2 border-red-500 text-red-500 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 text-sm sm:text-base"
                     >
                       Cerrar Sesión
@@ -262,10 +260,10 @@ export default function Navbar() {
                       Iniciar Sesión
                     </button>
                     <button
-                      onClick={() => { setShowRegister(true); setMobileMenuOpen(false); }}
+                      onClick={() => { navigate('/alta-administrador'); setMobileMenuOpen(false); }}
                       className="w-full px-5 py-2.5 sm:py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-semibold shadow-lg text-sm sm:text-base"
                     >
-                      Registrarse
+                      Alta de Administrador
                     </button>
                   </>
                 )}
@@ -281,15 +279,7 @@ export default function Navbar() {
         onClose={() => setShowLogin(false)}
         onSwitchToRegister={() => {
           setShowLogin(false)
-          setShowRegister(true)
-        }}
-      />
-      <RegisterModal
-        isOpen={showRegister}
-        onClose={() => setShowRegister(false)}
-        onSwitchToLogin={() => {
-          setShowRegister(false)
-          setShowLogin(true)
+          navigate('/auth/register')
         }}
       />
     </>

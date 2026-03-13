@@ -40,6 +40,32 @@ dotnet ef migrations add InitialCreate --startup-project ../NovaResidence.Api
 dotnet ef database update --startup-project ../NovaResidence.Api
 ```
 
+### Configuración de correo y recuperación de contraseña
+
+Completa estos valores en `src/Backend/NovaResidence.Api/appsettings.Development.json` o mediante secretos:
+
+```json
+{
+  "Auth": {
+    "FrontendBaseUrl": "http://localhost:3001",
+    "RequireConfirmedEmailForLogin": true
+  },
+  "Email": {
+    "BrevoApiKey": "TU_API_KEY_O_SMTP_KEY_DE_BREVO",
+    "SmtpUsername": "tu-login-smtp-brevo-si-usas-xsmtpsib",
+    "FromEmail": "no-reply@tu-dominio.com",
+    "FromName": "NovaResidence"
+  }
+}
+```
+
+Notas:
+- `FrontendBaseUrl` debe apuntar al frontend real para generar enlaces válidos.
+- `RequireConfirmedEmailForLogin` ya está activo para bloquear login hasta confirmar el correo.
+- Si la clave de Brevo empieza con `xsmtpsib-`, el backend usa SMTP relay y `SmtpUsername` debe ser el login SMTP real de Brevo.
+- Si la clave empieza con `xkeysib-`, el backend usa la API REST y `SmtpUsername` no es necesario.
+- La migración `AddEmailConfirmationAndPasswordResetTokens` ya quedó aplicada a la base local.
+
 ### Agregar nuevas migraciones
 
 ```bash
@@ -73,6 +99,10 @@ npm install nombre-paquete
 - POST `/api/auth/register` - Registro de usuario
 - POST `/api/auth/login` - Login
 - POST `/api/auth/refresh` - Refresh token
+- GET `/api/auth/confirm-email` - Confirmar correo
+- POST `/api/auth/resend-email-confirmation` - Reenviar confirmación
+- POST `/api/auth/forgot-password` - Solicitar reset de contraseña
+- POST `/api/auth/reset-password` - Restablecer contraseña
 
 ### Condominiums
 - GET `/api/condominiums` - Listar condominios

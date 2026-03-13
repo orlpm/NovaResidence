@@ -158,11 +158,15 @@ export default function ResidentCommunications() {
   // Forum handlers
   const openForumDetail = async (post: ForumPostDto) => {
     try {
+      await communicationsService.incrementForumPostViews(post.id)
       const postDetail = await communicationsService.getForumPostById(post.id)
+      setForumPosts(prev => prev.map(item => (
+        item.id === post.id
+          ? { ...item, viewCount: postDetail.viewCount, commentCount: postDetail.commentCount }
+          : item
+      )))
       setSelectedForumPost(postDetail)
       setShowForumDetailModal(true)
-      // Increment view count
-      await communicationsService.createForumPost // Actually, we should use incrementViews if available
     } catch { setError('Error al cargar publicación') }
   }
 

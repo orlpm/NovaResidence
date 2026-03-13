@@ -19,8 +19,13 @@ export default function Unauthorized() {
         navigate('/security/dashboard');
         break;
       case 'maintenance':
-      case 'cleaning':
         navigate('/maintenance/dashboard');
+        break;
+      case 'cleaning':
+        navigate('/cleaning/dashboard');
+        break;
+      case 'provider':
+        navigate('/provider/dashboard');
         break;
       case 'accountant':
         navigate('/accountant/dashboard');

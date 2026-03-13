@@ -86,30 +86,33 @@ export const getNotificationIcon = (type: NotificationType): string => {
 }
 
 // Helper function to get action URL based on notification type
-export const getNotificationActionUrl = (notification: NotificationDto, isAdmin: boolean): string => {
+export const getNotificationActionUrl = (notification: NotificationDto, basePath: string = '/resident'): string => {
   if (notification.actionUrl) return notification.actionUrl
 
-  const basePath = isAdmin ? '/admin' : '/resident'
+  const normalizedBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`
+  const paymentPath = normalizedBasePath === '/resident'
+    ? `${normalizedBasePath}/payments`
+    : `${normalizedBasePath}/billing`
   
   switch (notification.type) {
     case NotificationType.Announcement:
-      return `${basePath}/communications?tab=announcements${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
+      return `${normalizedBasePath}/communications?tab=announcements${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
     case NotificationType.Poll:
-      return `${basePath}/communications?tab=polls${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
+      return `${normalizedBasePath}/communications?tab=polls${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
     case NotificationType.Meeting:
-      return `${basePath}/communications?tab=meetings${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
+      return `${normalizedBasePath}/communications?tab=meetings${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
     case NotificationType.ForumPost:
     case NotificationType.ForumComment:
-      return `${basePath}/communications?tab=forum${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
+      return `${normalizedBasePath}/communications?tab=forum${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
     case NotificationType.PaymentReminder:
     case NotificationType.PaymentReceived:
-      return `${basePath}/billing`
+      return paymentPath
     case NotificationType.IncidentUpdate:
-      return `${basePath}/incidents${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
+      return `${normalizedBasePath}/incidents${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
     case NotificationType.Reservation:
-      return `${basePath}/reservations${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
+      return `${normalizedBasePath}/reservations${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
     default:
-      return basePath
+      return normalizedBasePath
   }
 }
 

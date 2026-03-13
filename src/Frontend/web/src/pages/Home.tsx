@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import AdminRegistrationWizard from '../components/auth/AdminRegistrationWizard'
 import { useBackgroundPattern } from '../components/BackgroundPattern'
 import { 
   Building2, 
@@ -20,22 +20,21 @@ import {
 } from 'lucide-react'
 
 export default function Home() {
-  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<'basico' | 'profesional' | 'empresarial'>('basico')
-  const [skipPlanSelection, setSkipPlanSelection] = useState(false)
+  const navigate = useNavigate()
+  const [showDemo, setShowDemo] = useState(false)
+
+  const openDemo = () => setShowDemo(true)
+  const closeDemo = () => setShowDemo(false)
 
   // Para "Comenzar Gratis" - salta la selección de plan
   const openFreeRegistration = () => {
-    setSelectedPlan('basico')
-    setSkipPlanSelection(true)
-    setIsRegistrationOpen(true)
+    navigate('/alta-administrador?plan=basico&skipPlan=1')
   }
 
   // Para "Comenzar Ahora" desde la sección de precios - muestra selección de plan
   const openRegistration = (plan?: 'basico' | 'profesional' | 'empresarial') => {
-    if (plan) setSelectedPlan(plan)
-    setSkipPlanSelection(false)
-    setIsRegistrationOpen(true)
+    const selectedPlan = plan || 'basico'
+    navigate(`/alta-administrador?plan=${selectedPlan}`)
   }
 
   const bgPattern = useBackgroundPattern('community')
@@ -43,14 +42,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950" style={bgPattern}>
       <Navbar />
-
-      {/* Admin Registration Wizard Modal */}
-      <AdminRegistrationWizard 
-        isOpen={isRegistrationOpen}
-        onClose={() => setIsRegistrationOpen(false)}
-        initialPlan={selectedPlan}
-        skipPlanSelection={skipPlanSelection}
-      />
 
       {/* Hero Section - Modern & Bold */}
       <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden">
@@ -89,7 +80,7 @@ export default function Home() {
                   <span>Comenzar Gratis</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
-                <button className="flex items-center justify-center space-x-2 px-8 py-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-2xl font-bold text-lg hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400 transition-all duration-300">
+                <button onClick={openDemo} className="flex items-center justify-center space-x-2 px-8 py-4 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-2xl font-bold text-lg hover:border-sky-500 hover:text-sky-600 dark:hover:text-sky-400 transition-all duration-300">
                   <span>Ver Demo</span>
                 </button>
               </div>
@@ -223,57 +214,60 @@ export default function Home() {
               </span>
             </h2>
             <p className="text-xl text-gray-600 dark:text-gray-400">
-              Sin costos ocultos. Cancela cuando quieras.
+              Precios alineados a tu tamaño. Todos los planes incluyen 30 días de prueba.
             </p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
             <PricingCard
-              name="Starter"
-              price="$299"
-              period="/mes"
-              description="Perfecto para condominios pequeños"
+              name="Básico"
+              price="$49"
+              period="/unidad/mes"
+              description="Ideal para condominios pequeños de 1 a 20 unidades"
               features={[
-                'Hasta 50 unidades',
-                'Portal de residentes',
-                'Facturación básica',
-                'Soporte por email',
-                '1 usuario administrador'
+                '1 a 20 unidades',
+                'Gestión de residentes',
+                'Cobros y pagos',
+                'Incidencias básicas',
+                '1 administrador',
+                'Soporte por email'
               ]}
               planId="basico"
               onSelect={openRegistration}
             />
             <PricingCard
-              name="Professional"
-              price="$599"
-              period="/mes"
-              description="El más popular para condominios medianos"
+              name="Profesional"
+              price="$39"
+              period="/unidad/mes"
+              description="Para condominios medianos de 21 a 100 unidades"
               features={[
-                'Hasta 150 unidades',
-                'Todas las funciones',
-                'Reservaciones online',
-                'Soporte prioritario',
-                '5 usuarios administradores',
+                '21 a 100 unidades',
+                'Todo lo del plan Básico',
                 'Reportes avanzados',
-                'API access'
+                'Comunicaciones y encuestas',
+                'Reserva de amenidades',
+                '3 administradores',
+                'Soporte prioritario',
+                'Plan recomendado'
               ]}
               planId="profesional"
               highlighted={true}
               onSelect={openRegistration}
             />
             <PricingCard
-              name="Enterprise"
-              price="Custom"
-              period=""
-              description="Para grandes desarrollos"
+              name="Empresarial"
+              price="$29"
+              period="/unidad/mes"
+              description="Para desarrollos grandes de 101 a 500 unidades"
               features={[
-                'Unidades ilimitadas',
-                'Todo incluido',
+                '101 a 500 unidades',
+                'Todo del plan Profesional',
+                'Integraciones avanzadas',
+                'API personalizada',
+                'Multi-condominio',
+                'Administradores ilimitados',
                 'Soporte 24/7',
-                'Usuarios ilimitados',
-                'Personalización completa',
-                'Integraciones custom',
-                'SLA garantizado'
+                'Capacitación incluida'
               ]}
               planId="empresarial"
               onSelect={openRegistration}
@@ -385,7 +379,7 @@ export default function Home() {
                 <li><a href="#features" className="hover:text-sky-400 transition-colors">Características</a></li>
                 <li><a href="#pricing" className="hover:text-sky-400 transition-colors">Precios</a></li>
                 <li><a href="#" className="hover:text-sky-400 transition-colors">Integraciones</a></li>
-                <li><a href="#" className="hover:text-sky-400 transition-colors">Demo</a></li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); openDemo() }} className="hover:text-sky-400 transition-colors">Demo</a></li>
               </ul>
             </div>
             
@@ -428,6 +422,26 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Demo Video Modal */}
+      {showDemo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={closeDemo}>
+          <div className="relative w-full max-w-4xl mx-4" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={closeDemo}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white text-sm font-medium transition-colors"
+            >
+              Cerrar ✕
+            </button>
+            <video
+              src="/video_vivaldi.mp4"
+              controls
+              autoPlay
+              className="w-full rounded-2xl shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

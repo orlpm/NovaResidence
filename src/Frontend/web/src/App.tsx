@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
 
@@ -10,84 +11,112 @@ import SecurityLayout from './layouts/SecurityLayout'
 import MaintenanceLayout from './layouts/MaintenanceLayout'
 import AccountantLayout from './layouts/AccountantLayout'
 import SuperAdminLayout from './layouts/SuperAdminLayout'
+import ProviderLayout from './layouts/ProviderLayout'
+import CleaningLayout from './layouts/CleaningLayout'
 
 // Components
 import { PermissionRoute } from './components/routing/PermissionRoute'
 import { SubscriptionGuard } from './components/subscription/SubscriptionGuard'
 
-// Pages - Admin
-import AdminDashboard from './pages/admin/Dashboard'
-import PermissionManagement from './pages/admin/PermissionManagement'
-import AdminOnboarding from './pages/admin/Onboarding'
-import Condominiums from './pages/admin/Condominiums'
-import CondominiumDetails from './pages/admin/CondominiumDetails'
-import CondominiumEdit from './pages/admin/CondominiumEdit'
-import CondominiumUnits from './pages/admin/CondominiumUnits'
-import Units from './pages/admin/Units'
-import Residents from './pages/admin/Residents'
-import Amenities from './pages/admin/Amenities'
-import Billing from './pages/admin/Billing'
-import Incidents from './pages/admin/Incidents'
-import AdminVisits from './pages/admin/Visits'
-import AdminReservations from './pages/admin/Reservations'
-import CommonAreas from './pages/admin/CommonAreas'
-import CondominiumMaps from './pages/admin/CondominiumMaps'
-import Reports from './pages/admin/Reports'
-import Communications from './pages/admin/Communications'
-import SubscriptionStatus from './pages/admin/SubscriptionStatus'
-import StaffManagement from './pages/shared/StaffManagement'
+// Pages - Admin (lazy)
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'))
+const PermissionManagement = lazy(() => import('./pages/admin/PermissionManagement'))
+const AdminOnboarding = lazy(() => import('./pages/admin/Onboarding'))
+const Condominiums = lazy(() => import('./pages/admin/Condominiums'))
+const CondominiumDetails = lazy(() => import('./pages/admin/CondominiumDetails'))
+const CondominiumEdit = lazy(() => import('./pages/admin/CondominiumEdit'))
+const CondominiumUnits = lazy(() => import('./pages/admin/CondominiumUnits'))
+const Units = lazy(() => import('./pages/admin/Units'))
+const Residents = lazy(() => import('./pages/admin/Residents'))
+const Amenities = lazy(() => import('./pages/admin/Amenities'))
+const Billing = lazy(() => import('./pages/admin/Billing'))
+const Incidents = lazy(() => import('./pages/admin/Incidents'))
+const AdminVisits = lazy(() => import('./pages/admin/Visits'))
+const AdminReservations = lazy(() => import('./pages/admin/Reservations'))
+const CommonAreas = lazy(() => import('./pages/admin/CommonAreas'))
+const CondominiumMaps = lazy(() => import('./pages/admin/CondominiumMaps'))
+const Reports = lazy(() => import('./pages/admin/Reports'))
+const Communications = lazy(() => import('./pages/admin/Communications'))
+const SubscriptionStatus = lazy(() => import('./pages/admin/SubscriptionStatus'))
+const StaffManagement = lazy(() => import('./pages/shared/StaffManagement'))
+const AdminProcedures = lazy(() => import('./pages/admin/Procedures'))
 
-// Pages - SuperAdmin
-import SuperAdminDashboard from './pages/superadmin/Dashboard'
-import ClientsManagement from './pages/superadmin/ClientsManagement'
-import UsersManagement from './pages/superadmin/UsersManagement'
-import RolesManagement from './pages/superadmin/RolesManagement'
-import SubscriptionsManagement from './pages/superadmin/SubscriptionsManagement'
+// Pages - SuperAdmin (lazy)
+const SuperAdminDashboard = lazy(() => import('./pages/superadmin/Dashboard'))
+const ClientsManagement = lazy(() => import('./pages/superadmin/ClientsManagement'))
+const UsersManagement = lazy(() => import('./pages/superadmin/UsersManagement'))
+const RolesManagement = lazy(() => import('./pages/superadmin/RolesManagement'))
+const SubscriptionsManagement = lazy(() => import('./pages/superadmin/SubscriptionsManagement'))
+const Monitoring = lazy(() => import('./pages/superadmin/Monitoring'))
+const SystemSettings = lazy(() => import('./pages/superadmin/SystemSettings'))
+const DatabaseManagement = lazy(() => import('./pages/superadmin/DatabaseManagement'))
 
-// Pages - Security
-import SecurityDashboard from './pages/security/Dashboard'
+// Pages - Security (lazy)
+const SecurityDashboard = lazy(() => import('./pages/security/Dashboard'))
+const SecurityAccessLog = lazy(() => import('./pages/security/AccessLog'))
+const SecurityAccessControl = lazy(() => import('./pages/security/AccessControl'))
+const SecurityCameras = lazy(() => import('./pages/security/Cameras'))
 
-// Pages - Maintenance
-import MaintenanceDashboard from './pages/maintenance/Dashboard'
+// Pages - Maintenance (lazy)
+const MaintenanceDashboard = lazy(() => import('./pages/maintenance/Dashboard'))
+const MaintenanceIncidents = lazy(() => import('./pages/maintenance/Incidents'))
 
-// Pages - Accountant
-import AccountantDashboard from './pages/accountant/Dashboard'
+// Pages - Accountant (lazy)
+const AccountantDashboard = lazy(() => import('./pages/accountant/Dashboard'))
 
-// Pages - Resident
-import ResidentDashboard from './pages/resident/Dashboard'
-import MyUnit from './pages/resident/MyUnit'
-import Payments from './pages/resident/Payments'
-import ReservationsPage from './pages/resident/Reservations'
-import MyIncidents from './pages/resident/MyIncidents'
-import NewReservation from './pages/resident/NewReservation'
-import NewIncident from './pages/resident/NewIncident'
-import IncidentDetail from './pages/resident/IncidentDetail'
-import MyVisits from './pages/resident/MyVisits'
-import NewVisit from './pages/resident/NewVisit'
-import VisitDetail from './pages/resident/VisitDetail'
-import ResidentCommunications from './pages/resident/Communications'
-import ResidentCommonAreas from './pages/resident/CommonAreas'
-import ResidentCondominiumMap from './pages/resident/CondominiumMap'
+// Pages - Provider/Cleaning (lazy)
+const ProviderDashboard = lazy(() => import('./pages/provider/Dashboard'))
+const CleaningDashboard = lazy(() => import('./pages/cleaning/Dashboard'))
 
-// Pages - Auth
-import Login from './pages/auth/Login'
-import Register from './pages/auth/Register'
-import RegisterResident from './pages/RegisterResident'
+// Pages - Resident (lazy)
+const ResidentDashboard = lazy(() => import('./pages/resident/Dashboard'))
+const MyUnit = lazy(() => import('./pages/resident/MyUnit'))
+const Payments = lazy(() => import('./pages/resident/Payments'))
+const ReservationsPage = lazy(() => import('./pages/resident/Reservations'))
+const MyIncidents = lazy(() => import('./pages/resident/MyIncidents'))
+const NewReservation = lazy(() => import('./pages/resident/NewReservation'))
+const NewIncident = lazy(() => import('./pages/resident/NewIncident'))
+const IncidentDetail = lazy(() => import('./pages/resident/IncidentDetail'))
+const MyVisits = lazy(() => import('./pages/resident/MyVisits'))
+const NewVisit = lazy(() => import('./pages/resident/NewVisit'))
+const VisitDetail = lazy(() => import('./pages/resident/VisitDetail'))
+const EditVisit = lazy(() => import('./pages/resident/EditVisit'))
+const ResidentCommunications = lazy(() => import('./pages/resident/Communications'))
+const ResidentProcedures = lazy(() => import('./pages/resident/Procedures'))
+const ResidentCommonAreas = lazy(() => import('./pages/resident/CommonAreas'))
+const ResidentCondominiumMap = lazy(() => import('./pages/resident/CondominiumMap'))
 
-// Pages - Public
-import Home from './pages/Home'
-import Unauthorized from './pages/Unauthorized'
+// Pages - Auth (lazy)
+const Login = lazy(() => import('./pages/auth/Login'))
+const Register = lazy(() => import('./pages/auth/Register'))
+const AdminRegistrationPage = lazy(() => import('./pages/auth/AdminRegistration'))
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
+const ConfirmEmail = lazy(() => import('./pages/auth/ConfirmEmail'))
+const RegisterResident = lazy(() => import('./pages/RegisterResident'))
+
+// Pages - Public (lazy)
+const Home = lazy(() => import('./pages/Home'))
+const Unauthorized = lazy(() => import('./pages/Unauthorized'))
 
 // Permissions
 import { PERMISSIONS } from './config/permissions'
 
 function App() {
   const { isAuthenticated, user } = useAuthStore()
+  const normalizedDefaultRole = (user?.defaultRole || '').replace(/[^a-z]/gi, '').toLowerCase()
+  const isSubAdminProfile = user?.role === 'subadmin' || normalizedDefaultRole === 'subadmin'
+  const isAdminProfile = user?.role === 'admin' && !isSubAdminProfile
+  const isMaintenanceProfile = user?.role === 'maintenance' || user?.role === 'cleaning'
+  const isCleaningProfile = user?.role === 'cleaning'
+  const isProviderProfile = user?.role === 'provider'
 
   return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-gray-500">Cargando...</div>}>
     <Routes>
       {/* Public home page */}
       <Route path="/home" element={<Home />} />
+      <Route path="/alta-administrador" element={<AdminRegistrationPage />} />
       
       {/* Unauthorized page */}
       <Route path="/unauthorized" element={<Unauthorized />} />
@@ -99,16 +128,22 @@ function App() {
       <Route path="/auth" element={<AuthLayout />}>
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
+        <Route path="alta-administrador" element={<AdminRegistrationPage />} />
+        <Route path="forgot-password" element={<ForgotPassword />} />
+        <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="confirm-email" element={<ConfirmEmail />} />
       </Route>
 
       {/* Protected routes - SuperAdmin */}
       <Route
         path="/superadmin"
         element={
-          isAuthenticated && (user?.role === 'admin' || user?.role === 'superadmin') ? (
+          !isAuthenticated ? (
+            <Navigate to="/auth/login" replace />
+          ) : user?.role === 'superadmin' ? (
             <SuperAdminLayout />
           ) : (
-            <Navigate to="/auth/login" replace />
+            <Navigate to="/unauthorized" replace />
           )
         }
       >
@@ -148,12 +183,12 @@ function App() {
         />
         <Route path="staff" element={<StaffManagement />} />
         <Route path="subscriptions" element={<SubscriptionsManagement />} />
-        <Route path="monitoring" element={<div className="text-white">Monitoreo del Sistema - Coming Soon</div>} />
+        <Route path="monitoring" element={<Monitoring />} />
         <Route 
           path="system" 
           element={
             <PermissionRoute permissions={PERMISSIONS.PLATFORM_SYSTEM_SETTINGS}>
-              <div className="text-white">Configuración del Sistema - Coming Soon</div>
+              <SystemSettings />
             </PermissionRoute>
           } 
         />
@@ -161,7 +196,7 @@ function App() {
           path="database" 
           element={
             <PermissionRoute permissions={PERMISSIONS.PLATFORM_SYSTEM_SETTINGS}>
-              <div className="text-white">Base de Datos - Coming Soon</div>
+              <DatabaseManagement />
             </PermissionRoute>
           } 
         />
@@ -171,7 +206,7 @@ function App() {
       <Route
         path="/admin"
         element={
-          isAuthenticated && user?.role === 'admin' ? (
+          isAuthenticated && isAdminProfile ? (
             <SubscriptionGuard>
               <AdminLayout />
             </SubscriptionGuard>
@@ -211,6 +246,7 @@ function App() {
         <Route path="incidents" element={<Incidents />} />
         <Route path="visits" element={<AdminVisits />} />
         <Route path="communications" element={<Communications />} />
+        <Route path="procedures" element={<AdminProcedures />} />
         <Route path="reports" element={<Reports />} />
         <Route path="subscription" element={<SubscriptionStatus />} />
         <Route path="staff" element={<StaffManagement />} />
@@ -228,17 +264,35 @@ function App() {
       <Route
         path="/subadmin"
         element={
-          isAuthenticated ? (
+          !isAuthenticated ? (
+            <Navigate to="/auth/login" replace />
+          ) : isSubAdminProfile ? (
             <SubscriptionGuard>
               <SubAdminLayout />
             </SubscriptionGuard>
           ) : (
-            <Navigate to="/auth/login" replace />
+            <Navigate to="/unauthorized" replace />
           )
         }
       >
         <Route index element={<AdminDashboard />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route 
+          path="common-areas" 
+          element={
+            <PermissionRoute permissions={[PERMISSIONS.COMMON_AREAS_VIEW, PERMISSIONS.COMMON_AREAS_MANAGE]}>
+              <CommonAreas />
+            </PermissionRoute>
+          }
+        />
+        <Route 
+          path="maps" 
+          element={
+            <PermissionRoute permissions={[PERMISSIONS.MAPS_VIEW, PERMISSIONS.MAPS_MANAGE]}>
+              <CondominiumMaps />
+            </PermissionRoute>
+          }
+        />
         <Route 
           path="residents" 
           element={
@@ -271,6 +325,38 @@ function App() {
             </PermissionRoute>
           } 
         />
+        <Route
+          path="procedures"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.RESIDENTS_VIEW}>
+              <AdminProcedures />
+            </PermissionRoute>
+          }
+        />
+        <Route 
+          path="reservations" 
+          element={
+            <PermissionRoute permissions={PERMISSIONS.RESERVATIONS_VIEW}>
+              <AdminReservations />
+            </PermissionRoute>
+          } 
+        />
+        <Route 
+          path="visits" 
+          element={
+            <PermissionRoute permissions={PERMISSIONS.SECURITY_MANAGE_VISITORS}>
+              <AdminVisits />
+            </PermissionRoute>
+          } 
+        />
+        <Route 
+          path="reports" 
+          element={
+            <PermissionRoute permissions={PERMISSIONS.REPORTS_VIEW}>
+              <Reports />
+            </PermissionRoute>
+          }
+        />
       </Route>
 
       {/* Protected routes - Security */}
@@ -282,21 +368,71 @@ function App() {
       >
         <Route index element={<SecurityDashboard />} />
         <Route path="dashboard" element={<SecurityDashboard />} />
-        <Route path="access-log" element={<div className="text-white">Access Log - Coming Soon</div>} />
-        <Route path="visitors" element={<AdminVisits />} />
-        <Route path="incidents" element={<Incidents />} />
+        <Route
+          path="access-log"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.SECURITY_VIEW_ACCESS_LOG}>
+              <SecurityAccessLog />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="visitors"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.SECURITY_MANAGE_VISITORS}>
+              <AdminVisits />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="access-control"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.SECURITY_MANAGE_ACCESS_CONTROL}>
+              <SecurityAccessControl />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="cameras"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.SECURITY_VIEW_CAMERAS}>
+              <SecurityCameras />
+            </PermissionRoute>
+          }
+        />
+        <Route
+          path="incidents"
+          element={
+            <PermissionRoute permissions={[PERMISSIONS.INCIDENTS_VIEW, PERMISSIONS.INCIDENTS_CREATE]}>
+              <Incidents />
+            </PermissionRoute>
+          }
+        />
       </Route>
 
       {/* Protected routes - Maintenance */}
       <Route
         path="/maintenance"
         element={
-          isAuthenticated ? <MaintenanceLayout /> : <Navigate to="/auth/login" replace />
+          !isAuthenticated ? (
+            <Navigate to="/auth/login" replace />
+          ) : isMaintenanceProfile ? (
+            <MaintenanceLayout />
+          ) : (
+            <Navigate to="/unauthorized" replace />
+          )
         }
       >
         <Route index element={<MaintenanceDashboard />} />
         <Route path="dashboard" element={<MaintenanceDashboard />} />
-        <Route path="incidents" element={<Incidents />} />
+        <Route
+          path="incidents"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.INCIDENTS_VIEW}>
+              <MaintenanceIncidents />
+            </PermissionRoute>
+          }
+        />
         <Route path="new-incident" element={<NewIncident />} />
       </Route>
 
@@ -338,6 +474,49 @@ function App() {
         <Route path="reports" element={<Reports />} />
       </Route>
 
+      {/* Protected routes - Provider */}
+      <Route
+        path="/provider"
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/auth/login" replace />
+          ) : isProviderProfile ? (
+            <ProviderLayout />
+          ) : (
+            <Navigate to="/unauthorized" replace />
+          )
+        }
+      >
+        <Route index element={<ProviderDashboard />} />
+        <Route path="dashboard" element={<ProviderDashboard />} />
+      </Route>
+
+      {/* Protected routes - Cleaning */}
+      <Route
+        path="/cleaning"
+        element={
+          !isAuthenticated ? (
+            <Navigate to="/auth/login" replace />
+          ) : isCleaningProfile ? (
+            <CleaningLayout />
+          ) : (
+            <Navigate to="/unauthorized" replace />
+          )
+        }
+      >
+        <Route index element={<CleaningDashboard />} />
+        <Route path="dashboard" element={<CleaningDashboard />} />
+        <Route
+          path="incidents"
+          element={
+            <PermissionRoute permissions={PERMISSIONS.INCIDENTS_VIEW}>
+              <MaintenanceIncidents />
+            </PermissionRoute>
+          }
+        />
+        <Route path="new-incident" element={<NewIncident />} />
+      </Route>
+
       {/* Protected routes - Resident */}
       <Route
         path="/resident"
@@ -372,6 +551,8 @@ function App() {
         <Route path="visits" element={<MyVisits />} />
         <Route path="visits/new" element={<NewVisit />} />
         <Route path="visits/:id" element={<VisitDetail />} />
+        <Route path="visits/:id/edit" element={<EditVisit />} />
+        <Route path="procedures" element={<ResidentProcedures />} />
         <Route path="communications" element={<ResidentCommunications />} />
       </Route>
 
@@ -382,12 +563,18 @@ function App() {
           isAuthenticated ? (
             user?.role === 'superadmin' ? (
               <Navigate to="/superadmin" replace />
-            ) : user?.role === 'admin' ? (
+            ) : isSubAdminProfile ? (
+              <Navigate to="/subadmin" replace />
+            ) : isAdminProfile ? (
               <Navigate to="/admin" replace />
             ) : user?.role === 'security' ? (
               <Navigate to="/security" replace />
             ) : user?.role === 'maintenance' ? (
               <Navigate to="/maintenance" replace />
+            ) : user?.role === 'provider' ? (
+              <Navigate to="/provider" replace />
+            ) : user?.role === 'cleaning' ? (
+              <Navigate to="/cleaning" replace />
             ) : user?.role === 'accountant' ? (
               <Navigate to="/accountant" replace />
             ) : (
@@ -402,6 +589,7 @@ function App() {
       {/* Catch all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   )
 }
 

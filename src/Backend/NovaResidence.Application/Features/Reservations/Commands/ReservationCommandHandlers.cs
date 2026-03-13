@@ -28,6 +28,9 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
         if (!amenity.IsActive)
             return Result.Invalid(new ValidationError("Amenity is not available for reservations"));
 
+        if (!amenity.RequiresReservation)
+            return Result.Invalid(new ValidationError("This amenity does not accept reservations"));
+
         // Validate resident exists
         var resident = await _context.Residents
             .FirstOrDefaultAsync(r => r.Id == request.ResidentId, cancellationToken);
@@ -46,18 +49,33 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
         if (request.StartTime >= request.EndTime)
             return Result.Invalid(new ValidationError("End time must be after start time"));
 
+        if (request.StartTime < TimeOnly.FromTimeSpan(amenity.OpeningTime) ||
+            request.EndTime > TimeOnly.FromTimeSpan(amenity.ClosingTime))
+            return Result.Invalid(new ValidationError($"Reservations must be within operating hours ({amenity.OpeningTime:hh\\:mm} - {amenity.ClosingTime:hh\\:mm})"));
+
         // Validate reservation date
         if (request.ReservationDate < DateOnly.FromDateTime(DateTime.Now))
             return Result.Invalid(new ValidationError("Cannot create reservations for past dates"));
 
+        if (request.NumberOfGuests <= 0)
+            return Result.Invalid(new ValidationError("Number of guests must be greater than zero"));
+
         // Check for conflicting reservations in the Reservations table
         var startDateTime = request.ReservationDate.ToDateTime(request.StartTime);
         var endDateTime = request.ReservationDate.ToDateTime(request.EndTime);
+        var reservationDuration = endDateTime - startDateTime;
+
+        if (reservationDuration < TimeSpan.FromHours(amenity.MinReservationHours))
+            return Result.Invalid(new ValidationError($"Reservations must be at least {amenity.MinReservationHours} hour(s)"));
+
+        if (reservationDuration > TimeSpan.FromHours(amenity.MaxReservationHours))
+            return Result.Invalid(new ValidationError($"Reservations cannot exceed {amenity.MaxReservationHours} hour(s)"));
         
         var hasConflict = await _context.Reservations
             .AnyAsync(r => 
                 r.AmenityId == request.AmenityId &&
                 r.Status != ReservationStatus.Cancelled &&
+                r.Status != ReservationStatus.Rejected &&
                 ((startDateTime >= r.StartDateTime && startDateTime < r.EndDateTime) ||
                  (endDateTime > r.StartDateTime && endDateTime <= r.EndDateTime) ||
                  (startDateTime <= r.StartDateTime && endDateTime >= r.EndDateTime)),
@@ -78,6 +96,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
             startDateTime,
             endDateTime,
             request.NumberOfGuests,
+            amenity.RequiresApproval,
             amenity.ReservationFee,
             request.Notes
         );

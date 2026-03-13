@@ -14,4 +14,9 @@ public interface IPasswordHasher
     /// Verify a password against a hash
     /// </summary>
     bool VerifyPassword(string password, string passwordHash);
+
+    /// <summary>
+    /// Determines whether the stored hash should be upgraded.
+    /// </summary>
+    bool NeedsRehash(string passwordHash);
 }

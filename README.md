@@ -85,7 +85,30 @@ NovaResidence/
    dotnet ef database update --startup-project ../NovaResidence.Api
    ```
 
-4. **Ejecutar API**
+4. **Configurar validación de correo y recuperación de contraseña**
+   
+    Completa estos valores en `src/Backend/NovaResidence.Api/appsettings.Development.json` o vía secretos/variables de entorno:
+    ```json
+    {
+       "Auth": {
+          "FrontendBaseUrl": "http://localhost:5173",
+          "RequireConfirmedEmailForLogin": true
+       },
+       "Email": {
+          "BrevoApiKey": "TU_API_KEY_O_SMTP_KEY_DE_BREVO",
+          "SmtpUsername": "tu-login-smtp-brevo-si-usas-xsmtpsib",
+          "FromEmail": "no-reply@tu-dominio.com",
+          "FromName": "NovaResidence"
+       }
+    }
+    ```
+   
+    `FrontendBaseUrl` se usa para construir los enlaces de confirmación de correo y restablecimiento de contraseña. El proyecto ya exige confirmación de correo antes del login.
+
+    Si `BrevoApiKey` empieza con `xkeysib-`, se usa la API REST de Brevo.
+    Si `BrevoApiKey` empieza con `xsmtpsib-`, se usa SMTP relay y debes completar `SmtpUsername` con el usuario SMTP real de tu cuenta de Brevo. No siempre coincide con `FromEmail`.
+
+5. **Ejecutar API**
    ```bash
    cd src/Backend/NovaResidence.Api
    dotnet run

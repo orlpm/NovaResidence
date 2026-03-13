@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MediatR;
 using Ardalis.Result;
+using NovaResidence.Api.Security;
 using NovaResidence.Application.Features.Incidents.Commands;
 using NovaResidence.Application.Features.Incidents.Queries;
 using NovaResidence.Domain.Enums;
@@ -9,20 +11,26 @@ namespace NovaResidence.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class IncidentsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly IWebHostEnvironment _env;
+    private readonly ITenantAccessService _tenantAccessService;
 
-    public IncidentsController(IMediator mediator, IWebHostEnvironment env)
+    public IncidentsController(IMediator mediator, IWebHostEnvironment env, ITenantAccessService tenantAccessService)
     {
         _mediator = mediator;
         _env = env;
+        _tenantAccessService = tenantAccessService;
     }
 
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<IncidentDetailDto>> GetIncident(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetIncidentQuery(id));
         
         if (!result.IsSuccess)
@@ -40,6 +48,9 @@ public class IncidentsController : ControllerBase
         [FromQuery] IncidentType? type = null,
         [FromQuery] IncidentPriority? priority = null)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, condominiumId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetCondominiumIncidentsQuery(condominiumId, status, type, priority));
         
         if (!result.IsSuccess)
@@ -51,6 +62,9 @@ public class IncidentsController : ControllerBase
     [HttpGet("unit/{unitId:guid}")]
     public async Task<ActionResult<List<IncidentListDto>>> GetUnitIncidents(Guid unitId)
     {
+        if (!await _tenantAccessService.CanAccessUnitAsync(User, unitId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetUnitIncidentsQuery(unitId));
         
         if (!result.IsSuccess)
@@ -62,6 +76,9 @@ public class IncidentsController : ControllerBase
     [HttpGet("my-incidents/{reporterId:guid}")]
     public async Task<ActionResult<List<IncidentListDto>>> GetMyIncidents(Guid reporterId)
     {
+        if (!await _tenantAccessService.CanAccessUserAsync(User, reporterId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetMyIncidentsQuery(reporterId));
         
         if (!result.IsSuccess)
@@ -73,6 +90,9 @@ public class IncidentsController : ControllerBase
     [HttpGet("assigned/{assigneeId:guid}")]
     public async Task<ActionResult<List<IncidentListDto>>> GetAssignedIncidents(Guid assigneeId)
     {
+        if (!await _tenantAccessService.CanAccessUserAsync(User, assigneeId))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new GetAssignedIncidentsQuery(assigneeId));
         
         if (!result.IsSuccess)
@@ -84,6 +104,13 @@ public class IncidentsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Guid>> CreateIncident([FromBody] CreateIncidentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessCondominiumAsync(User, request.CondominiumId)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.ReportedById)
+            || (request.UnitId.HasValue && !await _tenantAccessService.CanAccessUnitAsync(User, request.UnitId.Value)))
+        {
+            return TenantForbidden();
+        }
+
         var command = new CreateIncidentCommand(
             request.CondominiumId,
             request.ReportedById,
@@ -136,6 +163,9 @@ public class IncidentsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult> UpdateIncident(Guid id, [FromBody] UpdateIncidentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id))
+            return TenantForbidden();
+
         var command = new UpdateIncidentCommand(
             id,
             request.Title,
@@ -158,6 +188,9 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/acknowledge")]
     public async Task<ActionResult> AcknowledgeIncident(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new AcknowledgeIncidentCommand(id));
         
         if (!result.IsSuccess)
@@ -171,6 +204,12 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/assign")]
     public async Task<ActionResult> AssignIncident(Guid id, [FromBody] AssignIncidentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.AssigneeId))
+        {
+            return TenantForbidden();
+        }
+
         var result = await _mediator.Send(new AssignIncidentCommand(id, request.AssigneeId));
         
         if (!result.IsSuccess)
@@ -184,6 +223,9 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/start-progress")]
     public async Task<ActionResult> StartProgress(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new StartIncidentProgressCommand(id));
         
         if (!result.IsSuccess)
@@ -197,6 +239,12 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/resolve")]
     public async Task<ActionResult> ResolveIncident(Guid id, [FromBody] ResolveIncidentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.ResolvedById))
+        {
+            return TenantForbidden();
+        }
+
         var result = await _mediator.Send(new ResolveIncidentCommand(
             id, 
             request.ResolvedById, 
@@ -215,6 +263,9 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/close")]
     public async Task<ActionResult> CloseIncident(Guid id)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new CloseIncidentCommand(id));
         
         if (!result.IsSuccess)
@@ -228,6 +279,9 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/reopen")]
     public async Task<ActionResult> ReopenIncident(Guid id, [FromBody] ReopenIncidentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id))
+            return TenantForbidden();
+
         var result = await _mediator.Send(new ReopenIncidentCommand(id, request.Reason));
         
         if (!result.IsSuccess)
@@ -241,6 +295,12 @@ public class IncidentsController : ControllerBase
     [HttpPost("{id:guid}/comments")]
     public async Task<ActionResult<Guid>> AddComment(Guid id, [FromBody] AddCommentRequest request)
     {
+        if (!await _tenantAccessService.CanAccessIncidentAsync(User, id)
+            || !await _tenantAccessService.CanAccessUserAsync(User, request.UserId))
+        {
+            return TenantForbidden();
+        }
+
         var result = await _mediator.Send(new AddIncidentCommentCommand(
             id, 
             request.UserId, 
@@ -254,6 +314,11 @@ public class IncidentsController : ControllerBase
                 : BadRequest(result.Errors);
         
         return Ok(result.Value);
+    }
+
+    private ActionResult TenantForbidden()
+    {
+        return StatusCode(StatusCodes.Status403Forbidden, new[] { "No tienes acceso a este condominio" });
     }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import Modal from '../Modal'
 import CondominiumInfoStep from './steps/CondominiumInfoStep'
@@ -7,6 +7,9 @@ import UnitsSetupStep from './steps/UnitsSetupStep'
 import ResidentInvitationStep from './steps/ResidentInvitationStep'
 import { condominiumService } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
+import { clearOnboardingState, saveOnboardingState } from '../../lib/onboardingStorage'
+import { getApiErrorMessage } from '../../lib/apiErrors'
+import type { OnboardingData } from '../../types/onboarding'
 
 interface OnboardingWizardProps {
   isOpen?: boolean
@@ -14,56 +17,8 @@ interface OnboardingWizardProps {
   onComplete?: (data: OnboardingData) => void
   initialPlan?: 'basico' | 'profesional' | 'empresarial'
   isEmbedded?: boolean
-}
-
-export interface OnboardingData {
-  // Admin Info (optional for embedded wizard)
-  admin?: {
-    email: string
-    password: string
-    firstName: string
-    lastName: string
-    phoneNumber: string
-  }
-  // Plan Selection (optional for embedded wizard)
-  selectedPlan?: 'basico' | 'profesional' | 'empresarial'
-  // Condominium Info
-  condominium: {
-    name: string
-    address: string
-    city: string
-    state: string
-    zipCode: string
-    sections?: string[]
-  }
-  // Building Type
-  buildingTypes: {
-    vertical: boolean
-    horizontal: boolean
-  }
-  // Units
-  buildings: Array<{
-    id: string
-    name: string
-    type: 'vertical' | 'horizontal'
-    section?: string
-    numberOfUnits: number
-    startsAtGroundFloor?: boolean
-    units: Array<{
-      number: string
-      floor?: number
-      isCommercial: boolean
-    }>
-  }>
-  // Residents
-  invitationMethod: 'manual' | 'link'
-  residents?: Array<{
-    unitId: string
-    email: string
-    firstName: string
-    lastName: string
-    isOwner: boolean
-  }>
+  initialData?: OnboardingData
+  initialStep?: number
 }
 
 const steps = [
@@ -73,28 +28,79 @@ const steps = [
   { id: 4, title: 'Residentes', description: 'Invitar residentes' }
 ]
 
-export default function OnboardingWizard({ isOpen = true, onClose, onComplete, initialPlan: _initialPlan, isEmbedded = false }: OnboardingWizardProps) {
-  const [currentStep, setCurrentStep] = useState(1)
+const defaultOnboardingData: OnboardingData = {
+  condominium: {
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    stateId: '',
+    zipCode: '',
+    country: 'México',
+    countryId: '',
+    sections: []
+  },
+  buildingTypes: {
+    vertical: false,
+    horizontal: false
+  },
+  buildings: [],
+  invitationMethod: 'link',
+  residents: []
+}
+
+export default function OnboardingWizard({ isOpen = true, onClose, onComplete, initialPlan: _initialPlan, isEmbedded = false, initialData, initialStep = 1 }: OnboardingWizardProps) {
+  const [currentStep, setCurrentStep] = useState(initialStep)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const { user } = useAuthStore()
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
+    ...defaultOnboardingData,
+    ...initialData,
     condominium: {
-      name: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      sections: []
+      ...defaultOnboardingData.condominium,
+      ...initialData?.condominium
     },
     buildingTypes: {
-      vertical: false,
-      horizontal: false
+      ...defaultOnboardingData.buildingTypes,
+      ...initialData?.buildingTypes
     },
-    buildings: [],
-    invitationMethod: 'link',
-    residents: []
+    buildings: initialData?.buildings ?? defaultOnboardingData.buildings,
+    invitationMethod: initialData?.invitationMethod ?? defaultOnboardingData.invitationMethod,
+    residents: initialData?.residents ?? defaultOnboardingData.residents
   })
+
+  useEffect(() => {
+    setCurrentStep(initialStep)
+  }, [initialStep])
+
+  useEffect(() => {
+    if (!initialData) return
+
+    setOnboardingData({
+      ...defaultOnboardingData,
+      ...initialData,
+      condominium: {
+        ...defaultOnboardingData.condominium,
+        ...initialData.condominium
+      },
+      buildingTypes: {
+        ...defaultOnboardingData.buildingTypes,
+        ...initialData.buildingTypes
+      },
+      buildings: initialData.buildings ?? defaultOnboardingData.buildings,
+      invitationMethod: initialData.invitationMethod ?? defaultOnboardingData.invitationMethod,
+      residents: initialData.residents ?? defaultOnboardingData.residents
+    })
+  }, [initialData])
+
+  useEffect(() => {
+    saveOnboardingState({
+      currentStep,
+      data: onboardingData,
+      userId: user?.id
+    })
+  }, [currentStep, onboardingData, user?.id])
 
   const updateData = (stepData: Partial<OnboardingData>) => {
     setOnboardingData(prev => ({ ...prev, ...stepData }))
@@ -128,10 +134,15 @@ export default function OnboardingWizard({ isOpen = true, onClose, onComplete, i
       console.log('Condominium created successfully:', result)
       
       // Store wizard data in localStorage for backward compatibility
-      localStorage.setItem('onboarding_wizard_data', JSON.stringify({
-        ...onboardingData,
-        condominiumId: result.condominiumId
-      }))
+      saveOnboardingState({
+        currentStep: steps.length,
+        data: {
+          ...onboardingData,
+          condominiumId: result.condominiumId
+        } as OnboardingData,
+        userId
+      })
+      clearOnboardingState()
       
       if (onComplete) {
         onComplete(onboardingData)
@@ -140,11 +151,7 @@ export default function OnboardingWizard({ isOpen = true, onClose, onComplete, i
       }
     } catch (error: any) {
       console.error('Error creating condominium:', error)
-      setSubmitError(
-        error.response?.data?.message || 
-        error.message || 
-        'Error al crear el condominio. Por favor intente nuevamente.'
-      )
+      setSubmitError(getApiErrorMessage(error, 'Error al crear el condominio. Por favor intente nuevamente.'))
     } finally {
       setIsSubmitting(false)
     }

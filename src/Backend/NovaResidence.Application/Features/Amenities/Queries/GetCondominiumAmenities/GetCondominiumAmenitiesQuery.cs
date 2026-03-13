@@ -13,6 +13,7 @@ public record AmenityListDto(
     int TypeId,
     int Capacity,
     bool RequiresReservation,
+    bool RequiresApproval,
     bool IsActive,
     decimal? ReservationFee,
     string OpeningTime,

@@ -3,7 +3,8 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, Sun, Moon, LogOut,
   LayoutDashboard, Users, DollarSign, 
-  AlertCircle, MessageSquare
+  AlertCircle, MessageSquare, Calendar, Footprints, FileText, Map, Building2
+  , ClipboardCheck
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../stores/authStore';
@@ -43,6 +44,42 @@ export default function SubAdminLayout() {
       href: '/subadmin/communications', 
       icon: MessageSquare,
       permission: PERMISSIONS.COMMUNICATIONS_VIEW_ANNOUNCEMENTS
+    },
+    {
+      name: 'Trámites',
+      href: '/subadmin/procedures',
+      icon: ClipboardCheck,
+      permission: PERMISSIONS.RESIDENTS_VIEW
+    },
+    {
+      name: 'Reservaciones',
+      href: '/subadmin/reservations',
+      icon: Calendar,
+      permission: PERMISSIONS.RESERVATIONS_VIEW
+    },
+    {
+      name: 'Visitas',
+      href: '/subadmin/visits',
+      icon: Footprints,
+      permission: PERMISSIONS.SECURITY_MANAGE_VISITORS
+    },
+    {
+      name: 'Áreas Comunes',
+      href: '/subadmin/common-areas',
+      icon: Building2,
+      permission: PERMISSIONS.COMMON_AREAS_VIEW
+    },
+    {
+      name: 'Mapas',
+      href: '/subadmin/maps',
+      icon: Map,
+      permission: PERMISSIONS.MAPS_VIEW
+    },
+    {
+      name: 'Reportes',
+      href: '/subadmin/reports',
+      icon: FileText,
+      permission: PERMISSIONS.REPORTS_VIEW
     }
   ];
 

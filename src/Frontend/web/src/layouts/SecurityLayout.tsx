@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, Sun, Moon, LogOut, Shield,
-  LayoutDashboard, ClipboardList, Users, AlertCircle
+  LayoutDashboard, ClipboardList, Users, AlertCircle, ShieldCheck, Camera
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../stores/authStore';
@@ -30,6 +30,18 @@ export default function SecurityLayout() {
       href: '/security/visitors', 
       icon: Users,
       permission: PERMISSIONS.SECURITY_MANAGE_VISITORS
+    },
+    {
+      name: 'Control de Accesos',
+      href: '/security/access-control',
+      icon: ShieldCheck,
+      permission: PERMISSIONS.SECURITY_MANAGE_ACCESS_CONTROL
+    },
+    {
+      name: 'Cámaras',
+      href: '/security/cameras',
+      icon: Camera,
+      permission: PERMISSIONS.SECURITY_VIEW_CAMERAS
     },
     { 
       name: 'Incidencias', 

@@ -46,6 +46,8 @@ import {
   type MeetingQuorumDto
 } from '../../lib/communicationsService'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { PERMISSIONS } from '../../config/permissions'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useAuthStore } from '../../stores/authStore'
 
 type TabType = 'announcements' | 'polls' | 'meetings' | 'forum'
@@ -55,6 +57,7 @@ export default function Communications() {
   const [activeTab, setActiveTab] = useState<TabType>('announcements')
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState<string>('')
+  const { hasPermission } = usePermissions(selectedCondominium || undefined)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -121,7 +124,28 @@ export default function Communications() {
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
-  useEffect(() => { loadCondominiums() }, [])
+  const canViewAnnouncements = hasPermission(PERMISSIONS.COMMUNICATIONS_VIEW_ANNOUNCEMENTS)
+  const canCreateAnnouncements = hasPermission(PERMISSIONS.COMMUNICATIONS_CREATE_ANNOUNCEMENTS)
+  const canEditAnnouncements = hasPermission(PERMISSIONS.COMMUNICATIONS_EDIT_ANNOUNCEMENTS)
+  const canDeleteAnnouncements = hasPermission(PERMISSIONS.COMMUNICATIONS_DELETE_ANNOUNCEMENTS)
+  const canPublishAnnouncements = hasPermission(PERMISSIONS.COMMUNICATIONS_PUBLISH_ANNOUNCEMENTS)
+
+  const canViewPolls = hasPermission(PERMISSIONS.COMMUNICATIONS_VIEW_POLLS)
+  const canCreatePolls = hasPermission(PERMISSIONS.COMMUNICATIONS_CREATE_POLLS)
+  const canManagePolls = hasPermission(PERMISSIONS.COMMUNICATIONS_MANAGE_POLLS)
+  const canViewPollResults = hasPermission(PERMISSIONS.COMMUNICATIONS_VIEW_POLL_RESULTS)
+
+  const canViewMeetings = hasPermission(PERMISSIONS.COMMUNICATIONS_VIEW_MEETINGS)
+  const canCreateMeetings = hasPermission(PERMISSIONS.COMMUNICATIONS_CREATE_MEETINGS)
+  const canManageMeetings = hasPermission(PERMISSIONS.COMMUNICATIONS_MANAGE_MEETINGS)
+
+  const canViewForum = hasPermission(PERMISSIONS.COMMUNICATIONS_VIEW_FORUM)
+  const canPostForum = hasPermission(PERMISSIONS.COMMUNICATIONS_POST_FORUM)
+  const canModerateForum = hasPermission(PERMISSIONS.COMMUNICATIONS_MODERATE_FORUM)
+
+  useEffect(() => {
+    void loadCondominiums(user?.id)
+  }, [user?.id])
 
   useEffect(() => {
     if (selectedCondominium) {
@@ -129,9 +153,15 @@ export default function Communications() {
     }
   }, [selectedCondominium, activeTab])
 
-  const loadCondominiums = async () => {
+  useEffect(() => {
+    if (!tabs.some(tab => tab.id === activeTab)) {
+      setActiveTab(tabs[0]?.id ?? 'announcements')
+    }
+  }, [activeTab, canViewAnnouncements, canViewForum, canViewMeetings, canViewPolls])
+
+  const loadCondominiums = async (userId?: string) => {
     try {
-      const data = await condominiumService.getAllCondominiums(user?.id)
+      const data = await condominiumService.getAllCondominiums(userId)
       setCondominiums(data)
       if (data.length > 0) setSelectedCondominium(data[0].id)
     } catch { setError('Error al cargar condominios') }
@@ -590,11 +620,11 @@ export default function Communications() {
   }
 
   const tabs = [
-    { id: 'announcements' as TabType, label: 'Avisos', icon: Bell },
-    { id: 'polls' as TabType, label: 'Encuestas', icon: Vote },
-    { id: 'meetings' as TabType, label: 'Reuniones', icon: Users },
-    { id: 'forum' as TabType, label: 'Foro', icon: MessageSquare }
-  ]
+    canViewAnnouncements ? { id: 'announcements' as TabType, label: 'Avisos', icon: Bell } : null,
+    canViewPolls ? { id: 'polls' as TabType, label: 'Encuestas', icon: Vote } : null,
+    canViewMeetings ? { id: 'meetings' as TabType, label: 'Reuniones', icon: Users } : null,
+    canViewForum ? { id: 'forum' as TabType, label: 'Foro', icon: MessageSquare } : null
+  ].filter(Boolean) as Array<{ id: TabType; label: string; icon: typeof Bell }>
 
   return (
     <div className="space-y-6">
@@ -706,12 +736,14 @@ export default function Communications() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Avisos y Circulares</h2>
-                <button
-                  onClick={() => { resetAnnouncementForm(); setShowAnnouncementModal(true) }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
-                >
-                  <Plus className="w-5 h-5" /> Nuevo Aviso
-                </button>
+                {canCreateAnnouncements && (
+                  <button
+                    onClick={() => { resetAnnouncementForm(); setShowAnnouncementModal(true) }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
+                  >
+                    <Plus className="w-5 h-5" /> Nuevo Aviso
+                  </button>
+                )}
               </div>
 
               <div className="overflow-hidden">
@@ -752,64 +784,70 @@ export default function Communications() {
                           {formatDate(announcement.createdAt)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="relative">
-                            <button
-                              onClick={() => setOpenDropdown(openDropdown === announcement.id ? null : announcement.id)}
-                              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                            >
-                              <MoreVertical className="w-5 h-5 text-gray-400" />
-                            </button>
-                            {openDropdown === announcement.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                                <button
-                                  onClick={() => {
-                                    setSelectedAnnouncement(announcement)
-                                    setAnnouncementForm({
-                                      condominiumId: selectedCondominium,
-                                      title: announcement.title,
-                                      content: announcement.content,
-                                      type: announcement.type,
-                                      priority: announcement.priority,
-                                      expiresAt: announcement.expiresAt,
-                                      meetingDate: announcement.meetingDate,
-                                      meetingLocation: announcement.meetingLocation
-                                    })
-                                    setShowAnnouncementModal(true)
-                                    setOpenDropdown(null)
-                                  }}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <Edit2 className="w-4 h-4" /> Editar
-                                </button>
-                                {!announcement.isPublished && (
-                                  <button
-                                    onClick={() => handlePublishAnnouncement(announcement)}
-                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  >
-                                    <Send className="w-4 h-4" /> Publicar
-                                  </button>
-                                )}
-                                {announcement.isPublished && (
-                                  <button
-                                    onClick={() => handleUnpublishAnnouncement(announcement)}
-                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                  >
-                                    <XCircle className="w-4 h-4" /> Despublicar
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    setSelectedAnnouncement(announcement)
-                                    setShowDeleteAnnouncementModal(true)
-                                    setOpenDropdown(null)
-                                  }}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <Trash2 className="w-4 h-4" /> Eliminar
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          {(canEditAnnouncements || canPublishAnnouncements || canDeleteAnnouncements) && (
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenDropdown(openDropdown === announcement.id ? null : announcement.id)}
+                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                              >
+                                <MoreVertical className="w-5 h-5 text-gray-400" />
+                              </button>
+                              {openDropdown === announcement.id && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                                  {canEditAnnouncements && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedAnnouncement(announcement)
+                                        setAnnouncementForm({
+                                          condominiumId: selectedCondominium,
+                                          title: announcement.title,
+                                          content: announcement.content,
+                                          type: announcement.type,
+                                          priority: announcement.priority,
+                                          expiresAt: announcement.expiresAt,
+                                          meetingDate: announcement.meetingDate,
+                                          meetingLocation: announcement.meetingLocation
+                                        })
+                                        setShowAnnouncementModal(true)
+                                        setOpenDropdown(null)
+                                      }}
+                                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <Edit2 className="w-4 h-4" /> Editar
+                                    </button>
+                                  )}
+                                  {canPublishAnnouncements && !announcement.isPublished && (
+                                    <button
+                                      onClick={() => handlePublishAnnouncement(announcement)}
+                                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <Send className="w-4 h-4" /> Publicar
+                                    </button>
+                                  )}
+                                  {canPublishAnnouncements && announcement.isPublished && (
+                                    <button
+                                      onClick={() => handleUnpublishAnnouncement(announcement)}
+                                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <XCircle className="w-4 h-4" /> Despublicar
+                                    </button>
+                                  )}
+                                  {canDeleteAnnouncements && (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedAnnouncement(announcement)
+                                        setShowDeleteAnnouncementModal(true)
+                                        setOpenDropdown(null)
+                                      }}
+                                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
+                                      <Trash2 className="w-4 h-4" /> Eliminar
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -832,12 +870,14 @@ export default function Communications() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Encuestas y Votaciones</h2>
-                <button
-                  onClick={() => { resetPollForm(); setShowPollModal(true) }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
-                >
-                  <Plus className="w-5 h-5" /> Nueva Encuesta
-                </button>
+                {canCreatePolls && (
+                  <button
+                    onClick={() => { resetPollForm(); setShowPollModal(true) }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
+                  >
+                    <Plus className="w-5 h-5" /> Nueva Encuesta
+                  </button>
+                )}
               </div>
 
               <div className="grid gap-4">
@@ -852,22 +892,25 @@ export default function Communications() {
                         <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPollStatusColor(poll.status)}`}>
                           {poll.statusName}
                         </span>
-                        <div className="relative">
-                          <button
-                            onClick={() => setOpenDropdown(openDropdown === poll.id ? null : poll.id)}
-                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                          >
-                            <MoreVertical className="w-5 h-5 text-gray-400" />
-                          </button>
-                          {openDropdown === poll.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                              <button
-                                onClick={() => openPollResults(poll)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                <Eye className="w-4 h-4" /> Ver Resultados
-                              </button>
-                              {poll.status === PollStatus.Draft && (
+                        {(canViewPollResults || canManagePolls) && (
+                          <div className="relative">
+                            <button
+                              onClick={() => setOpenDropdown(openDropdown === poll.id ? null : poll.id)}
+                              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                            >
+                              <MoreVertical className="w-5 h-5 text-gray-400" />
+                            </button>
+                            {openDropdown === poll.id && (
+                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                                {canViewPollResults && (
+                                  <button
+                                    onClick={() => openPollResults(poll)}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  >
+                                    <Eye className="w-4 h-4" /> Ver Resultados
+                                  </button>
+                                )}
+                                {canManagePolls && poll.status === PollStatus.Draft && (
                                 <>
                                   <button
                                     onClick={() => {
@@ -896,7 +939,7 @@ export default function Communications() {
                                   </button>
                                 </>
                               )}
-                              {poll.status === PollStatus.Active && (
+                                {canManagePolls && poll.status === PollStatus.Active && (
                                 <button
                                   onClick={() => handleClosePoll(poll)}
                                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -904,7 +947,7 @@ export default function Communications() {
                                   <Square className="w-4 h-4" /> Cerrar
                                 </button>
                               )}
-                              {(poll.status === PollStatus.Draft || poll.status === PollStatus.Active) && (
+                                {canManagePolls && (poll.status === PollStatus.Draft || poll.status === PollStatus.Active) && (
                                 <button
                                   onClick={() => handleCancelPoll(poll)}
                                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -912,19 +955,22 @@ export default function Communications() {
                                   <XCircle className="w-4 h-4" /> Cancelar
                                 </button>
                               )}
-                              <button
-                                onClick={() => {
-                                  setSelectedPoll(poll)
-                                  setShowDeletePollModal(true)
-                                  setOpenDropdown(null)
-                                }}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                <Trash2 className="w-4 h-4" /> Eliminar
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                                {canManagePolls && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPoll(poll)
+                                      setShowDeletePollModal(true)
+                                      setOpenDropdown(null)
+                                    }}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  >
+                                    <Trash2 className="w-4 h-4" /> Eliminar
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -984,12 +1030,14 @@ export default function Communications() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Reuniones y Juntas</h2>
-                <button
-                  onClick={() => { resetMeetingForm(); setShowMeetingModal(true) }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
-                >
-                  <Plus className="w-5 h-5" /> Nueva Reunión
-                </button>
+                {canCreateMeetings && (
+                  <button
+                    onClick={() => { resetMeetingForm(); setShowMeetingModal(true) }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
+                  >
+                    <Plus className="w-5 h-5" /> Nueva Reunión
+                  </button>
+                )}
               </div>
 
               <div className="grid gap-4">
@@ -1005,22 +1053,23 @@ export default function Communications() {
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{meeting.description}</p>
                       </div>
-                      <div className="relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === meeting.id ? null : meeting.id)}
-                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                        >
-                          <MoreVertical className="w-5 h-5 text-gray-400" />
-                        </button>
-                        {openDropdown === meeting.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                            <button
-                              onClick={() => { openMeetingDetail(meeting); setOpenDropdown(null) }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              <Eye className="w-4 h-4" /> Ver Detalle
-                            </button>
-                            {meeting.status === MeetingStatus.Scheduled && (
+                      {(canViewMeetings || canManageMeetings) && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenDropdown(openDropdown === meeting.id ? null : meeting.id)}
+                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                          >
+                            <MoreVertical className="w-5 h-5 text-gray-400" />
+                          </button>
+                          {openDropdown === meeting.id && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                              <button
+                                onClick={() => { openMeetingDetail(meeting); setOpenDropdown(null) }}
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              >
+                                <Eye className="w-4 h-4" /> Ver Detalle
+                              </button>
+                              {canManageMeetings && meeting.status === MeetingStatus.Scheduled && (
                               <>
                                 <button
                                   onClick={() => {
@@ -1057,7 +1106,7 @@ export default function Communications() {
                                 </button>
                               </>
                             )}
-                            {meeting.status === MeetingStatus.InProgress && (
+                              {canManageMeetings && meeting.status === MeetingStatus.InProgress && (
                               <button
                                 onClick={() => handleEndMeeting(meeting)}
                                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -1065,19 +1114,22 @@ export default function Communications() {
                                 <Square className="w-4 h-4" /> Finalizar
                               </button>
                             )}
-                            <button
-                              onClick={() => {
-                                setSelectedMeeting(meeting)
-                                setShowDeleteMeetingModal(true)
-                                setOpenDropdown(null)
-                              }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              <Trash2 className="w-4 h-4" /> Eliminar
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                              {canManageMeetings && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedMeeting(meeting)
+                                    setShowDeleteMeetingModal(true)
+                                    setOpenDropdown(null)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <Trash2 className="w-4 h-4" /> Eliminar
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
@@ -1116,12 +1168,14 @@ export default function Communications() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Foro de la Comunidad</h2>
-                <button
-                  onClick={() => { resetForumForm(); setShowForumModal(true) }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
-                >
-                  <Plus className="w-5 h-5" /> Nueva Publicación
-                </button>
+                {canPostForum && (
+                  <button
+                    onClick={() => { resetForumForm(); setShowForumModal(true) }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
+                  >
+                    <Plus className="w-5 h-5" /> Nueva Publicación
+                  </button>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -1135,86 +1189,92 @@ export default function Communications() {
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{post.content}</p>
                       </div>
-                      <div className="relative">
-                        <button
-                          onClick={() => setOpenDropdown(openDropdown === post.id ? null : post.id)}
-                          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                        >
-                          <MoreVertical className="w-5 h-5 text-gray-400" />
-                        </button>
-                        {openDropdown === post.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
-                            <button
-                              onClick={() => {
-                                setSelectedForumPost(post)
-                                setForumForm({
-                                  condominiumId: selectedCondominium,
-                                  authorId: post.authorId,
-                                  authorName: post.authorName,
-                                  title: post.title,
-                                  content: post.content,
-                                  category: post.category,
-                                  allowComments: post.allowComments
-                                })
-                                setShowForumModal(true)
-                                setOpenDropdown(null)
-                              }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              <Edit2 className="w-4 h-4" /> Editar
-                            </button>
-                            {post.isPinned ? (
-                              <button
-                                onClick={() => handleUnpinForumPost(post)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                <Pin className="w-4 h-4" /> Desfijar
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handlePinForumPost(post)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-yellow-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                <Pin className="w-4 h-4" /> Fijar
-                              </button>
-                            )}
-                            {post.status === ForumPostStatus.Active && (
-                              <>
+                      {(canPostForum || canModerateForum) && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenDropdown(openDropdown === post.id ? null : post.id)}
+                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                          >
+                            <MoreVertical className="w-5 h-5 text-gray-400" />
+                          </button>
+                          {openDropdown === post.id && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                              {canPostForum && (
                                 <button
-                                  onClick={() => handleHideForumPost(post)}
-                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  <XCircle className="w-4 h-4" /> Ocultar
-                                </button>
-                                <button
-                                  onClick={() => handleArchiveForumPost(post)}
+                                  onClick={() => {
+                                    setSelectedForumPost(post)
+                                    setForumForm({
+                                      condominiumId: selectedCondominium,
+                                      authorId: post.authorId,
+                                      authorName: post.authorName,
+                                      title: post.title,
+                                      content: post.content,
+                                      category: post.category,
+                                      allowComments: post.allowComments
+                                    })
+                                    setShowForumModal(true)
+                                    setOpenDropdown(null)
+                                  }}
                                   className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                                 >
-                                  <Archive className="w-4 h-4" /> Archivar
+                                  <Edit2 className="w-4 h-4" /> Editar
                                 </button>
-                              </>
-                            )}
-                            {(post.status === ForumPostStatus.Hidden || post.status === ForumPostStatus.Archived) && (
-                              <button
-                                onClick={() => handleRestoreForumPost(post)}
-                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              >
-                                <CheckCircle className="w-4 h-4" /> Restaurar
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                setSelectedForumPost(post)
-                                setShowDeleteForumModal(true)
-                                setOpenDropdown(null)
-                              }}
-                              className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              <Trash2 className="w-4 h-4" /> Eliminar
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                              )}
+                              {canModerateForum && (post.isPinned ? (
+                                <button
+                                  onClick={() => handleUnpinForumPost(post)}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <Pin className="w-4 h-4" /> Desfijar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handlePinForumPost(post)}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-yellow-600 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <Pin className="w-4 h-4" /> Fijar
+                                </button>
+                              ))}
+                              {canModerateForum && post.status === ForumPostStatus.Active && (
+                                <>
+                                  <button
+                                    onClick={() => handleHideForumPost(post)}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-orange-600 dark:text-orange-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  >
+                                    <XCircle className="w-4 h-4" /> Ocultar
+                                  </button>
+                                  <button
+                                    onClick={() => handleArchiveForumPost(post)}
+                                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                  >
+                                    <Archive className="w-4 h-4" /> Archivar
+                                  </button>
+                                </>
+                              )}
+                              {canModerateForum && (post.status === ForumPostStatus.Hidden || post.status === ForumPostStatus.Archived) && (
+                                <button
+                                  onClick={() => handleRestoreForumPost(post)}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <CheckCircle className="w-4 h-4" /> Restaurar
+                                </button>
+                              )}
+                              {(canModerateForum || canPostForum) && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedForumPost(post)
+                                    setShowDeleteForumModal(true)
+                                    setOpenDropdown(null)
+                                  }}
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  <Trash2 className="w-4 h-4" /> Eliminar
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">

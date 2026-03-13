@@ -52,3 +52,4 @@ playwright-report/
 test-results/
 .deploy/
 src/Backend/NovaResidence.Api/uploads/
+src/Backend/NovaResidence.Api/config/system-settings.json

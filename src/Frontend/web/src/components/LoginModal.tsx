@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import Modal from './Modal'
-
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
+import { getPostLoginRoute } from '../lib/adminOnboardingFlow'
+import { getApiErrorMessage } from '../lib/apiErrors'
 
 interface LoginModalProps {
   isOpen: boolean
@@ -19,7 +19,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const setAuthData = useAuthStore((state) => state.setAuthData)
+  const login = useAuthStore((state) => state.login)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,49 +27,12 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || data.Message || data.errors?.[0] || 'Credenciales inválidas')
-      }
-
-      // Extraer datos de la respuesta (manejar tanto camelCase como PascalCase)
-      const accessToken = data.accessToken || data.AccessToken || data.token || data.Token
-      const refreshToken = data.refreshToken || data.RefreshToken
-      const userFromResponse = data.user || data.User
-      
-      const userData = userFromResponse ? {
-        id: userFromResponse.id || userFromResponse.Id || '1',
-        email: userFromResponse.email || userFromResponse.Email || email,
-        firstName: userFromResponse.firstName || userFromResponse.FirstName || email.split('@')[0],
-        lastName: userFromResponse.lastName || userFromResponse.LastName || '',
-        role: (userFromResponse.role || userFromResponse.Role || 'admin').toLowerCase() as 'admin' | 'resident' | 'provider',
-      } : {
-        id: '1',
-        email: email,
-        firstName: email.split('@')[0],
-        lastName: '',
-        role: 'admin' as const,
-      }
-
-      // Guardar en el store (esto también persiste en localStorage)
-      setAuthData(userData, accessToken, refreshToken)
+      const user = await login(email, password)
 
       onClose()
-      // Navegar según el rol del usuario
-      if (userData.role === 'admin') {
-        navigate('/admin/dashboard')
-      } else {
-        navigate('/resident')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Credenciales inválidas. Por favor intenta de nuevo.')
+      navigate(getPostLoginRoute(user))
+    } catch (error) {
+      setError(getApiErrorMessage(error, 'Credenciales inválidas. Por favor intenta de nuevo.'))
     } finally {
       setLoading(false)
     }
@@ -155,7 +118,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
 
         <div className="text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            ¿No tienes una cuenta?{' '}
+            ¿Eres residente?{' '}
             <button
               type="button"
               onClick={() => {
@@ -164,9 +127,19 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }: Logi
               }}
               className="text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 font-semibold"
             >
-              Regístrate aquí
+              Registro de residente
             </button>
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              handleClose()
+              navigate('/alta-administrador')
+            }}
+            className="mt-3 text-sm font-semibold text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
+          >
+            ¿Administras un condominio? Alta de Administrador
+          </button>
         </div>
       </form>
     </Modal>

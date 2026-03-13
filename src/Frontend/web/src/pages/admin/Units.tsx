@@ -164,8 +164,8 @@ function Units() {
             Por favor, cierra sesión y vuelve a iniciar sesión para continuar.
           </p>
           <button
-            onClick={() => {
-              useAuthStore.getState().logout()
+            onClick={async () => {
+              await useAuthStore.getState().logout()
               navigate('/login')
             }}
             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"

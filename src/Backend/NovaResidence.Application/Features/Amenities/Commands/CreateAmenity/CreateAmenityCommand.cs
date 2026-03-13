@@ -10,6 +10,7 @@ public record CreateAmenityCommand(
     int Type,
     int Capacity,
     bool RequiresReservation,
+    bool RequiresApproval,
     TimeSpan OpeningTime,
     TimeSpan ClosingTime,
     decimal? ReservationFee = null,

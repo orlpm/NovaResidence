@@ -21,7 +21,9 @@ public record AddressDto(
     string City,
     string State,
     string PostalCode,
-    string Country);
+    string Country,
+    Guid? CountryId,
+    Guid? StateId);
 
 public record BuildingDetailDto(
     Guid Id,

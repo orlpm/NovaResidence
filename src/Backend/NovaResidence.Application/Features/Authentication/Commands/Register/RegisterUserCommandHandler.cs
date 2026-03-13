@@ -11,15 +11,18 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RegisterUserCommandHandler> _logger;
     private readonly IResidentRepository _residentRepository;
+    private readonly IPasswordHasher _passwordHasher;
 
     public RegisterUserCommandHandler(
         IUnitOfWork unitOfWork,
         ILogger<RegisterUserCommandHandler> logger,
-        IResidentRepository residentRepository)
+        IResidentRepository residentRepository,
+        IPasswordHasher passwordHasher)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _residentRepository = residentRepository;
+        _passwordHasher = passwordHasher;
     }
 
     public async Task<Result<RegisterUserResponse>> Handle(
@@ -37,18 +40,23 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
             
             if (resident == null)
             {
-                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "Invalid or expired invitation token" }, null));
+                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "Token de invitación inválido o expirado" }, null));
             }
 
             if (resident.IsRegistered)
             {
-                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "This invitation has already been used" }, null));
+                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "Esta invitación ya fue utilizada" }, null));
+            }
+
+            if (resident.IsInvitationExpired())
+            {
+                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "Token de invitación expirado" }, null));
             }
 
             // Verify email matches
             if (!resident.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase))
             {
-                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "Email does not match invitation" }, null));
+                return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "El correo no coincide con la invitación" }, null));
             }
         }
 
@@ -56,11 +64,10 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         var existingUser = await _unitOfWork.Users.GetByEmailAsync(request.Email, cancellationToken);
         if (existingUser != null)
         {
-            return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "User with this email already exists" }, null));
+            return Result<RegisterUserResponse>.Error(new ErrorList(new[] { "Ya existe un usuario con este correo" }, null));
         }
 
-        // Hash password (in real implementation, use IPasswordHasher)
-        var passwordHash = HashPassword(request.Password);
+        var passwordHash = _passwordHasher.HashPassword(request.Password);
 
         // Determine role - if from invitation, role is "Resident", otherwise use provided role
         var userRole = !string.IsNullOrEmpty(request.InvitationToken) ? "Resident" : (request.Role ?? "User");
@@ -102,11 +109,5 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
             Token: "temp-jwt-token"); // TODO: Generate real JWT
 
         return Result.Success(response);
-    }
-
-    private string HashPassword(string password)
-    {
-        // TODO: Implement proper password hashing using BCrypt or Identity
-        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(password));
     }
 }

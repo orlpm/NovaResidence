@@ -1,7 +1,12 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using NovaResidence.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http.Json;
+using MimeKit;
 
 namespace NovaResidence.Infrastructure.Services;
 
@@ -67,7 +72,7 @@ public class AzureBlobStorageService : IBlobStorageService
         await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
     }
 
-    public async Task<string> GetFileUrlAsync(
+    public Task<string> GetFileUrlAsync(
         string fileName,
         string containerName,
         CancellationToken cancellationToken = default)
@@ -75,31 +80,179 @@ public class AzureBlobStorageService : IBlobStorageService
         var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
         var blobClient = containerClient.GetBlobClient(fileName);
 
-        return blobClient.Uri.ToString();
+        return Task.FromResult(blobClient.Uri.ToString());
     }
 }
 
 public class EmailService : IEmailService
 {
     private readonly ILogger<EmailService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public EmailService(ILogger<EmailService> logger)
+    public EmailService(
+        ILogger<EmailService> logger,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration)
     {
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
-    public Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
+    public async Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
-        // TODO: Implement using Azure Communication Services or SendGrid
-        _logger.LogInformation("Sending email to: {To}, Subject: {Subject}", to, subject);
-        return Task.CompletedTask;
+        var apiKey = _configuration["Email:BrevoApiKey"];
+        var senderEmail = _configuration["Email:FromEmail"];
+        var senderName = _configuration["Email:FromName"] ?? "NovaResidence";
+
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
+        {
+            throw new InvalidOperationException("Brevo email is not configured. Set Email:BrevoApiKey and Email:FromEmail.");
+        }
+        
+        if (apiKey.StartsWith("xsmtpsib-", StringComparison.OrdinalIgnoreCase))
+        {
+            await SendEmailViaBrevoSmtpAsync(to, subject, body, senderEmail, senderName, apiKey, cancellationToken);
+            return;
+        }
+
+        var client = _httpClientFactory.CreateClient("BrevoEmail");
+        using var response = await client.PostAsJsonAsync(
+            "v3/smtp/email",
+            new
+            {
+                sender = new { email = senderEmail, name = senderName },
+                to = new[] { new { email = to } },
+                subject,
+                htmlContent = body,
+                textContent = ConvertHtmlToPlainText(body)
+            },
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Brevo email send failed. Status: {StatusCode}, Response: {Response}", response.StatusCode, errorContent);
+            throw new InvalidOperationException("No fue posible enviar el correo con Brevo.");
+        }
+
+        _logger.LogInformation("Email sent via Brevo to: {To}, Subject: {Subject}", to, subject);
     }
 
-    public Task SendEmailWithTemplateAsync(string to, string templateId, object data, CancellationToken cancellationToken = default)
+    public async Task SendEmailWithTemplateAsync(string to, string templateId, object data, CancellationToken cancellationToken = default)
     {
-        // TODO: Implement template-based email sending
-        _logger.LogInformation("Sending template email to: {To}, Template: {TemplateId}", to, templateId);
-        return Task.CompletedTask;
+        var apiKey = _configuration["Email:BrevoApiKey"];
+        var senderEmail = _configuration["Email:FromEmail"];
+        var senderName = _configuration["Email:FromName"] ?? "NovaResidence";
+
+        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
+        {
+            throw new InvalidOperationException("Brevo email is not configured. Set Email:BrevoApiKey and Email:FromEmail.");
+        }
+        
+        if (apiKey.StartsWith("xsmtpsib-", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Brevo template sending requires an API key (xkeysib-), not an SMTP key.");
+        }
+
+        if (!int.TryParse(templateId, out var templateIdValue))
+        {
+            throw new InvalidOperationException("Brevo template id must be numeric.");
+        }
+
+        var client = _httpClientFactory.CreateClient("BrevoEmail");
+        using var response = await client.PostAsJsonAsync(
+            "v3/smtp/email",
+            new
+            {
+                sender = new { email = senderEmail, name = senderName },
+                to = new[] { new { email = to } },
+                templateId = templateIdValue,
+                @params = data
+            },
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Brevo template email send failed. Status: {StatusCode}, Response: {Response}", response.StatusCode, errorContent);
+            throw new InvalidOperationException("No fue posible enviar el correo templado con Brevo.");
+        }
+
+        _logger.LogInformation("Template email sent via Brevo to: {To}, Template: {TemplateId}", to, templateId);
+    }
+
+    private static string ConvertHtmlToPlainText(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return string.Empty;
+        }
+
+        var withoutTags = System.Text.RegularExpressions.Regex.Replace(html, "<[^>]+>", " ");
+        var decoded = System.Net.WebUtility.HtmlDecode(withoutTags);
+        return System.Text.RegularExpressions.Regex.Replace(decoded, "\\s+", " ").Trim();
+    }
+
+    private async Task SendEmailViaBrevoSmtpAsync(
+        string to,
+        string subject,
+        string body,
+        string senderEmail,
+        string senderName,
+        string smtpKey,
+        CancellationToken cancellationToken)
+    {
+        var smtpHost = _configuration["Email:SmtpHost"] ?? "smtp-relay.brevo.com";
+        var smtpPort = _configuration.GetValue<int?>("Email:SmtpPort") ?? 587;
+        var configuredUsername = _configuration["Email:SmtpUsername"];
+        var usernameCandidates = new[] { configuredUsername, senderEmail, "apikey" }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(senderName, senderEmail));
+        message.To.Add(MailboxAddress.Parse(to));
+        message.Subject = subject;
+        message.Body = new BodyBuilder
+        {
+            HtmlBody = body,
+            TextBody = ConvertHtmlToPlainText(body)
+        }.ToMessageBody();
+
+        Exception? lastException = null;
+
+        foreach (var smtpUsername in usernameCandidates)
+        {
+            try
+            {
+                using var smtpClient = new SmtpClient();
+                await smtpClient.ConnectAsync(smtpHost, smtpPort, SecureSocketOptions.StartTls, cancellationToken);
+                await smtpClient.AuthenticateAsync(smtpUsername, smtpKey, cancellationToken);
+                await smtpClient.SendAsync(message, cancellationToken);
+                await smtpClient.DisconnectAsync(true, cancellationToken);
+
+                _logger.LogInformation(
+                    "Email sent via Brevo SMTP to: {To}, Subject: {Subject}, Username: {Username}",
+                    to,
+                    subject,
+                    smtpUsername);
+
+                return;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                _logger.LogWarning(ex, "Brevo SMTP authentication/send failed for username {Username}", smtpUsername);
+            }
+        }
+
+        throw new InvalidOperationException(
+            "No fue posible enviar el correo con Brevo SMTP. Configura Email:SmtpUsername con el usuario SMTP correcto.",
+            lastException);
     }
 }
 

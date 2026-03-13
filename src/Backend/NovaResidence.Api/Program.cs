@@ -1,4 +1,5 @@
 using NovaResidence.Api.Middleware;
+using NovaResidence.Api.Security;
 using NovaResidence.Application;
 using NovaResidence.Infrastructure;
 using Microsoft.OpenApi.Models;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
+builder.Services.AddScoped<ITenantAccessService, TenantAccessService>();
 builder.Services.AddEndpointsApiExplorer();
 
 // Swagger/OpenAPI configuration
@@ -115,6 +117,9 @@ using (var scope = app.Services.CreateScope())
     }
     
     // Seed permissions and role permissions
+    var geoCatalogSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.GeoCatalogSeeder(dbContext);
+    await geoCatalogSeeder.SeedAsync();
+
     var permissionSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.PermissionSeeder(dbContext);
     await permissionSeeder.SeedAsync();
     
@@ -124,6 +129,10 @@ using (var scope = app.Services.CreateScope())
     // Seed subscription plans
     var subscriptionPlanSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.SubscriptionPlanSeeder(dbContext);
     await subscriptionPlanSeeder.SeedAsync();
+
+    // Seed jurisdictional procedure templates
+    var procedureTemplateSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.ProcedureTemplateSeeder(dbContext);
+    await procedureTemplateSeeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline

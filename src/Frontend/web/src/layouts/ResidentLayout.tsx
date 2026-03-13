@@ -16,7 +16,8 @@ import {
   Building2,
   Users,
   Trees,
-  Map
+  Map,
+  ClipboardCheck
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -34,6 +35,7 @@ const navigation = [
   { name: 'Mapa', href: '/resident/map', icon: Map },
   { name: 'Incidencias', href: '/resident/incidents', icon: AlertCircle },
   { name: 'Visitas', href: '/resident/visits', icon: Users },
+  { name: 'Trámites', href: '/resident/procedures', icon: ClipboardCheck },
   { name: 'Comunicación', href: '/resident/communications', icon: MessageSquare },
 ]
 
@@ -85,8 +87,8 @@ function ResidentLayout() {
     fetchCondominiumId()
   }, [user])
 
-  const handleLogout = () => {
-    logout()
+  const handleLogout = async () => {
+    await logout()
     navigate('/')
   }
 

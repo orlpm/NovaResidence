@@ -10,6 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Mail;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace NovaResidence.Api.Controllers;
 
@@ -23,6 +26,8 @@ public class AuthController : ControllerBase
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtService _jwtService;
     private readonly IApplicationDbContext _context;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         IMediator mediator, 
@@ -30,7 +35,9 @@ public class AuthController : ControllerBase
         IUserRepository userRepository,
         IPasswordHasher passwordHasher,
         IJwtService jwtService,
-        IApplicationDbContext context)
+        IApplicationDbContext context,
+        IEmailService emailService,
+        IConfiguration configuration)
     {
         _mediator = mediator;
         _logger = logger;
@@ -38,6 +45,8 @@ public class AuthController : ControllerBase
         _passwordHasher = passwordHasher;
         _jwtService = jwtService;
         _context = context;
+        _emailService = emailService;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -87,9 +96,27 @@ public class AuthController : ControllerBase
 
         if (result.IsSuccess)
         {
+            var registeredUser = await _userRepository.GetByIdIncludingDeletedAsync(result.Value.UserId);
+            if (registeredUser != null)
+            {
+                var autoConfirm = IsStaffRole(command.Role)
+                    || IsProviderRole(command.Role)
+                    || (User?.Identity?.IsAuthenticated ?? false);
+
+                if (autoConfirm)
+                {
+                    registeredUser.ConfirmEmail();
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    await IssueEmailConfirmationAsync(registeredUser, HttpContext.RequestAborted);
+                }
+            }
+
             return Ok(ApiResponse<RegisterUserResponse>.SuccessResponse(
                 result.Value,
-                "User registered successfully"));
+                "Usuario registrado correctamente. Revisa tu correo para confirmar tu cuenta."));
         }
 
         return BadRequest(ApiResponse<RegisterUserResponse>.FailureResponse(
@@ -294,6 +321,8 @@ public class AuthController : ControllerBase
             request.LastName.Trim(),
             request.PhoneNumber,
             GetRoleString(staffRole.Value));
+
+        user.ConfirmEmail();
 
         user.AddCondominiumRole(request.CondominiumId, staffRole.Value);
 
@@ -517,6 +546,21 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Credenciales inválidas" });
         }
 
+        if (!user.IsActive)
+        {
+            _logger.LogWarning("Login failed: Inactive user {Email}", request.Email);
+            return Unauthorized(new { message = "Tu cuenta está desactivada" });
+        }
+
+        if (_configuration.GetValue<bool>("Auth:RequireConfirmedEmailForLogin") && !user.IsEmailConfirmed)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new
+            {
+                message = "Debes validar tu correo antes de iniciar sesión",
+                code = "EMAIL_NOT_CONFIRMED"
+            });
+        }
+
         // Verificar contraseña
         if (!_passwordHasher.VerifyPassword(request.Password, user.PasswordHash))
         {
@@ -524,38 +568,19 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Credenciales inválidas" });
         }
 
+        if (_passwordHasher.NeedsRehash(user.PasswordHash))
+        {
+            user.UpdatePassword(_passwordHasher.HashPassword(request.Password));
+        }
+
         // Actualizar último login
         user.UpdateLastLogin();
 
-        // Generar JWT tokens
-        var role = MapTokenRole(user.DefaultRole);
-        
-        var accessToken = _jwtService.GenerateAccessToken(
-            user.Id, 
-            user.Email, 
-            role, 
-            user.FirstName, 
-            user.LastName);
-        
-        var refreshToken = _jwtService.GenerateRefreshToken();
-        var expiresIn = _jwtService.GetAccessTokenExpirationSeconds();
+        var authResponse = await IssueAuthTokensAsync(user, HttpContext.RequestAborted);
 
         _logger.LogInformation("Login successful for user {UserId}", user.Id);
 
-        return Ok(new
-        {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken,
-            ExpiresIn = expiresIn,
-            User = new
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Role = role
-            }
-        });
+        return Ok(authResponse);
     }
 
     /// <summary>
@@ -566,18 +591,66 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
-        // TODO: Validate refresh token against stored tokens
-        // For now, generate new tokens (should validate stored refresh token in production)
-        var newAccessToken = _jwtService.GenerateRefreshToken(); // Temporary - should regenerate from user data
-        var newRefreshToken = _jwtService.GenerateRefreshToken();
-        var expiresIn = _jwtService.GetAccessTokenExpirationSeconds();
-
-        return Ok(new
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshToken,
-            ExpiresIn = expiresIn
-        });
+            return Unauthorized(new { message = "Refresh token inválido" });
+        }
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => !u.IsDeleted && u.RefreshToken == request.RefreshToken);
+
+        if (user == null || !user.HasValidRefreshToken(request.RefreshToken, DateTime.UtcNow))
+        {
+            return Unauthorized(new { message = "Refresh token inválido o expirado" });
+        }
+
+        if (_configuration.GetValue<bool>("Auth:RequireConfirmedEmailForLogin") && !user.IsEmailConfirmed)
+        {
+            user.ClearRefreshToken();
+            await _context.SaveChangesAsync(HttpContext.RequestAborted);
+            return Unauthorized(new { message = "Debes validar tu correo antes de renovar la sesión" });
+        }
+
+        var authResponse = await IssueAuthTokensAsync(user, HttpContext.RequestAborted);
+        return Ok(authResponse);
+    }
+
+    /// <summary>
+    /// Logout and revoke refresh token
+    /// </summary>
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout([FromBody] LogoutRequest? request)
+    {
+        var refreshToken = request?.RefreshToken?.Trim();
+        var currentUserId = GetCurrentUserId();
+
+        Domain.Entities.Authentication.User? user = null;
+
+        if (currentUserId.HasValue)
+        {
+            user = await _userRepository.GetByIdIncludingDeletedAsync(currentUserId.Value);
+        }
+
+        if (user == null && !string.IsNullOrWhiteSpace(refreshToken))
+        {
+            user = await _context.Users
+                .FirstOrDefaultAsync(u => !u.IsDeleted && u.RefreshToken == refreshToken, HttpContext.RequestAborted);
+        }
+
+        if (user != null && !string.IsNullOrWhiteSpace(user.RefreshToken))
+        {
+            user.ClearRefreshToken();
+            await _context.SaveChangesAsync(HttpContext.RequestAborted);
+            _logger.LogInformation("Logout successful for user {UserId}; refresh token revoked", user.Id);
+        }
+        else
+        {
+            _logger.LogInformation("Logout requested with no active refresh token to revoke");
+        }
+
+        return Ok(new { message = "Sesión cerrada correctamente" });
     }
 
     /// <summary>
@@ -587,8 +660,120 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
-        // TODO: Implement forgot password command
-        return Ok(new { Message = "Password reset email sent" });
+        if (string.IsNullOrWhiteSpace(request.Email) || !IsValidEmail(request.Email.Trim()))
+        {
+            return Ok(new
+            {
+                Message = "Si el correo existe, enviaremos instrucciones para restablecer la contraseña"
+            });
+        }
+
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        var user = await _userRepository.GetByEmailAsync(normalizedEmail);
+
+        if (user != null && user.IsActive)
+        {
+            await IssuePasswordResetAsync(user, HttpContext.RequestAborted);
+        }
+
+        return Ok(new
+        {
+            Message = "Si el correo existe, enviaremos instrucciones para restablecer la contraseña"
+        });
+    }
+
+    /// <summary>
+    /// Confirm email address
+    /// </summary>
+    [HttpGet("confirm-email")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
+    {
+        if (userId == Guid.Empty || string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest(new { message = "El enlace de verificación es inválido" });
+        }
+
+        var user = await _userRepository.GetByIdIncludingDeletedAsync(userId);
+        if (user == null)
+        {
+            return BadRequest(new { message = "El enlace de verificación es inválido" });
+        }
+
+        if (user.IsEmailConfirmed)
+        {
+            return Ok(new { message = "Tu correo ya había sido confirmado" });
+        }
+
+        var tokenHash = ComputeTokenHash(token);
+        if (!user.CanConfirmEmail(tokenHash, DateTime.UtcNow))
+        {
+            return BadRequest(new { message = "El enlace de verificación es inválido o expiró" });
+        }
+
+        user.ConfirmEmail();
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Correo confirmado correctamente" });
+    }
+
+    /// <summary>
+    /// Resend email confirmation
+    /// </summary>
+    [HttpPost("resend-email-confirmation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResendEmailConfirmation([FromBody] ResendEmailConfirmationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) || !IsValidEmail(request.Email.Trim()))
+        {
+            return Ok(new { message = "Si el correo existe y aún no está confirmado, enviaremos un nuevo enlace" });
+        }
+
+        var user = await _userRepository.GetByEmailAsync(request.Email.Trim().ToLowerInvariant());
+        if (user != null && !user.IsEmailConfirmed && user.IsActive)
+        {
+            await IssueEmailConfirmationAsync(user, HttpContext.RequestAborted);
+        }
+
+        return Ok(new { message = "Si el correo existe y aún no está confirmado, enviaremos un nuevo enlace" });
+    }
+
+    /// <summary>
+    /// Reset password using email token
+    /// </summary>
+    [HttpPost("reset-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (request.UserId == Guid.Empty || string.IsNullOrWhiteSpace(request.Token))
+        {
+            return BadRequest(new { message = "La solicitud de restablecimiento es inválida" });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+        {
+            return BadRequest(new { message = "La nueva contraseña debe tener al menos 6 caracteres" });
+        }
+
+        var user = await _userRepository.GetByIdIncludingDeletedAsync(request.UserId);
+        if (user == null)
+        {
+            return BadRequest(new { message = "La solicitud de restablecimiento es inválida" });
+        }
+
+        var tokenHash = ComputeTokenHash(request.Token);
+        if (!user.CanResetPassword(tokenHash, DateTime.UtcNow))
+        {
+            return BadRequest(new { message = "El enlace para restablecer contraseña es inválido o expiró" });
+        }
+
+        var newPasswordHash = _passwordHasher.HashPassword(request.NewPassword);
+        user.UpdatePassword(newPasswordHash);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Tu contraseña fue actualizada correctamente" });
     }
 
     /// <summary>
@@ -774,11 +959,146 @@ public class AuthController : ControllerBase
             return StatusCode(500, new { message = "Error al eliminar usuario" });
         }
     }
+
+    private async Task IssueEmailConfirmationAsync(Domain.Entities.Authentication.User user, CancellationToken cancellationToken)
+    {
+        if (user.IsEmailConfirmed)
+        {
+            return;
+        }
+
+        var token = GenerateSecureToken();
+        var tokenHash = ComputeTokenHash(token);
+        var expiresAt = DateTime.UtcNow.AddHours(_configuration.GetValue<int>("Auth:EmailConfirmationTokenExpirationHours", 48));
+        user.SetEmailConfirmationToken(tokenHash, expiresAt);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var confirmationUrl = $"{GetFrontendBaseUrl()}/auth/confirm-email?userId={Uri.EscapeDataString(user.Id.ToString())}&token={Uri.EscapeDataString(token)}";
+
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "Confirma tu correo en NovaResidence",
+            BuildEmailConfirmationBody(user.FirstName, confirmationUrl, expiresAt),
+            cancellationToken);
+    }
+
+    private async Task IssuePasswordResetAsync(Domain.Entities.Authentication.User user, CancellationToken cancellationToken)
+    {
+        var token = GenerateSecureToken();
+        var tokenHash = ComputeTokenHash(token);
+        var expiresAt = DateTime.UtcNow.AddMinutes(_configuration.GetValue<int>("Auth:PasswordResetTokenExpirationMinutes", 60));
+        user.SetPasswordResetToken(tokenHash, expiresAt);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var resetUrl = $"{GetFrontendBaseUrl()}/auth/reset-password?userId={Uri.EscapeDataString(user.Id.ToString())}&token={Uri.EscapeDataString(token)}";
+
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "Restablece tu contraseña en NovaResidence",
+            BuildPasswordResetBody(user.FirstName, resetUrl, expiresAt),
+            cancellationToken);
+    }
+
+    private async Task<object> IssueAuthTokensAsync(Domain.Entities.Authentication.User user, CancellationToken cancellationToken)
+    {
+        var role = MapTokenRole(user.DefaultRole);
+        var accessToken = _jwtService.GenerateAccessToken(
+            user.Id,
+            user.Email,
+            role,
+            user.FirstName,
+            user.LastName);
+
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        var refreshExpiresAt = DateTime.UtcNow.AddDays(_configuration.GetSection("Jwt").GetValue<int>("RefreshTokenExpirationDays", 7));
+        user.SetRefreshToken(refreshToken, refreshExpiresAt);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresIn = _jwtService.GetAccessTokenExpirationSeconds(),
+            User = new
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Role = role,
+                DefaultRole = user.DefaultRole
+            }
+        };
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var claim = User.FindFirst("userId")?.Value
+            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        return Guid.TryParse(claim, out var userId) ? userId : null;
+    }
+
+    private string GetFrontendBaseUrl()
+    {
+        return (_configuration["Auth:FrontendBaseUrl"] ?? "http://localhost:5173").TrimEnd('/');
+    }
+
+    private static string GenerateSecureToken()
+    {
+        return WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+    }
+
+    private static string ComputeTokenHash(string token)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(hash);
+    }
+
+    private static string BuildEmailConfirmationBody(string firstName, string confirmationUrl, DateTime expiresAt)
+    {
+        var safeName = System.Net.WebUtility.HtmlEncode(firstName);
+        var safeUrl = System.Net.WebUtility.HtmlEncode(confirmationUrl);
+        return $"""
+            <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a;\">
+              <h1 style=\"margin:0 0 16px;font-size:28px;color:#0284c7;\">Confirma tu correo</h1>
+              <p style=\"font-size:16px;line-height:1.6;\">Hola {safeName},</p>
+              <p style=\"font-size:16px;line-height:1.6;\">Gracias por registrarte en NovaResidence. Para activar tu cuenta, confirma tu correo desde el siguiente enlace:</p>
+              <p style=\"margin:24px 0;\">
+                <a href=\"{safeUrl}\" style=\"display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;\">Confirmar correo</a>
+              </p>
+              <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Este enlace vence el {expiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>
+              <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Si no solicitaste esta cuenta, puedes ignorar este mensaje.</p>
+            </div>
+            """;
+    }
+
+    private static string BuildPasswordResetBody(string firstName, string resetUrl, DateTime expiresAt)
+    {
+        var safeName = System.Net.WebUtility.HtmlEncode(firstName);
+        var safeUrl = System.Net.WebUtility.HtmlEncode(resetUrl);
+        return $"""
+            <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a;\">
+              <h1 style=\"margin:0 0 16px;font-size:28px;color:#0284c7;\">Restablece tu contraseña</h1>
+              <p style=\"font-size:16px;line-height:1.6;\">Hola {safeName},</p>
+              <p style=\"font-size:16px;line-height:1.6;\">Recibimos una solicitud para cambiar tu contraseña en NovaResidence. Usa el siguiente enlace para establecer una nueva:</p>
+              <p style=\"margin:24px 0;\">
+                <a href=\"{safeUrl}\" style=\"display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;\">Restablecer contraseña</a>
+              </p>
+              <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Este enlace vence el {expiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>
+              <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Si no solicitaste el cambio, puedes ignorar este correo.</p>
+            </div>
+            """;
+    }
 }
 
 public record LoginRequest(string Email, string Password);
 public record RefreshTokenRequest(string RefreshToken);
+public record LogoutRequest(string? RefreshToken);
 public record ForgotPasswordRequest(string Email);
+public record ResetPasswordRequest(Guid UserId, string Token, string NewPassword);
+public record ResendEmailConfirmationRequest(string Email);
 public record AdminResetPasswordRequest(string UserId, string NewPassword);
 public record CreateStaffUserRequest(
     string Email,

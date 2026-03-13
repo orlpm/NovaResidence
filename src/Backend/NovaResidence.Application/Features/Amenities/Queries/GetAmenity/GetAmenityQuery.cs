@@ -14,6 +14,7 @@ public record AmenityDetailDto(
     int TypeId,
     int Capacity,
     bool RequiresReservation,
+    bool RequiresApproval,
     bool IsActive,
     decimal? ReservationFee,
     int MinReservationHours,

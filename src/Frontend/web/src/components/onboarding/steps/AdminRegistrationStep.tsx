@@ -4,6 +4,7 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, AlertCircle } from 'lucide-react'
 interface AdminData {
   email: string
   password: string
+  confirmPassword: string
   firstName: string
   lastName: string
   phoneNumber: string
@@ -18,6 +19,7 @@ interface AdminRegistrationStepProps {
 export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminRegistrationStepProps) {
   const [formData, setFormData] = useState(data)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleChange = (field: string, value: string) => {
@@ -33,6 +35,9 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
 
     if (!formData.password) newErrors.password = 'Contraseña requerida'
     else if (formData.password.length < 8) newErrors.password = 'Mínimo 8 caracteres'
+
+    if (!formData.confirmPassword) newErrors.confirmPassword = 'Confirma tu contraseña'
+    else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Las contraseñas no coinciden'
 
     if (!formData.firstName) newErrors.firstName = 'Nombre requerido'
     if (!formData.lastName) newErrors.lastName = 'Apellido requerido'
@@ -159,6 +164,36 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
           </p>
         )}
         <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres</p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Confirmar contraseña
+        </label>
+        <div className="relative">
+          <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type={showConfirmPassword ? 'text' : 'password'}
+            value={formData.confirmPassword}
+            onChange={(e) => handleChange('confirmPassword', e.target.value)}
+            autoComplete="new-password"
+            className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white transition-all"
+            placeholder="••••••••"
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+          >
+            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+        </div>
+        {errors.confirmPassword && (
+          <p className="mt-1 text-sm text-red-600 flex items-center">
+            <AlertCircle className="w-4 h-4 mr-1" />
+            {errors.confirmPassword}
+          </p>
+        )}
       </div>
 
       <div>

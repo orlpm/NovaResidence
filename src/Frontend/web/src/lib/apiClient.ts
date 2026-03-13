@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import { useAuthStore } from '../stores/authStore'
+import { DEFAULT_API_TIMEOUT_MS } from './apiErrors'
 
 const API_BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api'
 
@@ -15,6 +16,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
+      timeout: DEFAULT_API_TIMEOUT_MS,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -34,7 +36,7 @@ class ApiClient {
         if (isLikelyJwt(accessToken)) {
           config.headers.Authorization = `Bearer ${accessToken}`
         } else if (accessToken) {
-          useAuthStore.getState().logout()
+          useAuthStore.getState().clearAuthData()
         }
         return config
       },
@@ -63,13 +65,13 @@ class ApiClient {
             await useAuthStore.getState().refreshAccessToken()
             const { accessToken } = useAuthStore.getState()
             if (!isLikelyJwt(accessToken)) {
-              useAuthStore.getState().logout()
+              useAuthStore.getState().clearAuthData()
               return Promise.reject(error)
             }
             originalRequest.headers.Authorization = `Bearer ${accessToken}`
             return this.client(originalRequest)
           } catch (refreshError) {
-            useAuthStore.getState().logout()
+            useAuthStore.getState().clearAuthData()
             return Promise.reject(refreshError)
           }
         }

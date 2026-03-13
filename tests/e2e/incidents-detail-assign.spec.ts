@@ -1,4 +1,7 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
+import { buildScenarioProfile } from './helpers/demo-data'
+import { createAdminCondominiumScenario } from './helpers/condominium'
+import { uniqueEmail } from './helpers/auth'
 
 const API_BASE = 'http://localhost:5001/api'
 const SUPERADMIN_EMAIL = 'superadmin@novaresidence.com'
@@ -18,49 +21,6 @@ async function loginAPI(request: APIRequestContext, email: string, password: str
   return { token, userId }
 }
 
-async function getFirstCondominiumId(request: APIRequestContext, token: string, userId?: string): Promise<string | null> {
-  const url = userId ? `${API_BASE}/condominiums?userId=${userId}` : `${API_BASE}/condominiums`
-  const response = await request.get(url, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-
-  expect(response.ok()).toBeTruthy()
-  const data = await response.json()
-  const condominiums = Array.isArray(data)
-    ? data
-    : (Array.isArray(data?.data) ? data.data : (Array.isArray(data?.data?.data) ? data.data.data : []))
-  return condominiums.length > 0 ? (condominiums[0].id as string) : null
-}
-
-async function getUserWithCondominium(
-  request: APIRequestContext,
-  superToken: string
-): Promise<{ userId: string; condominiumId: string }> {
-  const usersResponse = await request.get(`${API_BASE}/auth/users`, {
-    headers: { Authorization: `Bearer ${superToken}` }
-  })
-
-  expect(usersResponse.ok()).toBeTruthy()
-  const users = await usersResponse.json()
-  expect(Array.isArray(users)).toBeTruthy()
-
-  for (const user of users) {
-    const userId = user?.id as string | undefined
-    if (!userId) continue
-
-    const condominiumId = await getFirstCondominiumId(request, superToken, userId)
-    if (condominiumId) {
-      return { userId, condominiumId }
-    }
-  }
-
-  throw new Error('No se encontró un usuario con condominios disponibles para la prueba')
-}
-
-function uniqueEmail(prefix: string): string {
-  return `${prefix}.${Date.now()}@e2e.local`
-}
-
 async function loginUI(page: Page, email: string, password: string, expectedPath: RegExp) {
   await page.goto('/auth/login')
   await page.fill('input[type="email"]', email)
@@ -71,18 +31,19 @@ async function loginUI(page: Page, email: string, password: string, expectedPath
 
 test.describe('Incidents detail assignment UX', () => {
   test('assigns staff inside detail modal without opening a second assignment popup', async ({ request, page }) => {
-    const superadmin = await loginAPI(request, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD)
-    const linkedUser = await getUserWithCondominium(request, superadmin.token)
-    const condominiumId = linkedUser.condominiumId
+    const scenario = await createAdminCondominiumScenario(request, 'incidents.detail.assign')
+    const maintenanceProfile = buildScenarioProfile('incidents.detail.assign.maintenance')
+    const incidentProfile = buildScenarioProfile('incidents.detail.assign.incident')
+    const condominiumId = scenario.condominiumId
 
     const maintenanceEmail = uniqueEmail('detail.assign.maintenance')
     const createMaintenance = await request.post(`${API_BASE}/auth/staff-users`, {
-      headers: { Authorization: `Bearer ${superadmin.token}` },
+      headers: { Authorization: `Bearer ${scenario.superToken}` },
       data: {
         email: maintenanceEmail,
         password: 'Pass123.',
-        firstName: 'Detalle',
-        lastName: 'Operador',
+        firstName: maintenanceProfile.residentFirstName,
+        lastName: maintenanceProfile.residentLastName,
         phoneNumber: '5551112222',
         role: 'Maintenance',
         condominiumId
@@ -90,12 +51,12 @@ test.describe('Incidents detail assignment UX', () => {
     })
     expect(createMaintenance.ok()).toBeTruthy()
 
-    const incidentTitle = `Incidencia detalle asignación ${Date.now()}`
+    const incidentTitle = `Incidencia de asignacion ${incidentProfile.readableLabel}`
     const createIncident = await request.post(`${API_BASE}/incidents`, {
-      headers: { Authorization: `Bearer ${superadmin.token}` },
+      headers: { Authorization: `Bearer ${scenario.superToken}` },
       data: {
         condominiumId,
-        reportedById: superadmin.userId,
+        reportedById: scenario.superUserId,
         title: incidentTitle,
         description: 'Incidencia para validar asignación en popup de detalle',
         type: 0,
@@ -114,21 +75,31 @@ test.describe('Incidents detail assignment UX', () => {
       parsed.state.user = {
         ...(parsed.state.user || {}),
         id: linkedUserId,
-        role: 'maintenance',
-        defaultRole: 'Maintenance',
+        role: 'admin',
+        defaultRole: 'Admin',
         condominiumId: condoId
       }
       parsed.state.isAuthenticated = true
       window.localStorage.setItem('auth-storage', JSON.stringify(parsed))
-    }, { linkedUserId: linkedUser.userId, condoId: condominiumId })
+    }, { linkedUserId: scenario.adminUserId, condoId: condominiumId })
 
-    await page.goto('/maintenance/incidents')
+    await page.goto('/admin/incidents')
 
     const condominiumSelect = page.locator('text=Seleccionar Condominio').locator('..').locator('select')
     await expect
       .poll(async () => await condominiumSelect.locator('option').count(), { timeout: 30000 })
-      .toBeGreaterThan(1)
-    await condominiumSelect.selectOption({ index: 1 })
+      .toBeGreaterThan(0)
+
+    const hasTargetCondominium = await condominiumSelect.locator(`option[value="${condominiumId}"]`).count()
+    if (hasTargetCondominium > 0) {
+      await condominiumSelect.selectOption(condominiumId)
+    } else {
+      const firstSelectable = await condominiumSelect.locator('option:not([value=""])').first().getAttribute('value')
+      if (firstSelectable) {
+        await condominiumSelect.selectOption(firstSelectable)
+      }
+    }
+
     await expect(page.locator('text=Cargando incidencias...')).not.toBeVisible({ timeout: 15000 })
 
     const row = page.locator('tr', { hasText: incidentTitle })

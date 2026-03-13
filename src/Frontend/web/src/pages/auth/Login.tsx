@@ -1,17 +1,30 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { authService } from '../../lib/authService'
+import { getPostLoginRoute } from '../../lib/adminOnboardingFlow'
+import { getApiErrorCode, getApiErrorMessage } from '../../lib/apiErrors'
 
 function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login } = useAuthStore()
   const [loading, setLoading] = useState(false)
+  const [resendingConfirmation, setResendingConfirmation] = useState(false)
+  const [confirmationPendingEmail, setConfirmationPendingEmail] = useState('')
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
+
+  useEffect(() => {
+    const email = searchParams.get('email')
+    if (email) {
+      setFormData((current) => ({ ...current, email }))
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,28 +39,37 @@ function Login() {
     try {
       const user = await login(formData.email, formData.password)
       toast.success('¡Bienvenido!')
-      
-      // Redirect based on user role
-      const role = user.role?.toLowerCase() || user.defaultRole?.toLowerCase()
-      if (role === 'superadmin') {
-        navigate('/superadmin')
-      } else if (role === 'admin') {
-        navigate('/admin')
-      } else if (role === 'security' || role === 'securityguard') {
-        navigate('/security')
-      } else if (role === 'maintenance' || role === 'cleaning') {
-        navigate('/maintenance')
-      } else if (role === 'accountant') {
-        navigate('/accountant')
-      } else {
-        navigate('/resident')
-      }
-    } catch (error: any) {
+
+      navigate(getPostLoginRoute(user, searchParams.get('next')))
+    } catch (error) {
       console.error('Login error:', error)
-      const errorMessage = error.response?.data?.message || 'Error al iniciar sesión'
+      const errorMessage = getApiErrorMessage(error, 'Error al iniciar sesión')
+      const errorCode = getApiErrorCode(error) || ((error as { code?: string })?.code)
+
+      if (errorCode === 'EMAIL_NOT_CONFIRMED') {
+        setConfirmationPendingEmail(formData.email.trim())
+      }
+
       toast.error(errorMessage)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    if (!confirmationPendingEmail) {
+      toast.error('No hay un correo pendiente para reenviar')
+      return
+    }
+
+    setResendingConfirmation(true)
+    try {
+      const response = await authService.resendEmailConfirmation(confirmationPendingEmail)
+      toast.success(response.message || 'Te enviamos un nuevo enlace de confirmación')
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'No se pudo reenviar el correo de confirmación'))
+    } finally {
+      setResendingConfirmation(false)
     }
   }
 
@@ -59,6 +81,38 @@ function Login() {
       <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
         Ingresa a tu cuenta de NovaResidence
       </p>
+
+      {searchParams.get('next') === '/admin/onboarding' && (
+        <div className="mb-6 rounded-xl border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
+          <p className="font-semibold mb-1">Acceso rápido para administradores</p>
+          <p>Después de iniciar sesión te llevaremos directo al onboarding para terminar el alta de tu condominio.</p>
+        </div>
+      )}
+
+      {!searchParams.get('next') && confirmationPendingEmail === '' && formData.email === '' && (
+        <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200">
+          <p className="font-semibold mb-1">¿Administras un condominio y vas con poco tiempo?</p>
+          <p>Usa la ruta de alta dedicada para crear tu cuenta, confirmar correo y seguir directo al onboarding.</p>
+          <Link to="/alta-administrador" className="mt-3 inline-flex font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300">
+            Ir a Alta de Administrador
+          </Link>
+        </div>
+      )}
+
+      {confirmationPendingEmail && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+          <p className="font-semibold mb-1">Tu correo aún no está confirmado</p>
+          <p className="mb-3 break-all">Debes validar <span className="font-semibold">{confirmationPendingEmail}</span> antes de iniciar sesión.</p>
+          <button
+            type="button"
+            onClick={handleResendConfirmation}
+            disabled={resendingConfirmation}
+            className="inline-flex items-center justify-center rounded-lg bg-amber-600 px-3 py-2 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            {resendingConfirmation ? 'Reenviando...' : 'Reenviar correo de confirmación'}
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -114,9 +168,9 @@ function Login() {
           </div>
 
           <div className="text-sm">
-            <a href="#" className="font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-colors">
+            <Link to="/auth/forgot-password" className="font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-colors">
               ¿Olvidaste tu contraseña?
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -144,9 +198,15 @@ function Login() {
 
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          ¿No tienes cuenta?{' '}
+          ¿Eres administrador?{' '}
+          <Link to="/alta-administrador" className="font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-colors">
+            Alta de Administrador
+          </Link>
+        </p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          ¿Eres residente?{' '}
           <Link to="/auth/register" className="font-semibold text-sky-600 hover:text-sky-500 dark:text-sky-400 dark:hover:text-sky-300 transition-colors">
-            Regístrate
+            Regístrate aquí
           </Link>
         </p>
       </div>

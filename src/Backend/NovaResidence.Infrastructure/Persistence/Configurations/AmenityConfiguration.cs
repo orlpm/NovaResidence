@@ -29,6 +29,10 @@ public class AmenityConfiguration : IEntityTypeConfiguration<Amenity>
             .IsRequired()
             .HasDefaultValue(true);
 
+        builder.Property(a => a.RequiresApproval)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(a => a.IsActive)
             .IsRequired()
             .HasDefaultValue(true);

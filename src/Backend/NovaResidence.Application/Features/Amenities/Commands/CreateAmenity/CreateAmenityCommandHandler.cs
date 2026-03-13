@@ -34,6 +34,7 @@ public class CreateAmenityCommandHandler : IRequestHandler<CreateAmenityCommand,
             type: (AmenityType)request.Type,
             capacity: request.Capacity,
             requiresReservation: request.RequiresReservation,
+            requiresApproval: request.RequiresApproval,
             openingTime: request.OpeningTime,
             closingTime: request.ClosingTime,
             reservationFee: request.ReservationFee

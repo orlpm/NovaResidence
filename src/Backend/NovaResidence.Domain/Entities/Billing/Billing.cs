@@ -95,6 +95,19 @@ public class Charge : BaseEntity
         UpdateStatus();
     }
 
+    public void ReversePayment(Payment payment)
+    {
+        if (payment.IsRefunded && PaidAmount < payment.Amount)
+            throw new InvalidOperationException("Cannot reverse a payment beyond the applied amount");
+
+        PaidAmount -= payment.Amount;
+
+        if (PaidAmount < 0)
+            PaidAmount = 0;
+
+        UpdateStatus();
+    }
+
     public void ApplyLateFeeCharge(decimal lateFeeAmount)
     {
         if (Status == ChargeStatus.Paid)
@@ -120,6 +133,10 @@ public class Charge : BaseEntity
         else if (DateTime.UtcNow > DueDate)
         {
             Status = ChargeStatus.Overdue;
+        }
+        else
+        {
+            Status = ChargeStatus.Pending;
         }
     }
 

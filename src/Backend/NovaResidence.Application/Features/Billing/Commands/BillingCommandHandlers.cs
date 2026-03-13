@@ -566,13 +566,22 @@ public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand,
 
     public async Task<Result> Handle(RefundPaymentCommand request, CancellationToken cancellationToken)
     {
-        var payment = await _context.Payments.FindAsync(new object[] { request.PaymentId }, cancellationToken);
+        var payment = await _context.Payments
+            .Include(p => p.Charge)
+            .FirstOrDefaultAsync(p => p.Id == request.PaymentId, cancellationToken);
+
         if (payment == null)
             return Result.NotFound(new string[] { "Payment not found" });
 
         try
         {
             payment.Refund(request.Reason, request.RefundedById);
+
+            if (payment.Charge == null)
+                return Result.Error(new Ardalis.Result.ErrorList(new[] { "Charge not found for payment" }, null));
+
+            payment.Charge.ReversePayment(payment);
+
             await _context.SaveChangesAsync(cancellationToken);
             return Result.Success();
         }

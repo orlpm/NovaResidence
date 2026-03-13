@@ -15,19 +15,22 @@ public class ResidentsController : ControllerBase
     private readonly IBuildingRepository _buildingRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ResidentsController> _logger;
+    private readonly IConfiguration _configuration;
 
     public ResidentsController(
         IResidentRepository residentRepository,
         IUnitRepository unitRepository,
         IBuildingRepository buildingRepository,
         IUnitOfWork unitOfWork,
-        ILogger<ResidentsController> logger)
+        ILogger<ResidentsController> logger,
+        IConfiguration configuration)
     {
         _residentRepository = residentRepository;
         _unitRepository = unitRepository;
         _buildingRepository = buildingRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -280,9 +283,7 @@ public class ResidentsController : ControllerBase
         resident.GenerateInvitationToken();
         await _unitOfWork.SaveChangesAsync();
 
-        // Generate invitation URL - frontend runs on HTTP port 3000
-        // Format: /invitation/register/{unitId}/{token}
-        var invitationUrl = $"http://localhost:3000/invitation/register/{resident.UnitId}/{resident.InvitationToken}";
+        var invitationUrl = $"{GetFrontendBaseUrl()}/invitation/register/{resident.UnitId}/{resident.InvitationToken}";
 
         _logger.LogInformation("Invitation generated for resident {Id}, unitId: {UnitId}, token: {Token}", 
             id, resident.UnitId, resident.InvitationToken);
@@ -293,6 +294,11 @@ public class ResidentsController : ControllerBase
             token = resident.InvitationToken,
             expiresIn = "7 días"
         }, "Invitación generada exitosamente"));
+    }
+
+    private string GetFrontendBaseUrl()
+    {
+        return (_configuration["Auth:FrontendBaseUrl"] ?? "http://localhost:3001").TrimEnd('/');
     }
 
     /// <summary>
@@ -318,6 +324,11 @@ public class ResidentsController : ControllerBase
         if (resident.IsRegistered)
         {
             return BadRequest(ApiResponse<object>.FailureResponse("Esta invitación ya fue utilizada"));
+        }
+
+        if (resident.IsInvitationExpired())
+        {
+            return BadRequest(ApiResponse<object>.FailureResponse("Token de invitación expirado"));
         }
 
         // Get unit information

@@ -11,6 +11,7 @@ public record UpdateAmenityCommand(
     TimeSpan OpeningTime,
     TimeSpan ClosingTime,
     bool RequiresReservation,
+    bool RequiresApproval,
     decimal? ReservationFee = null,
     int MinReservationHours = 1,
     int MaxReservationHours = 4,

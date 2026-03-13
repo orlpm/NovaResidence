@@ -650,6 +650,10 @@ export const communicationsService = {
     return response.data
   },
 
+  incrementForumPostViews: async (id: string): Promise<void> => {
+    await apiClient.post(`/communications/forum/${id}/view`)
+  },
+
   createForumPost: async (request: CreateForumPostRequest): Promise<string> => {
     const response = await apiClient.post<string>('/communications/forum', request)
     return response.data

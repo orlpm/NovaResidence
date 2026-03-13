@@ -83,7 +83,7 @@ export const ROLE_CONFIG = {
     icon: Briefcase,
     color: 'text-cyan-600',
     bgColor: 'bg-cyan-100 dark:bg-cyan-900/20',
-    layout: '/maintenance'
+    layout: '/cleaning'
   }
 };
 
@@ -117,6 +117,8 @@ export const ROLE_NAVIGATION = {
     { name: 'Dashboard', path: '/security/dashboard', icon: 'LayoutDashboard', permission: null },
     { name: 'Registro de Accesos', path: '/security/access-log', icon: 'ClipboardList', permission: PERMISSIONS.SECURITY_VIEW_ACCESS_LOG },
     { name: 'Visitantes', path: '/security/visitors', icon: 'Users', permission: PERMISSIONS.SECURITY_MANAGE_VISITORS },
+    { name: 'Control de Accesos', path: '/security/access-control', icon: 'ShieldCheck', permission: PERMISSIONS.SECURITY_MANAGE_ACCESS_CONTROL },
+    { name: 'Cámaras', path: '/security/cameras', icon: 'Camera', permission: PERMISSIONS.SECURITY_VIEW_CAMERAS },
     { name: 'Incidencias', path: '/security/incidents', icon: 'AlertCircle', permission: PERMISSIONS.INCIDENTS_CREATE }
   ],
   [UserRole.Maintenance]: [
@@ -130,9 +132,12 @@ export const ROLE_NAVIGATION = {
     { name: 'Reportes Financieros', path: '/accountant/reports', icon: 'FileText', permission: PERMISSIONS.REPORTS_FINANCIAL },
     { name: 'Cargos', path: '/accountant/charges', icon: 'Receipt', permission: PERMISSIONS.BILLING_CREATE_CHARGES }
   ],
+  [UserRole.ServiceProvider]: [
+    { name: 'Dashboard', path: '/provider/dashboard', icon: 'LayoutDashboard', permission: null }
+  ],
   [UserRole.Cleaning]: [
-    { name: 'Dashboard', path: '/maintenance/dashboard', icon: 'LayoutDashboard', permission: null },
-    { name: 'Mis Incidencias', path: '/maintenance/incidents', icon: 'AlertCircle', permission: PERMISSIONS.INCIDENTS_VIEW },
-    { name: 'Reportar Incidencia', path: '/maintenance/new-incident', icon: 'Plus', permission: PERMISSIONS.INCIDENTS_CREATE }
+    { name: 'Dashboard', path: '/cleaning/dashboard', icon: 'LayoutDashboard', permission: null },
+    { name: 'Mis Incidencias', path: '/cleaning/incidents', icon: 'AlertCircle', permission: PERMISSIONS.INCIDENTS_VIEW },
+    { name: 'Reportar Incidencia', path: '/cleaning/new-incident', icon: 'Plus', permission: PERMISSIONS.INCIDENTS_CREATE }
   ]
 };

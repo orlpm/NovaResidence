@@ -268,6 +268,14 @@ export default function MyVisits() {
                     Creada: {new Date(visit.createdAt).toLocaleDateString('es-ES')}
                   </span>
                   <div className="flex gap-2">
+                    {visit.status === VisitStatus.Pending && (
+                      <button
+                        onClick={() => navigate(`/resident/visits/${visit.id}/edit`)}
+                        className="px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+                      >
+                        Editar
+                      </button>
+                    )}
                     {(visit.status === VisitStatus.Pending || visit.status === VisitStatus.Approved) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleCancel(visit.id) }}
