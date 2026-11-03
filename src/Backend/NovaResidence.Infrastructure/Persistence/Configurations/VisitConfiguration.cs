@@ -40,6 +40,12 @@ public class VisitConfiguration : IEntityTypeConfiguration<Visit>
         builder.Property(v => v.RejectionReason)
             .HasMaxLength(500);
 
+        builder.Property(v => v.AccessCode)
+            .HasMaxLength(Visit.AccessCodeLength);
+
+        builder.Ignore(v => v.AccessValidFrom);
+        builder.Ignore(v => v.AccessValidUntil);
+
         builder.Property(v => v.Type)
             .IsRequired();
 
@@ -52,5 +58,6 @@ public class VisitConfiguration : IEntityTypeConfiguration<Visit>
         builder.HasIndex(v => v.Status);
         builder.HasIndex(v => v.ExpectedArrival);
         builder.HasIndex(v => v.Type);
+        builder.HasIndex(v => v.AccessCode).IsUnique();
     }
 }

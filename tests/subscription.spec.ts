@@ -1,6 +1,7 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = process.env.E2E_API_BASE || 'http://localhost:5001/api';
 const SUPERADMIN_EMAIL = 'superadmin@novaresidence.com';
 const SUPERADMIN_PASSWORD = 'Pass123.';
 
@@ -165,6 +166,25 @@ async function createSubscription(request: APIRequestContext, authToken: string,
   return subscriptionId as string;
 }
 
+async function uploadSubscriptionProof(request: APIRequestContext, authToken: string): Promise<string> {
+  const response = await request.post(`${API_BASE}/Subscriptions/payments/upload-proof`, {
+    headers: { Authorization: `Bearer ${authToken}` },
+    multipart: {
+      file: {
+        name: 'payment-proof.pdf',
+        mimeType: 'application/pdf',
+        buffer: readFileSync('tests/fixtures/payment-proof.pdf')
+      }
+    }
+  });
+
+  expect(response.status()).toBe(200);
+  const proofUrl = await response.text();
+  expect(typeof proofUrl).toBe('string');
+  expect(proofUrl).toContain('/uploads/payment-proofs/');
+  return proofUrl;
+}
+
 // ─────────────────────────────────────────────────
 // TEST SUITE: Subscription Plans API
 // ─────────────────────────────────────────────────
@@ -279,13 +299,36 @@ test.describe('Subscription Lifecycle', () => {
     expect(Array.isArray(detail.condominiums)).toBeTruthy();
   });
 
-  test('should register a payment and extend subscription', async ({ request }) => {
+  test('OpenPay config endpoint returns public-safe configuration', async ({ request }) => {
+    const response = await request.get(`${API_BASE}/Subscriptions/openpay/config`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
+    });
+
+    expect(response.status()).toBe(200);
+    const config = await response.json();
+
+    expect(typeof config.enabled).toBe('boolean');
+    expect(config.mode).toMatch(/^(sandbox|production)$/);
+    expect(typeof config.useSandbox).toBe('boolean');
+
+    if (config.enabled) {
+      expect(config.merchantId).toBeTruthy();
+      expect(config.publicKey).toBeTruthy();
+    } else {
+      expect(config.merchantId).toBe('');
+      expect(config.publicKey).toBe('');
+    }
+    expect(config.privateKey).toBeUndefined();
+  });
+
+  test('should register a bank transfer as pending and extend after SuperAdmin verification', async ({ request }) => {
     const beforeResponse = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
       headers: { Authorization: `Bearer ${testContext.authToken}` }
     });
     expect(beforeResponse.status()).toBe(200);
     const beforeDetail = await beforeResponse.json();
     const beforePeriodEnd = new Date(beforeDetail.currentPeriodEnd as string);
+    const proofUrl = await uploadSubscriptionProof(request, testContext.authToken);
 
     const response = await request.post(`${API_BASE}/Subscriptions/${testContext.subscriptionId}/payments`, {
       headers: { Authorization: `Bearer ${testContext.authToken}` },
@@ -294,16 +337,35 @@ test.describe('Subscription Lifecycle', () => {
         monthsPaid: 1,
         paymentMethod: 'BankTransfer',
         referenceNumber: `TEST-PAY-${Date.now()}`,
-        notes: 'Playwright test payment'
+        notes: 'Playwright test payment',
+        proofUrl
       }
     });
 
     expect(response.status()).toBe(200);
     const result = await response.json();
     
-    expect(result.paymentId ?? result.PaymentId).toBeTruthy();
-    expect(result.newStatus ?? result.NewStatus).toBe('Active');
-    expect(result.currentPeriodEnd ?? result.CurrentPeriodEnd).toBeTruthy();
+    const paymentId = result.paymentId ?? result.PaymentId;
+    expect(paymentId).toBeTruthy();
+    expect(result.requiresVerification ?? result.RequiresVerification).toBe(true);
+
+    const pendingResponse = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
+    });
+    expect(pendingResponse.status()).toBe(200);
+    const pendingDetail = await pendingResponse.json();
+    const pendingPeriodEnd = new Date(pendingDetail.currentPeriodEnd as string);
+
+    expect(pendingPeriodEnd.getTime()).toBe(beforePeriodEnd.getTime());
+    expect(Array.isArray(pendingDetail.recentPayments)).toBeTruthy();
+    expect(pendingDetail.recentPayments.some((p: any) => p.id === paymentId && p.isVerified === false)).toBeTruthy();
+
+    const verifyResponse = await request.post(`${API_BASE}/Subscriptions/payments/${paymentId}/verify`, {
+      headers: { Authorization: `Bearer ${testContext.authToken}` }
+    });
+    expect(verifyResponse.status()).toBe(200);
+    const verifyResult = await verifyResponse.json();
+    expect(verifyResult.status ?? verifyResult.Status).toBe('Active');
 
     const afterResponse = await request.get(`${API_BASE}/Subscriptions/user/${testContext.adminUserId}`, {
       headers: { Authorization: `Bearer ${testContext.authToken}` }
@@ -314,7 +376,7 @@ test.describe('Subscription Lifecycle', () => {
 
     expect(afterPeriodEnd.getTime()).toBeGreaterThan(beforePeriodEnd.getTime());
     expect(Array.isArray(afterDetail.recentPayments)).toBeTruthy();
-    expect(afterDetail.recentPayments.length).toBeGreaterThan(0);
+    expect(afterDetail.recentPayments.some((p: any) => p.id === paymentId && p.isVerified === true)).toBeTruthy();
   });
 
   test('should list all subscriptions (SuperAdmin)', async ({ request }) => {

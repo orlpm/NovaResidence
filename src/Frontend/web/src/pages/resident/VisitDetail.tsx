@@ -23,6 +23,7 @@ import {
   Ban
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import VisitAccessPassCard from '../../components/visits/VisitAccessPassCard'
 
 export default function VisitDetail() {
   const { id } = useParams<{ id: string }>()
@@ -113,6 +114,10 @@ export default function VisitDetail() {
           <p className="text-sm font-semibold text-red-700 dark:text-red-300">Motivo del rechazo:</p>
           <p className="text-red-600 dark:text-red-400">{visit.rejectionReason}</p>
         </div>
+      )}
+
+      {[VisitStatus.Pending, VisitStatus.Approved, VisitStatus.CheckedIn].includes(visit.status) && (
+        <VisitAccessPassCard key={`${visit.id}-${visit.status}`} visitId={visit.id} />
       )}
 
       {/* Visitor Details */}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Layers, Plus, Trash2, MapPin, Eye, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { useAuthStore } from '../../stores/authStore'
 import {
   condominiumMapService,
   MapScopeType,
@@ -21,7 +22,8 @@ const markerDefaults: CreateCondominiumMapMarkerRequest = {
   coordinateX: 50,
   coordinateY: 50,
   layerName: 'General',
-  layerEnabledByDefault: true
+  layerEnabledByDefault: true,
+  externalReference: ''
 }
 
 type MapBackgroundSource = 'imageUrl' | 'upload' | 'mapsLink'
@@ -38,6 +40,7 @@ const isEmbeddableMapsUrl = (url?: string | null) => {
 }
 
 export default function CondominiumMaps() {
+  const { user } = useAuthStore()
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState('')
   const [maps, setMaps] = useState<CondominiumMapListDto[]>([])
@@ -65,7 +68,7 @@ export default function CondominiumMaps() {
 
   useEffect(() => {
     loadCondominiums()
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
     if (selectedCondominium) loadMaps(selectedCondominium)
@@ -85,7 +88,7 @@ export default function CondominiumMaps() {
 
   const loadCondominiums = async () => {
     try {
-      const data = await condominiumService.getAllCondominiums()
+      const data = await condominiumService.getAllCondominiums(user?.id)
       setCondominiums(data)
       if (data.length > 0 && !selectedCondominium) {
         setSelectedCondominium(data[0].id)
@@ -385,6 +388,7 @@ export default function CondominiumMaps() {
                   ))}
                 </select>
                 <input value={markerForm.layerName} onChange={e => setMarkerForm(prev => ({ ...prev, layerName: e.target.value }))} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="Capa" />
+              <input value={markerForm.externalReference || ''} onChange={e => setMarkerForm(prev => ({ ...prev, externalReference: e.target.value }))} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="URL de monitoreo (opcional)" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <input type="number" step="0.1" min={0} max={100} value={markerForm.coordinateX} onChange={e => setMarkerForm(prev => ({ ...prev, coordinateX: Number(e.target.value) }))} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="X (%)" />

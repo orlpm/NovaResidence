@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import { buildScenarioProfile } from './helpers/demo-data'
 
-const API_BASE = 'http://localhost:5001/api'
+const API_BASE = process.env.E2E_API_BASE || 'http://localhost:5001/api'
 const SUPERADMIN_EMAIL = 'superadmin@novaresidence.com'
 const SUPERADMIN_PASSWORD = 'Pass123.'
 

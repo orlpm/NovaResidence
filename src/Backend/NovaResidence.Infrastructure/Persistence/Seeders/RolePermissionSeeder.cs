@@ -204,6 +204,7 @@ public class RolePermissionSeeder
         {
             PermissionCodes.SECURITY_VIEW_ACCESS_LOG,
             PermissionCodes.SECURITY_MANAGE_VISITORS,
+            PermissionCodes.SECURITY_MANAGE_ACCESS_CONTROL,
             PermissionCodes.SECURITY_VIEW_CAMERAS,
             PermissionCodes.INCIDENTS_VIEW,
             PermissionCodes.INCIDENTS_CREATE,

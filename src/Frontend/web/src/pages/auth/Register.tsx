@@ -26,13 +26,13 @@ function Register() {
       return
     }
 
-    if (formData.password.length < 6) {
-      toast.error('La contraseña debe tener al menos 6 caracteres')
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Las contraseñas no coinciden')
       return
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Las contraseñas no coinciden')
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/.test(formData.password)) {
+      toast.error('La contraseña necesita al menos 8 caracteres, con mayúscula, minúscula, número y un símbolo')
       return
     }
 

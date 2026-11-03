@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext } from '@playwright/test'
 import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, loginAPI, registerConfirmedUser, uniqueEmail, unwrapData } from './auth'
 import { buildScenarioProfile } from './demo-data'
-import { runSql } from './sql'
+import { ensureCondominiumRole } from './sql'
 
 export type AdminCondominiumScenario = {
   superToken: string
@@ -41,19 +41,7 @@ export function asId(payload: unknown): string {
 }
 
 function ensureAdminCondominiumRole(userId: string, condominiumId: string) {
-  runSql(`
-IF NOT EXISTS (
-    SELECT 1
-    FROM [auth].[UserCondominiumRoles]
-    WHERE [UserId] = '${userId}'
-      AND [CondominiumId] = '${condominiumId}'
-      AND [Role] = 1
-)
-BEGIN
-    INSERT INTO [auth].[UserCondominiumRoles] ([CondominiumId], [Role], [AssignedAt], [UserId])
-    VALUES ('${condominiumId}', 1, SYSUTCDATETIME(), '${userId}')
-END
-`)
+  ensureCondominiumRole(userId, condominiumId, 1)
 }
 
 export async function createAdminCondominiumScenario(

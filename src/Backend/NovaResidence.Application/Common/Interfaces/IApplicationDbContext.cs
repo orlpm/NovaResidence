@@ -61,6 +61,13 @@ public interface IApplicationDbContext
     
     // Notifications Module
     DbSet<Domain.Entities.Notifications.Notification> Notifications { get; }
+    DbSet<Domain.Entities.Operations.ProviderAppointment> ProviderAppointments { get; }
+    DbSet<Domain.Entities.Operations.CondominiumDocument> CondominiumDocuments { get; }
+    DbSet<Domain.Entities.Operations.CondominiumAreaReservation> CondominiumAreaReservations { get; }
+    DbSet<Domain.Entities.Operations.PackageDelivery> PackageDeliveries { get; }
+    DbSet<Domain.Entities.Operations.ParkingSpot> ParkingSpots { get; }
+    DbSet<Domain.Entities.Operations.ResidentVehicle> ResidentVehicles { get; }
+    DbSet<Domain.Entities.Operations.SecurityRound> SecurityRounds { get; }
     
     // Subscriptions Module
     DbSet<Domain.Entities.Subscriptions.SubscriptionPlan> SubscriptionPlans { get; }

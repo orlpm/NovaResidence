@@ -40,7 +40,7 @@ public class ExceptionHandlingMiddleware
         {
             ValidationException validationEx => (
                 HttpStatusCode.BadRequest,
-                "Validation error",
+                validationEx.Errors.SelectMany(e => e.Value).FirstOrDefault() ?? "Revisa los datos del formulario",
                 validationEx.Errors.SelectMany(e => e.Value).ToList()
             ),
             NotFoundException notFoundEx => (
@@ -80,7 +80,10 @@ public class ExceptionHandlingMiddleware
             Timestamp = DateTime.UtcNow
         };
 
-        var json = JsonSerializer.Serialize(response);
+        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
         await context.Response.WriteAsync(json);
     }
 }

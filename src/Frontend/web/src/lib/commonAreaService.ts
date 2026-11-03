@@ -99,5 +99,49 @@ export const commonAreaService = {
 
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/commonareas/${id}`)
+  },
+
+  async getReservations(condominiumId: string): Promise<AreaReservationDto[]> {
+    const response = await apiClient.get<{ data: AreaReservationDto[] }>(`/area-reservations/condominium/${condominiumId}`)
+    return response.data.data || []
+  },
+
+  async getMyReservations(userId: string): Promise<AreaReservationDto[]> {
+    const response = await apiClient.get<{ data: AreaReservationDto[] }>(`/area-reservations/mine/${userId}`)
+    return response.data.data || []
+  },
+
+  async requestReservation(request: CreateAreaReservationRequest): Promise<string> {
+    const response = await apiClient.post<{ data: string }>('/area-reservations', request)
+    return response.data.data
+  },
+
+  async approveReservation(id: string): Promise<void> {
+    await apiClient.post(`/area-reservations/${id}/approve`)
   }
+}
+
+export interface AreaReservationDto {
+  id: string
+  condominiumId: string
+  commonAreaId: string
+  areaName: string
+  userId: string
+  unitId: string
+  reservationDate: string
+  startTime: string
+  endTime: string
+  purpose?: string | null
+  status: number
+  statusName: string
+}
+
+export interface CreateAreaReservationRequest {
+  condominiumId: string
+  commonAreaId: string
+  unitId: string
+  reservationDate: string
+  startTime: string
+  endTime: string
+  purpose?: string
 }

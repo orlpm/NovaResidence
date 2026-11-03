@@ -34,25 +34,27 @@ public class GetAllCondominiumsQueryHandler : IRequestHandler<GetAllCondominiums
                 .ToListAsync(cancellationToken);
 
             // Get condominium IDs
-            var condominiumIds = condominiums.Select(c => c.Id).ToList();
+            var condominiumIds = condominiums.Select(c => c.Id).ToHashSet();
 
-            // Get user counts per condominium in one query
-            var userCounts = await _context.Users
-                .Where(u => !u.IsDeleted && u.CondominiumRoles.Any())
+            // Group in memory. SQLite cannot translate the SelectMany/GroupBy form of this query.
+            var users = await _context.Users
+                .AsNoTracking()
+                .Include(u => u.CondominiumRoles)
+                .Where(u => !u.IsDeleted)
+                .ToListAsync(cancellationToken);
+
+            var userCounts = users
                 .SelectMany(u => u.CondominiumRoles)
                 .Where(cr => condominiumIds.Contains(cr.CondominiumId))
                 .GroupBy(cr => cr.CondominiumId)
-                .Select(g => new { CondominiumId = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.CondominiumId, x => x.Count, cancellationToken);
+                .ToDictionary(g => g.Key, g => g.Count());
 
-            // Get admin email per condominium (first Admin user)
-            var adminEmails = await _context.Users
-                .Where(u => !u.IsDeleted && u.IsActive && u.CondominiumRoles.Any())
+            var adminEmails = users
+                .Where(u => u.IsActive)
                 .SelectMany(u => u.CondominiumRoles.Select(cr => new { cr.CondominiumId, cr.Role, u.Email }))
-                .Where(x => condominiumIds.Contains(x.CondominiumId) && x.Role == Domain.Enums.UserRole.CondominiumAdmin)
+                .Where(x => condominiumIds.Contains(x.CondominiumId) && x.Role == NovaResidence.Domain.Enums.UserRole.CondominiumAdmin)
                 .GroupBy(x => x.CondominiumId)
-                .Select(g => new { CondominiumId = g.Key, Email = g.First().Email })
-                .ToDictionaryAsync(x => x.CondominiumId, x => x.Email, cancellationToken);
+                .ToDictionary(g => g.Key, g => g.First().Email);
 
             var result = condominiums.Select(c => new CondominiumListDto(
                 c.Id,

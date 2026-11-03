@@ -84,6 +84,16 @@ const EditVisit = lazy(() => import('./pages/resident/EditVisit'))
 const ResidentCommunications = lazy(() => import('./pages/resident/Communications'))
 const ResidentProcedures = lazy(() => import('./pages/resident/Procedures'))
 const ResidentCommonAreas = lazy(() => import('./pages/resident/CommonAreas'))
+const ResidentDocuments = lazy(() => import('./pages/resident/Documents'))
+const ResidentPackages = lazy(() => import('./pages/resident/Packages'))
+const ResidentVehicles = lazy(() => import('./pages/resident/Vehicles'))
+const SecurityPackages = lazy(() => import('./pages/security/Packages'))
+const SecurityRounds = lazy(() => import('./pages/security/Rounds'))
+const SecurityQrAccess = lazy(() => import('./pages/security/QrAccess'))
+const AdminParking = lazy(() => import('./pages/admin/Parking'))
+const AdminFines = lazy(() => import('./pages/admin/Fines'))
+const ProviderAgenda = lazy(() => import('./pages/admin/ProviderAgenda'))
+const AdminDocuments = lazy(() => import('./pages/admin/Documents'))
 const ResidentCondominiumMap = lazy(() => import('./pages/resident/CondominiumMap'))
 
 // Pages - Auth (lazy)
@@ -246,6 +256,10 @@ function App() {
         <Route path="incidents" element={<Incidents />} />
         <Route path="visits" element={<AdminVisits />} />
         <Route path="communications" element={<Communications />} />
+        <Route path="provider-agenda" element={<ProviderAgenda />} />
+        <Route path="documents" element={<AdminDocuments />} />
+        <Route path="parking" element={<AdminParking />} />
+        <Route path="fines" element={<AdminFines />} />
         <Route path="procedures" element={<AdminProcedures />} />
         <Route path="reports" element={<Reports />} />
         <Route path="subscription" element={<SubscriptionStatus />} />
@@ -392,6 +406,9 @@ function App() {
             </PermissionRoute>
           }
         />
+        <Route path="qr-access" element={<SecurityQrAccess />} />
+        <Route path="packages" element={<SecurityPackages />} />
+        <Route path="rounds" element={<SecurityRounds />} />
         <Route
           path="cameras"
           element={
@@ -554,6 +571,9 @@ function App() {
         <Route path="visits/:id/edit" element={<EditVisit />} />
         <Route path="procedures" element={<ResidentProcedures />} />
         <Route path="communications" element={<ResidentCommunications />} />
+        <Route path="documents" element={<ResidentDocuments />} />
+        <Route path="packages" element={<ResidentPackages />} />
+        <Route path="vehicles" element={<ResidentVehicles />} />
       </Route>
 
       {/* Root redirect */}

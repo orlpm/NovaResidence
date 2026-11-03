@@ -2,7 +2,7 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test'
 import { confirmUserEmailByEmail, waitForUserIdByEmail } from './sql'
 import { buildScenarioProfile } from './demo-data'
 
-export const API_BASE = 'http://localhost:5001/api'
+export const API_BASE = process.env.E2E_API_BASE || 'http://localhost:5001/api'
 export const SUPERADMIN_EMAIL = 'superadmin@novaresidence.com'
 export const SUPERADMIN_PASSWORD = 'Pass123.'
 

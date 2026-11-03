@@ -110,7 +110,16 @@ public class AuthController : ControllerBase
                 }
                 else
                 {
-                    await IssueEmailConfirmationAsync(registeredUser, HttpContext.RequestAborted);
+                    try
+                    {
+                        await IssueEmailConfirmationAsync(registeredUser, HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "No se pudo enviar el correo de confirmación a {Email}", registeredUser.Email);
+                        return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiResponse<RegisterUserResponse>.FailureResponse(
+                            "La cuenta se creó, pero Brevo rechazó el envío del correo de confirmación. En el Web App, Email:SmtpUsername debe ser el login SMTP de Brevo, no el correo del remitente."));
+                    }
                 }
             }
 

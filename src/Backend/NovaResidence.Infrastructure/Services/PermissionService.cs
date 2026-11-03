@@ -159,13 +159,23 @@ public class PermissionService : IPermissionService
 
         var permissions = new HashSet<string>();
 
-        // Determine user's role
-        UserRole userRole = UserRole.Owner; // Default
+        // Sin condominio explícito, el rol operativo del usuario (vigilancia, limpieza, proveedor)
+        // define los permisos. Si no, la pantalla queda evaluada como propietario.
+        UserRole userRole = UserRole.Owner;
         if (condominiumId.HasValue)
         {
             var userCondoRole = user.CondominiumRoles.FirstOrDefault(cr => cr.CondominiumId == condominiumId.Value);
             if (userCondoRole != null)
                 userRole = userCondoRole.Role;
+        }
+        else
+        {
+            var membershipRoles = user.CondominiumRoles.Select(cr => cr.Role).Distinct().ToList();
+            if (membershipRoles.Count == 1)
+                userRole = membershipRoles[0];
+            else if (!string.IsNullOrWhiteSpace(user.DefaultRole)
+                && Enum.TryParse<UserRole>(user.DefaultRole, true, out var parsedRole))
+                userRole = parsedRole;
         }
 
         // Get base role permissions

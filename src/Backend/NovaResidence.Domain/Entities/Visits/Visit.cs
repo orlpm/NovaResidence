@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Ardalis.GuardClauses;
 using NovaResidence.Domain.Common;
 using NovaResidence.Domain.Enums;
@@ -47,6 +48,15 @@ public class Visit : BaseEntity
     public DateTime? RejectedAt { get; private set; }
     public string? RejectionReason { get; private set; }
 
+    // QR access pass
+    public string? AccessCode { get; private set; }
+
+    public const int AccessCodeLength = 12;
+    private const string AccessCodeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static readonly TimeSpan AccessOpensBeforeArrival = TimeSpan.FromHours(2);
+    private static readonly TimeSpan AccessGraceAfterDeparture = TimeSpan.FromHours(1);
+    private static readonly TimeSpan DefaultVisitDuration = TimeSpan.FromHours(12);
+
     private Visit() { } // EF Core
 
     public static Visit Create(
@@ -91,9 +101,56 @@ public class Visit : BaseEntity
             Purpose = purpose,
             Notes = notes,
             ExpectedArrival = expectedArrival,
-            ExpectedDeparture = expectedDeparture
+            ExpectedDeparture = expectedDeparture,
+            AccessCode = GenerateAccessCode()
         };
     }
+
+    public DateTime AccessValidFrom => ExpectedArrival - AccessOpensBeforeArrival;
+
+    public DateTime AccessValidUntil => (ExpectedDeparture ?? ExpectedArrival + DefaultVisitDuration) + AccessGraceAfterDeparture;
+
+    public bool EnsureAccessCode()
+    {
+        if (!string.IsNullOrEmpty(AccessCode))
+            return false;
+
+        AccessCode = GenerateAccessCode();
+        return true;
+    }
+
+    /// <summary>
+    /// Returns null when the pass can be used to enter now, otherwise the reason it cannot.
+    /// </summary>
+    public string? GetEntryDenialReason(DateTime utcNow) => Status switch
+    {
+        VisitStatus.Rejected => "La visita fue rechazada",
+        VisitStatus.Cancelled => "La visita fue cancelada",
+        VisitStatus.Expired => "El pase expiró",
+        VisitStatus.CheckedIn => "El visitante ya está dentro del condominio",
+        VisitStatus.CheckedOut => "El pase ya fue utilizado",
+        _ when utcNow < AccessValidFrom => "El pase aún no está vigente",
+        _ when utcNow > AccessValidUntil => "El pase expiró",
+        _ => null
+    };
+
+    public static string? NormalizeAccessCode(string? rawCode)
+    {
+        if (string.IsNullOrWhiteSpace(rawCode))
+            return null;
+
+        var compact = new string(rawCode.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+        if (compact.StartsWith("NRV", StringComparison.Ordinal) && compact.Length == AccessCodeLength + 3)
+            compact = compact[3..];
+
+        return compact.Length == AccessCodeLength ? compact : null;
+    }
+
+    public static string FormatAccessCode(string accessCode) =>
+        $"NRV-{accessCode[..4]}-{accessCode[4..8]}-{accessCode[8..]}";
+
+    private static string GenerateAccessCode() =>
+        RandomNumberGenerator.GetString(AccessCodeAlphabet, AccessCodeLength);
 
     public void Update(
         string visitorName,

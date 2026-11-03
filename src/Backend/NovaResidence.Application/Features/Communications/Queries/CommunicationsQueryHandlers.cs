@@ -931,7 +931,7 @@ public class GetForumPostByIdQueryHandler : IRequestHandler<GetForumPostByIdQuer
     public async Task<Result<ForumPostDetailDto>> Handle(GetForumPostByIdQuery request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts
-            .Include(p => p.Comments.Where(c => c.ParentCommentId == null))
+            .Include(p => p.Comments)
                 .ThenInclude(c => c.Replies)
             .Include(p => p.Attachments)
             .FirstOrDefaultAsync(p => p.Id == request.ForumPostId, cancellationToken);

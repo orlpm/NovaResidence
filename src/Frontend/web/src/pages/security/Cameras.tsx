@@ -144,6 +144,22 @@ export default function SecurityCameras() {
           No hay cámaras configuradas en los mapas (capas/etiquetas con “camera/cámara/cctv”).
         </div>
       ) : (
+        <div className="space-y-4">
+          {(() => {
+            const live = feeds.find(feed => feed.sourceUrl)
+            if (!live?.sourceUrl) return null
+            const isFile = /\.(mp4|webm|ogg|m3u8)(\?|$)/i.test(live.sourceUrl)
+            return (
+              <div className="rounded-xl overflow-hidden bg-black border border-gray-200 dark:border-gray-700">
+                <p className="px-4 py-2 text-sm text-white bg-gray-900">{live.label}</p>
+                {isFile ? (
+                  <video title="Transmisión en vivo" className="w-full max-h-[420px] bg-black" controls src={live.sourceUrl} />
+                ) : (
+                  <iframe title="Transmisión en vivo" className="w-full h-[420px] bg-black" src={live.sourceUrl} />
+                )}
+              </div>
+            )
+          })()}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {feeds.map(feed => (
             <div key={feed.id} className="rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4">
@@ -175,6 +191,7 @@ export default function SecurityCameras() {
               )}
             </div>
           ))}
+        </div>
         </div>
       )}
     </div>

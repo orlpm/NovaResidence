@@ -27,23 +27,30 @@ export function getApiErrorMessage(error: unknown, fallback = 'No se pudo comple
     }
 
     const payload = error.response.data as
-      | { message?: string; error?: string; errors?: Record<string, string[] | string> | string[] }
+      | { message?: string; Message?: string; error?: string; errors?: Record<string, string[] | string> | string[]; Errors?: string[] }
       | undefined
 
-    const directMessage = payload?.message || payload?.error
+    const directMessage = payload?.message || payload?.Message || payload?.error
     if (typeof directMessage === 'string' && directMessage.trim()) {
       return directMessage
     }
 
-    if (Array.isArray(payload?.errors)) {
-      const firstArrayMessage = payload.errors.find((value) => typeof value === 'string' && value.trim())
+    const errorList = Array.isArray(payload?.errors)
+      ? payload.errors
+      : Array.isArray(payload?.Errors)
+        ? payload.Errors
+        : undefined
+
+    if (errorList) {
+      const firstArrayMessage = errorList.find((value) => typeof value === 'string' && value.trim())
       if (firstArrayMessage) {
         return firstArrayMessage
       }
     }
 
-    if (payload?.errors && typeof payload.errors === 'object') {
-      const firstObjectMessage = Object.values(payload.errors).flat().find((value) => typeof value === 'string' && value.trim())
+    const errorMap = payload?.errors && !Array.isArray(payload.errors) ? payload.errors : undefined
+    if (errorMap && typeof errorMap === 'object') {
+      const firstObjectMessage = Object.values(errorMap).flat().find((value) => typeof value === 'string' && value.trim())
       if (typeof firstObjectMessage === 'string') {
         return firstObjectMessage
       }

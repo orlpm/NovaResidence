@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useId, useState } from 'react';
 import {
   CreditCard, Clock, AlertTriangle, CheckCircle, Gift,
   Calendar, DollarSign, Timer, Shield, Building2,
   RefreshCw, FileText, XCircle, Ban, ChevronRight
 } from 'lucide-react';
+import { createOpenPayCardToken } from '../../lib/openpay';
 import {
   subscriptionService,
+  type OpenPayPaymentResult,
   type SubscriptionDetail,
   type SubscriptionPlan
 } from '../../lib/subscriptionService';
@@ -22,22 +24,36 @@ const STATUS_UI: Record<string, { label: string; color: string; bg: string; bord
 
 export default function SubscriptionStatusPage() {
   const { user } = useAuthStore();
+  const openPayFormId = useId().replace(/:/g, '');
   const [subscription, setSubscription] = useState<SubscriptionDetail | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [noSubscription, setNoSubscription] = useState(false);
+  const [openPayConfig, setOpenPayConfig] = useState<Awaited<ReturnType<typeof subscriptionService.getOpenPayConfig>> | null>(null);
+  const [openPayLoading, setOpenPayLoading] = useState(true);
+  const [openPayError, setOpenPayError] = useState<string | null>(null);
 
   // Payment form
   const [showPayment, setShowPayment] = useState(false);
   const [payAmount, setPayAmount] = useState('');
   const [payMonths, setPayMonths] = useState(1);
-  const [payMethod, setPayMethod] = useState('BankTransfer');
+  const [payMethod, setPayMethod] = useState<'Card' | 'BankTransfer'>('Card');
   const [payReference, setPayReference] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [payLoading, setPayLoading] = useState(false);
   const [planChanging, setPlanChanging] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiryMonth, setCardExpiryMonth] = useState('');
+  const [cardExpiryYear, setCardExpiryYear] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [billingAddressLine1, setBillingAddressLine1] = useState('');
+  const [billingPostalCode, setBillingPostalCode] = useState('');
+  const [proofFile, setProofFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchCondominiumAndSubscription();
@@ -45,11 +61,47 @@ export default function SubscriptionStatusPage() {
   }, [user?.id]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    subscriptionService.getOpenPayConfig()
+      .then((config) => {
+        if (cancelled) return;
+        setOpenPayConfig(config);
+        setOpenPayError(config.enabled ? null : 'OpenPay no está configurado todavía para cobros con tarjeta.');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setOpenPayConfig(null);
+        setOpenPayError('No se pudo cargar la configuración pública de OpenPay.');
+      })
+      .finally(() => {
+        if (!cancelled) setOpenPayLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (feedback) {
       const timer = setTimeout(() => setFeedback(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [feedback]);
+
+  useEffect(() => {
+    if (!subscription) return;
+
+    setCardHolderName((current) => current || subscription.adminName);
+    setCustomerEmail((current) => current || subscription.adminEmail);
+  }, [subscription]);
+
+  useEffect(() => {
+    if (!openPayLoading && !openPayConfig?.enabled && payMethod === 'Card') {
+      setPayMethod('BankTransfer');
+    }
+  }, [openPayConfig, openPayLoading, payMethod]);
 
   const fetchCondominiumAndSubscription = async () => {
     try {
@@ -84,39 +136,135 @@ export default function SubscriptionStatusPage() {
     return selected.pricePerUnit * Math.max(currentSubscription.billedUnits, 1);
   };
 
+  const resetCardFields = () => {
+    setCardNumber('');
+    setCardExpiryMonth('');
+    setCardExpiryYear('');
+    setCardCvv('');
+  };
+
+  const resetPaymentForm = () => {
+    setPayReference('');
+    setPayNotes('');
+    setProofFile(null);
+    resetCardFields();
+  };
+
+  const getErrorMessage = (error: any) => {
+    if (error instanceof Error && error.message) return error.message;
+    return error?.response?.data?.message || 'Error al procesar el pago';
+  };
+
+  const handleOpenPayResponse = async (
+    currentSubscription: SubscriptionDetail,
+    result: OpenPayPaymentResult,
+    selectedCardPlanId?: string,
+  ) => {
+    if (result.currentPeriodEnd) {
+      return result.message || 'Pago procesado exitosamente con OpenPay';
+    }
+
+    if (!result.transactionId) {
+      return result.message || 'OpenPay respondió sin transacción confirmada';
+    }
+
+    const confirmation = await subscriptionService.confirmOpenPayPayment(currentSubscription.id, {
+      transactionId: result.transactionId,
+      monthsPaid: payMonths,
+      planId: selectedCardPlanId,
+      paymentMethod: 'Card',
+      notes: payNotes || undefined,
+    });
+
+    return confirmation.currentPeriodEnd
+      ? confirmation.message || 'Pago confirmado y aplicado a la suscripción'
+      : `${confirmation.message || 'Cargo enviado a validación'}. Folio OpenPay: ${result.transactionId}`;
+  };
+
   const handlePayment = async () => {
     if (!subscription) return;
     setPayLoading(true);
     try {
       let currentSubscription = subscription;
+      const selectedCardPlanId = selectedPlanId && selectedPlanId !== subscription.plan.id
+        ? selectedPlanId
+        : undefined;
+      const isOpenPayMethod = payMethod === 'Card';
 
-      if (selectedPlanId && selectedPlanId !== subscription.plan.id) {
-        setPlanChanging(true);
-        await subscriptionService.changePlan(subscription.id, selectedPlanId);
-        const refreshed = user?.id
-          ? await subscriptionService.getSubscriptionByUser(user.id)
-          : await subscriptionService.getMySubscription();
-        setSubscription(refreshed);
-        currentSubscription = refreshed;
-        setPlanChanging(false);
+      if (isOpenPayMethod) {
+        if (!openPayConfig?.enabled) {
+          throw new Error(openPayError || 'OpenPay no está disponible para pagos con tarjeta');
+        }
+
+        if (!cardHolderName.trim() || !cardNumber.trim() || !cardExpiryMonth.trim() || !cardExpiryYear.trim() || !cardCvv.trim()) {
+          throw new Error('Completa los datos de la tarjeta antes de continuar');
+        }
+
+        if (!customerEmail.trim() || !billingAddressLine1.trim() || !billingPostalCode.trim()) {
+          throw new Error('Captura correo, dirección y código postal para procesar el pago con OpenPay');
+        }
+
+        const { tokenId, deviceSessionId } = await createOpenPayCardToken(
+          openPayConfig,
+          openPayFormId,
+          {
+            holderName: cardHolderName.trim(),
+            cardNumber,
+            expirationMonth: cardExpiryMonth,
+            expirationYear: cardExpiryYear,
+            cvv2: cardCvv,
+          },
+        );
+
+        const result = await subscriptionService.payWithOpenPayCard(currentSubscription.id, {
+          tokenId,
+          deviceSessionId,
+          monthsPaid: payMonths,
+          planId: selectedCardPlanId,
+          paymentMethod: payMethod,
+          customerFullName: cardHolderName.trim() || currentSubscription.adminName,
+          customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim() || undefined,
+          customerAddressLine1: billingAddressLine1.trim(),
+          customerPostalCode: billingPostalCode.trim(),
+          description: `Suscripción NovaResidence - ${payMonths} mes(es)`,
+          notes: payNotes || undefined,
+        });
+
+        const successMessage = await handleOpenPayResponse(currentSubscription, result, selectedCardPlanId);
+        setFeedback({ type: 'success', message: successMessage });
+        setShowPayment(false);
+        resetPaymentForm();
+        await fetchCondominiumAndSubscription();
+        return;
       }
 
+      if (selectedCardPlanId) {
+        throw new Error('El cambio de plan con transferencia no se aplica automáticamente. Usa un cobro con OpenPay para cambiar de plan en el mismo paso.');
+      }
+
+      if (!proofFile) {
+        throw new Error('Debes subir el comprobante para registrar una transferencia');
+      }
+
+      const proofUrl = await subscriptionService.uploadPaymentProof(proofFile);
+
       const amount = parseFloat(payAmount) || currentSubscription.monthlyAmount * payMonths;
-      await subscriptionService.registerPayment(
+      const manualResult = await subscriptionService.registerPayment(
         currentSubscription.id,
         amount,
         payMonths,
-        payMethod,
+        'BankTransfer',
         payReference || undefined,
-        payNotes || undefined
+        payNotes || undefined,
+        proofUrl
       );
-      setFeedback({ type: 'success', message: '¡Pago registrado exitosamente! Tu suscripción ha sido renovada.' });
+      setFeedback({ type: 'success', message: manualResult.message || 'Transferencia registrada correctamente.' });
       setShowPayment(false);
-      setPayReference('');
-      setPayNotes('');
+      resetPaymentForm();
       await fetchCondominiumAndSubscription();
     } catch (error: any) {
-      setFeedback({ type: 'error', message: error?.response?.data?.message || 'Error al registrar el pago' });
+      setFeedback({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setPlanChanging(false);
       setPayLoading(false);
@@ -222,8 +370,13 @@ export default function SubscriptionStatusPage() {
   const isUrgent = daysRemaining <= 7;
   const isWarning = daysRemaining <= 15 && daysRemaining > 7;
   const needsPayment = ['PastDue', 'Suspended', 'Expired'].includes(statusKey);
+  const canRenewNow = statusKey !== 'Cancelled';
+  const isEarlyRenewal = statusKey === 'Active' && !isUrgent && !isWarning;
   const selectedPlanChanged = !!selectedPlanId && selectedPlanId !== subscription.plan.id;
   const selectedMonthlyAmount = estimateMonthlyAmount(selectedPlanId, subscription);
+  const cardPaymentEnabled = !!openPayConfig?.enabled;
+  const isOpenPayMethod = payMethod === 'Card';
+  const isBankTransfer = payMethod === 'BankTransfer';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -251,7 +404,10 @@ export default function SubscriptionStatusPage() {
 
       <div className="rounded-2xl border border-sky-200 bg-sky-50 p-5 text-sm text-sky-900 dark:border-sky-900/50 dark:bg-sky-950/30 dark:text-sky-100">
         <p className="font-semibold mb-1">Pago self-service</p>
-        <p>Si vas con poco tiempo, aquí mismo puedes cambiar de plan, indicar meses, capturar referencia y registrar el pago para continuar sin intervención manual del equipo.</p>
+        <p>
+          Aquí mismo puedes renovar con tarjeta mediante OpenPay, o registrar una transferencia con comprobante para validación del superadministrador.
+          {openPayConfig?.enabled && ` Modo actual: ${openPayConfig.mode === 'sandbox' ? 'sandbox' : 'producción'}.`}
+        </p>
       </div>
 
       {/* Status Banner */}
@@ -306,25 +462,37 @@ export default function SubscriptionStatusPage() {
       </div>
 
       {/* Pay / Renew Button */}
-      {(needsPayment || isUrgent || isWarning || statusKey === 'Trial') && (
+      {canRenewNow && (
         <div className="bg-gradient-to-r from-sky-500/10 to-blue-600/10 dark:from-sky-500/5 dark:to-blue-600/5 rounded-2xl border border-sky-200 dark:border-sky-500/20 p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                {needsPayment ? '⚠️ Pago requerido' : statusKey === 'Trial' ? '🎁 Tu prueba gratis termina pronto' : '🔄 Renovar suscripción'}
+                {needsPayment
+                  ? '⚠️ Pago requerido'
+                  : statusKey === 'Trial'
+                    ? '🎁 Activar plan de pago'
+                    : isEarlyRenewal
+                      ? '📅 Adelantar pago'
+                      : '🔄 Renovar suscripción'}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 {needsPayment
                   ? 'Realiza tu pago para restaurar el acceso a la plataforma.'
-                  : `Monto mensual: $${selectedMonthlyAmount.toLocaleString()} MXN`}
+                  : isEarlyRenewal
+                    ? `Tu suscripción sigue activa por ${daysRemaining} días, pero ya puedes pagar por adelantado y extenderla desde ahora. Monto mensual: $${selectedMonthlyAmount.toLocaleString()} MXN`
+                    : `Monto mensual: $${selectedMonthlyAmount.toLocaleString()} MXN`}
               </p>
             </div>
             <button
-              onClick={() => { setShowPayment(!showPayment); setPayAmount((selectedMonthlyAmount * payMonths).toString()); }}
+              onClick={() => {
+                setShowPayment(!showPayment);
+                setPayMethod(cardPaymentEnabled ? 'Card' : 'BankTransfer');
+                setPayAmount((selectedMonthlyAmount * payMonths).toString());
+              }}
               className="px-6 py-3 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-semibold rounded-xl shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all flex items-center gap-2"
             >
               <CreditCard className="w-5 h-5" />
-              {needsPayment ? 'Realizar Pago' : 'Renovar Ahora'}
+              {needsPayment ? 'Realizar Pago' : isEarlyRenewal ? 'Pagar por Adelantado' : 'Renovar Ahora'}
             </button>
           </div>
 
@@ -352,7 +520,9 @@ export default function SubscriptionStatusPage() {
                   </select>
                   {selectedPlanChanged && (
                     <p className="text-xs text-sky-600 dark:text-sky-400 mt-1">
-                      Se actualizará tu suscripción al plan seleccionado antes de registrar el pago.
+                      {isOpenPayMethod
+                        ? 'El plan se actualizará cuando OpenPay confirme el cobro.'
+                        : 'Las transferencias se registran para validación con el plan actual.'}
                     </p>
                   )}
                 </div>
@@ -382,10 +552,12 @@ export default function SubscriptionStatusPage() {
                     type="number"
                     value={payAmount}
                     onChange={(e) => setPayAmount(e.target.value)}
+                    readOnly={isOpenPayMethod}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     ${selectedMonthlyAmount.toLocaleString()} × {payMonths} mes(es) = ${(selectedMonthlyAmount * payMonths).toLocaleString()} MXN
+                    {isOpenPayMethod ? ' · Calculado por el servidor para evitar diferencias en el cobro.' : ''}
                   </p>
                 </div>
 
@@ -393,17 +565,22 @@ export default function SubscriptionStatusPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Método de Pago</label>
                   <select
                     value={payMethod}
-                    onChange={(e) => setPayMethod(e.target.value)}
+                    onChange={(e) => setPayMethod(e.target.value as 'Card' | 'BankTransfer')}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
                   >
+                    <option value="Card" disabled={!cardPaymentEnabled || openPayLoading}>Tarjeta con OpenPay</option>
                     <option value="BankTransfer">Transferencia Bancaria</option>
-                    <option value="Card">Tarjeta de Crédito/Débito</option>
-                    <option value="Cash">Efectivo</option>
-                    <option value="DirectDebit">Pago Domiciliado</option>
-                    <option value="Other">Otro</option>
                   </select>
+                  {isOpenPayMethod && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {openPayLoading
+                        ? 'Cargando OpenPay...'
+                        : openPayError || `Cobro con tokenización segura en modo ${openPayConfig?.mode === 'sandbox' ? 'sandbox' : 'producción'}.`}
+                    </p>
+                  )}
                 </div>
 
+                {isBankTransfer && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Referencia de Pago</label>
                   <input
@@ -414,6 +591,139 @@ export default function SubscriptionStatusPage() {
                     className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
                   />
                 </div>
+                )}
+
+                {isOpenPayMethod && (
+                  <form id={openPayFormId} className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={(event) => event.preventDefault()}>
+                    <div className="md:col-span-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100">
+                      La tarjeta se tokeniza en tu navegador con OpenPay. El backend sólo recibe el token y el identificador del dispositivo.
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Titular de la tarjeta</label>
+                      <input
+                        type="text"
+                        value={cardHolderName}
+                        onChange={(e) => setCardHolderName(e.target.value)}
+                        placeholder="Nombre como aparece en la tarjeta"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo de facturación</label>
+                      <input
+                        type="email"
+                        value={customerEmail}
+                        onChange={(e) => setCustomerEmail(e.target.value)}
+                        placeholder="correo@dominio.com"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Teléfono de contacto</label>
+                      <input
+                        type="tel"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="5512345678"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dirección</label>
+                      <input
+                        type="text"
+                        value={billingAddressLine1}
+                        onChange={(e) => setBillingAddressLine1(e.target.value)}
+                        placeholder="Calle, número, colonia"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Código postal</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={billingPostalCode}
+                        onChange={(e) => setBillingPostalCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                        placeholder="01234"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Número de tarjeta</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="cc-number"
+                        value={cardNumber}
+                        onChange={(e) => setCardNumber(e.target.value.replace(/[^\d\s]/g, '').slice(0, 23))}
+                        placeholder="4111 1111 1111 1111"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mes de expiración</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="cc-exp-month"
+                        value={cardExpiryMonth}
+                        onChange={(e) => setCardExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                        placeholder="08"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Año de expiración</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="cc-exp-year"
+                        value={cardExpiryYear}
+                        onChange={(e) => setCardExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="29"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CVV</label>
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        autoComplete="cc-csc"
+                        value={cardCvv}
+                        onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        placeholder="123"
+                        className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400"
+                      />
+                    </div>
+                  </form>
+                )}
+
+                {isBankTransfer && (
+                  <div className="md:col-span-2 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-4 space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Comprobante de transferencia</label>
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf,.webp"
+                      onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                      className="block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-sky-500 file:px-4 file:py-2 file:text-white hover:file:bg-sky-600"
+                    />
+                    <p className="text-xs text-gray-500">Formatos permitidos: JPG, PNG, PDF o WEBP. Máximo 5 MB.</p>
+                    {proofFile && (
+                      <p className="text-sm text-sky-700 dark:text-sky-300">Archivo seleccionado: {proofFile.name}</p>
+                    )}
+                  </div>
+                )}
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notas (opcional)</label>
@@ -429,18 +739,21 @@ export default function SubscriptionStatusPage() {
 
               <div className="flex justify-end gap-3 mt-4">
                 <button
-                  onClick={() => setShowPayment(false)}
+                  onClick={() => {
+                    setShowPayment(false);
+                    resetPaymentForm();
+                  }}
                   className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handlePayment}
-                  disabled={payLoading || planChanging}
+                  disabled={payLoading || planChanging || (isOpenPayMethod && (!cardPaymentEnabled || openPayLoading))}
                   className="px-6 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white font-medium rounded-lg shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 disabled:opacity-50 flex items-center gap-2"
                 >
                   {payLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  {planChanging ? 'Actualizando plan...' : 'Confirmar Pago'}
+                  {planChanging ? 'Actualizando plan...' : isOpenPayMethod ? 'Pagar con OpenPay' : 'Registrar Transferencia'}
                 </button>
               </div>
             </div>
@@ -475,6 +788,16 @@ export default function SubscriptionStatusPage() {
                       {formatDate(payment.paymentDate)} · {payment.paymentMethod}
                       {payment.referenceNumber && ` · Ref: ${payment.referenceNumber}`}
                     </p>
+                    {payment.proofUrl && (
+                      <a
+                        href={`http://localhost:5001${payment.proofUrl}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-sky-600 dark:text-sky-400 hover:underline"
+                      >
+                        Ver comprobante
+                      </a>
+                    )}
                   </div>
                 </div>
                 <span className={`text-xs font-medium px-2 py-1 rounded-full ${

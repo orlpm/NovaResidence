@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil, Trash2, MapPin, Building2, CheckCircle, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { useAuthStore } from '../../stores/authStore'
 import {
   commonAreaService,
   CommonAreaType,
   commonAreaTypeNames,
+  type AreaReservationDto,
   type CommonAreaListDto,
   type CreateCommonAreaRequest,
   type UpdateCommonAreaRequest
@@ -23,9 +25,11 @@ const defaultForm: CreateCommonAreaRequest = {
 }
 
 export default function CommonAreas() {
+  const { user } = useAuthStore()
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState('')
   const [areas, setAreas] = useState<CommonAreaListDto[]>([])
+  const [reservations, setReservations] = useState<AreaReservationDto[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<CommonAreaListDto | null>(null)
@@ -33,7 +37,7 @@ export default function CommonAreas() {
 
   useEffect(() => {
     loadCondominiums()
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
     if (selectedCondominium) {
@@ -45,7 +49,7 @@ export default function CommonAreas() {
 
   const loadCondominiums = async () => {
     try {
-      const data = await condominiumService.getAllCondominiums()
+      const data = await condominiumService.getAllCondominiums(user?.id)
       setCondominiums(data)
       if (data.length > 0 && !selectedCondominium) {
         setSelectedCondominium(data[0].id)
@@ -58,8 +62,12 @@ export default function CommonAreas() {
   const loadAreas = async (condominiumId: string) => {
     setIsLoading(true)
     try {
-      const data = await commonAreaService.getByCondominium(condominiumId, true)
+      const [data, reservationData] = await Promise.all([
+        commonAreaService.getByCondominium(condominiumId, true),
+        commonAreaService.getReservations(condominiumId)
+      ])
       setAreas(data)
+      setReservations(reservationData)
     } catch {
       toast.error('No se pudieron cargar áreas comunes')
     } finally {
@@ -149,7 +157,7 @@ export default function CommonAreas() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Áreas Comunes</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Espacios de uso general no reservables</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Espacios del condominio y sus reservaciones</p>
         </div>
         <button
           onClick={handleOpenCreate}
@@ -178,6 +186,31 @@ export default function CommonAreas() {
             Activas: <span className="font-bold text-green-600 dark:text-green-400">{activeCount}</span> / {areas.length}
           </div>
         </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <h2 className="font-semibold text-gray-900 dark:text-white">Reservaciones pendientes</h2>
+        {reservations.filter(item => item.status === 0).length === 0 ? (
+          <p className="text-sm text-gray-500">No hay reservaciones pendientes.</p>
+        ) : reservations.filter(item => item.status === 0).map(item => (
+          <div key={item.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p className="text-sm text-gray-700 dark:text-gray-200">{item.areaName} · {item.statusName} · {item.startTime}-{item.endTime}</p>
+            <button
+              onClick={async () => {
+                try {
+                  await commonAreaService.approveReservation(item.id)
+                  toast.success('Reservación aprobada')
+                  if (selectedCondominium) await loadAreas(selectedCondominium)
+                } catch {
+                  toast.error('No se pudo aprobar la reservación')
+                }
+              }}
+              className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm"
+            >
+              Aprobar
+            </button>
+          </div>
+        ))}
       </div>
 
       {isLoading ? (

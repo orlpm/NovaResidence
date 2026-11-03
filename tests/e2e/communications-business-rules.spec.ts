@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test'
 import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, loginAPI, loginUI, registerConfirmedUser, uniqueEmail, unwrapData } from './helpers/auth'
 import { buildScenarioProfile } from './helpers/demo-data'
 import { createAdminCondominiumScenario, type AdminCondominiumScenario } from './helpers/condominium'
-import { runSql } from './helpers/sql'
+import { ensureCondominiumRole } from './helpers/sql'
 
 type ResidentScenario = {
   email: string
@@ -214,19 +214,7 @@ async function checkPermission(request: APIRequestContext, token: string, userId
 }
 
 function assignSubAdminToCondominium(userId: string, condominiumId: string) {
-  runSql(`
-IF NOT EXISTS (
-    SELECT 1
-    FROM [auth].[UserCondominiumRoles]
-    WHERE [UserId] = '${userId}'
-      AND [CondominiumId] = '${condominiumId}'
-      AND [Role] = 2
-)
-BEGIN
-    INSERT INTO [auth].[UserCondominiumRoles] ([CondominiumId], [Role], [AssignedAt], [UserId])
-    VALUES ('${condominiumId}', 2, SYSUTCDATETIME(), '${userId}')
-END
-`)
+  ensureCondominiumRole(userId, condominiumId, 2)
 }
 
 test.describe('Communications business rules', () => {

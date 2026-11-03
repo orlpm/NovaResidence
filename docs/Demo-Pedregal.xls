@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Header">
+   <Font ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#1F4E79" ss:Pattern="Solid"/>
+   <Alignment ss:WrapText="1" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="Title">
+   <Font ss:Bold="1" ss:Size="14" ss:Color="#1F4E79"/>
+  </Style>
+  <Style ss:ID="Wrap">
+   <Alignment ss:WrapText="1" ss:Vertical="Top"/>
+  </Style>
+ </Styles>
+
+ <Worksheet ss:Name="Cuentas">
+  <Table>
+   <Column ss:Width="120"/>
+   <Column ss:Width="260"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="280"/>
+   <Row>
+    <Cell ss:StyleID="Title"><Data ss:Type="String">Residencial Pedregal Demo — cuentas</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">App: http://localhost:3000 | API: http://localhost:5001 | Contraseña de todas: Pass123.</Data></Cell>
+   </Row>
+   <Row></Row>
+   <Row>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Rol</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Email</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Password</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Nombre</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Unidad</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Teléfono</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Qué debería verse</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">SuperAdmin</Data></Cell>
+    <Cell><Data ss:Type="String">superadmin@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Super Admin</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000001</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Panel de plataforma. Lista de condominios incluyendo Residencial Pedregal Demo. Suscripciones, usuarios y monitoreo.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Admin</Data></Cell>
+    <Cell><Data ss:Type="String">admin@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Elena Vargas</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000002</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Administración del condominio: 2 torres, 7 unidades, residentes, avisos, incidencias, amenidades, asamblea y encuesta.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">SubAdmin</Data></Cell>
+    <Cell><Data ss:Type="String">subadmin@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Diego Soto</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000003</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Acceso de apoyo a administración sobre el mismo condominio.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Contador</Data></Cell>
+    <Cell><Data ss:Type="String">accountant@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Patricia León</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000004</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Cargos y pagos: A-101 pagado, A-102 vencido + multa, A-201 pago parcial, B-101 pendiente.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Residente (al corriente)</Data></Cell>
+    <Cell><Data ss:Type="String">resident@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Javier Morales</Data></Cell>
+    <Cell><Data ss:Type="String">A-101</Data></Cell>
+    <Cell><Data ss:Type="String">5510000005</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Dueño de A-101. Mantenimiento pagado. Reserva de alberca confirmada. Aviso de corte de agua. Trámite de agua pendiente. Post en el foro.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Residente (moroso)</Data></Cell>
+    <Cell><Data ss:Type="String">resident2@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Carla Méndez</Data></Cell>
+    <Cell><Data ss:Type="String">A-102</Data></Cell>
+    <Cell><Data ss:Type="String">5510000006</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Dueña de A-102. Adeudo de mantenimiento vencido, multa por ruido y reserva de salón pendiente de aprobación.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Inquilino</Data></Cell>
+    <Cell><Data ss:Type="String">tenant@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Luis Ortega</Data></Cell>
+    <Cell><Data ss:Type="String">A-201</Data></Cell>
+    <Cell><Data ss:Type="String">5510000007</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Inquilino de A-201. Pago parcial de $800 de $2,200. Visita de paquetería. Incidencia de luminaria ya cerrada.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Vigilancia</Data></Cell>
+    <Cell><Data ss:Type="String">security@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Roberto Cruz</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000008</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Panel de seguridad. Visitas de hoy: Mariana Gómez (A-101) y Paquetería Estafeta (A-201).</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Mantenimiento</Data></Cell>
+    <Cell><Data ss:Type="String">maintenance@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Miguel Ruiz</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000009</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Fuga en estacionamiento Torre A asignada. Luminaria del lobby resuelta y cerrada.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Limpieza</Data></Cell>
+    <Cell><Data ss:Type="String">cleaning@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Rosa Hernández</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000010</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Personal operativo de limpieza del condominio.</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Proveedor</Data></Cell>
+    <Cell><Data ss:Type="String">provider@novaresidence.com</Data></Cell>
+    <Cell><Data ss:Type="String">Pass123.</Data></Cell>
+    <Cell><Data ss:Type="String">Jardines del Sur</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">5510000011</Data></Cell>
+    <Cell ss:StyleID="Wrap"><Data ss:Type="String">Acceso de proveedor externo (jardinería).</Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Condominio">
+  <Table>
+   <Column ss:Width="180"/>
+   <Column ss:Width="420"/>
+   <Row>
+    <Cell ss:StyleID="Title"><Data ss:Type="String">Datos del condominio demo</Data></Cell>
+   </Row>
+   <Row></Row>
+   <Row>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Campo</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Valor esperado</Data></Cell>
+   </Row>
+   <Row><Cell><Data ss:Type="String">Nombre</Data></Cell><Cell><Data ss:Type="String">Residencial Pedregal Demo</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Razón social</Data></Cell><Cell><Data ss:Type="String">Residencial Pedregal Demo A.C.</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">RFC</Data></Cell><Cell><Data ss:Type="String">RPD240101ABC</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Dirección</Data></Cell><Cell><Data ss:Type="String">Av. del Pedregal 240, Jardines del Pedregal, Ciudad de México, CP 01900</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Torres</Data></Cell><Cell><Data ss:Type="String">Torre A (3 pisos) y Torre B (2 pisos)</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Unidades</Data></Cell><Cell><Data ss:Type="String">7 (A-101, A-102, A-201, A-301, B-101, B-102, B-201)</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Unidad vacía</Data></Cell><Cell><Data ss:Type="String">B-201</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Amenidades</Data></Cell><Cell><Data ss:Type="String">Alberca, Salón de eventos, Gimnasio</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Suscripción Admin</Data></Cell><Cell><Data ss:Type="String">Plan Básico, 7 unidades, estatus Active</Data></Cell></Row>
+   <Row><Cell><Data ss:Type="String">Cuota configurada</Data></Cell><Cell><Data ss:Type="String">Cuota de mantenimiento recurrente $1,850</Data></Cell></Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Unidades">
+  <Table>
+   <Column ss:Width="80"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="60"/>
+   <Column ss:Width="70"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="140"/>
+   <Column ss:Width="220"/>
+   <Row>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Unidad</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Torre</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Piso</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">m2</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Recámaras</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Cuota mensual</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Residente / cuenta</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Tipo</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Notas</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-101</Data></Cell>
+    <Cell><Data ss:Type="String">Torre A</Data></Cell>
+    <Cell><Data ss:Type="Number">1</Data></Cell>
+    <Cell><Data ss:Type="Number">92</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">1850</Data></Cell>
+    <Cell><Data ss:Type="String">Javier Morales (resident@)</Data></Cell>
+    <Cell><Data ss:Type="String">Propietario</Data></Cell>
+    <Cell><Data ss:Type="String">También vive Sofía Morales (familiar, sin login)</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-102</Data></Cell>
+    <Cell><Data ss:Type="String">Torre A</Data></Cell>
+    <Cell><Data ss:Type="Number">1</Data></Cell>
+    <Cell><Data ss:Type="Number">88</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">1750</Data></Cell>
+    <Cell><Data ss:Type="String">Carla Méndez (resident2@)</Data></Cell>
+    <Cell><Data ss:Type="String">Propietaria</Data></Cell>
+    <Cell><Data ss:Type="String">Morosa</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-201</Data></Cell>
+    <Cell><Data ss:Type="String">Torre A</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">110</Data></Cell>
+    <Cell><Data ss:Type="Number">3</Data></Cell>
+    <Cell><Data ss:Type="Number">2200</Data></Cell>
+    <Cell><Data ss:Type="String">Luis Ortega (tenant@)</Data></Cell>
+    <Cell><Data ss:Type="String">Inquilino</Data></Cell>
+    <Cell><Data ss:Type="String">Propietario asignado: Javier Morales</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-301</Data></Cell>
+    <Cell><Data ss:Type="String">Torre A</Data></Cell>
+    <Cell><Data ss:Type="Number">3</Data></Cell>
+    <Cell><Data ss:Type="Number">95</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">1900</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">Sin residente</Data></Cell>
+    <Cell><Data ss:Type="String">Disponible para mostrar alta</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">B-101</Data></Cell>
+    <Cell><Data ss:Type="String">Torre B</Data></Cell>
+    <Cell><Data ss:Type="Number">1</Data></Cell>
+    <Cell><Data ss:Type="Number">80</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">1500</Data></Cell>
+    <Cell><Data ss:Type="String">Ana Delgado (sin login)</Data></Cell>
+    <Cell><Data ss:Type="String">Propietaria</Data></Cell>
+    <Cell><Data ss:Type="String">Solo ficha de residente, cargo pendiente</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">B-102</Data></Cell>
+    <Cell><Data ss:Type="String">Torre B</Data></Cell>
+    <Cell><Data ss:Type="Number">1</Data></Cell>
+    <Cell><Data ss:Type="Number">80</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">1500</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">Sin residente</Data></Cell>
+    <Cell><Data ss:Type="String">Disponible</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">B-201</Data></Cell>
+    <Cell><Data ss:Type="String">Torre B</Data></Cell>
+    <Cell><Data ss:Type="Number">2</Data></Cell>
+    <Cell><Data ss:Type="Number">120</Data></Cell>
+    <Cell><Data ss:Type="Number">3</Data></Cell>
+    <Cell><Data ss:Type="Number">2400</Data></Cell>
+    <Cell><Data ss:Type="String">—</Data></Cell>
+    <Cell><Data ss:Type="String">Vacía</Data></Cell>
+    <Cell><Data ss:Type="String">Unidad vacía de demostración</Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Cargos y pagos">
+  <Table>
+   <Column ss:Width="90"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="80"/>
+   <Column ss:Width="90"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="240"/>
+   <Row>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Unidad</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Concepto</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Tipo</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Monto</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Pagado</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Saldo</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Estatus</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Detalle</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-101</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento del mes</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento</Data></Cell>
+    <Cell><Data ss:Type="Number">1850</Data></Cell>
+    <Cell><Data ss:Type="Number">1850</Data></Cell>
+    <Cell><Data ss:Type="Number">0</Data></Cell>
+    <Cell><Data ss:Type="String">Pagado</Data></Cell>
+    <Cell><Data ss:Type="String">SPEI-PEDREGAL-101, verificado por Patricia</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-102</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento vencido</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento</Data></Cell>
+    <Cell><Data ss:Type="Number">1750</Data></Cell>
+    <Cell><Data ss:Type="Number">0</Data></Cell>
+    <Cell><Data ss:Type="Number">1750</Data></Cell>
+    <Cell><Data ss:Type="String">Vencido</Data></Cell>
+    <Cell><Data ss:Type="String">Adeudo del mes anterior de Carla</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-102</Data></Cell>
+    <Cell><Data ss:Type="String">Multa por ruido</Data></Cell>
+    <Cell><Data ss:Type="String">Multa</Data></Cell>
+    <Cell><Data ss:Type="Number">500</Data></Cell>
+    <Cell><Data ss:Type="Number">0</Data></Cell>
+    <Cell><Data ss:Type="Number">500</Data></Cell>
+    <Cell><Data ss:Type="String">Pendiente</Data></Cell>
+    <Cell><Data ss:Type="String">Ruido fuera de horario</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">A-201</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento del mes</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento</Data></Cell>
+    <Cell><Data ss:Type="Number">2200</Data></Cell>
+    <Cell><Data ss:Type="Number">800</Data></Cell>
+    <Cell><Data ss:Type="Number">1400</Data></Cell>
+    <Cell><Data ss:Type="String">Pago parcial</Data></Cell>
+    <Cell><Data ss:Type="String">Transferencia TRF-201 de Luis</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">B-101</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento del mes</Data></Cell>
+    <Cell><Data ss:Type="String">Mantenimiento</Data></Cell>
+    <Cell><Data ss:Type="Number">1500</Data></Cell>
+    <Cell><Data ss:Type="Number">0</Data></Cell>
+    <Cell><Data ss:Type="Number">1500</Data></Cell>
+    <Cell><Data ss:Type="String">Pendiente</Data></Cell>
+    <Cell><Data ss:Type="String">Ana Delgado, sin cuenta de usuario</Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+
+ <Worksheet ss:Name="Operación">
+  <Table>
+   <Column ss:Width="120"/>
+   <Column ss:Width="220"/>
+   <Column ss:Width="110"/>
+   <Column ss:Width="360"/>
+   <Row>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Módulo</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Registro</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Estatus</Data></Cell>
+    <Cell ss:StyleID="Header"><Data ss:Type="String">Dato esperado</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amenidad</Data></Cell>
+    <Cell><Data ss:Type="String">Alberca</Data></Cell>
+    <Cell><Data ss:Type="String">Activa</Data></Cell>
+    <Cell><Data ss:Type="String">Capacidad 20, reserva sin aprobación, 07:00-21:00</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amenidad</Data></Cell>
+    <Cell><Data ss:Type="String">Salón de eventos</Data></Cell>
+    <Cell><Data ss:Type="String">Activa</Data></Cell>
+    <Cell><Data ss:Type="String">Capacidad 40, requiere aprobación, cuota $1,500</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Amenidad</Data></Cell>
+    <Cell><Data ss:Type="String">Gimnasio</Data></Cell>
+    <Cell><Data ss:Type="String">Activa</Data></Cell>
+    <Cell><Data ss:Type="String">Capacidad 12, sin reserva, 06:00-22:00</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Reserva</Data></Cell>
+    <Cell><Data ss:Type="String">Alberca — Javier A-101</Data></Cell>
+    <Cell><Data ss:Type="String">Confirmada</Data></Cell>
+    <Cell><Data ss:Type="String">Mañana 10:00-12:00, 4 personas</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Reserva</Data></Cell>
+    <Cell><Data ss:Type="String">Salón — Carla A-102</Data></Cell>
+    <Cell><Data ss:Type="String">Pendiente</Data></Cell>
+    <Cell><Data ss:Type="String">Mañana 18:00-22:00, 25 personas, espera autorización</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Incidencia</Data></Cell>
+    <Cell><Data ss:Type="String">Fuga en estacionamiento Torre A</Data></Cell>
+    <Cell><Data ss:Type="String">En progreso</Data></Cell>
+    <Cell><Data ss:Type="String">Alta, asignada a Miguel Ruiz</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Incidencia</Data></Cell>
+    <Cell><Data ss:Type="String">Ruido en pasillo</Data></Cell>
+    <Cell><Data ss:Type="String">Abierta</Data></Cell>
+    <Cell><Data ss:Type="String">Reportada por Carla, A-102</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Incidencia</Data></Cell>
+    <Cell><Data ss:Type="String">Luminaria fundida en lobby</Data></Cell>
+    <Cell><Data ss:Type="String">Cerrada</Data></Cell>
+    <Cell><Data ss:Type="String">Resuelta por Miguel, costo $350</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Visita</Data></Cell>
+    <Cell><Data ss:Type="String">Mariana Gómez</Data></Cell>
+    <Cell><Data ss:Type="String">Hoy</Data></Cell>
+    <Cell><Data ss:Type="String">Personal, A-101, solicitada por Javier</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Visita</Data></Cell>
+    <Cell><Data ss:Type="String">Paquetería Estafeta</Data></Cell>
+    <Cell><Data ss:Type="String">Hoy</Data></Cell>
+    <Cell><Data ss:Type="String">Entrega, A-201, solicitada por Luis</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Aviso</Data></Cell>
+    <Cell><Data ss:Type="String">Corte de agua el sábado</Data></Cell>
+    <Cell><Data ss:Type="String">Publicado</Data></Cell>
+    <Cell><Data ss:Type="String">Prioridad alta, mantenimiento de cisterna 8:00-13:00</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Encuesta</Data></Cell>
+    <Cell><Data ss:Type="String">Horario de alberca en verano</Data></Cell>
+    <Cell><Data ss:Type="String">Activa</Data></Cell>
+    <Cell><Data ss:Type="String">Opciones: Sí, extender horario / No, dejarlo igual</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Asamblea</Data></Cell>
+    <Cell><Data ss:Type="String">Asamblea ordinaria de agosto</Data></Cell>
+    <Cell><Data ss:Type="String">Programada</Data></Cell>
+    <Cell><Data ss:Type="String">En 12 días, 19:00, Salón de eventos</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Foro</Data></Cell>
+    <Cell><Data ss:Type="String">¿Recomiendan plomero de confianza?</Data></Cell>
+    <Cell><Data ss:Type="String">Activo</Data></Cell>
+    <Cell><Data ss:Type="String">Autor: Javier Morales, categoría Recomendaciones</Data></Cell>
+   </Row>
+   <Row>
+    <Cell><Data ss:Type="String">Trámite</Data></Cell>
+    <Cell><Data ss:Type="String">Cambio de titular de agua</Data></Cell>
+    <Cell><Data ss:Type="String">Pendiente</Data></Cell>
+    <Cell><Data ss:Type="String">Asignado a Javier, vence en 15 días</Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+</Workbook>

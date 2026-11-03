@@ -12,6 +12,7 @@ using NovaResidence.Domain.Entities.Localization;
 using NovaResidence.Domain.Entities.Visits;
 using NovaResidence.Domain.Entities.Maps;
 using NovaResidence.Domain.Entities.Procedures;
+using NovaResidence.Domain.Entities.Operations;
 using System.Reflection;
 
 // Aliases for disambiguation
@@ -86,6 +87,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     
     // Notifications Module
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<ProviderAppointment> ProviderAppointments => Set<ProviderAppointment>();
+    public DbSet<CondominiumDocument> CondominiumDocuments => Set<CondominiumDocument>();
+    public DbSet<CondominiumAreaReservation> CondominiumAreaReservations => Set<CondominiumAreaReservation>();
+    public DbSet<PackageDelivery> PackageDeliveries => Set<PackageDelivery>();
+    public DbSet<ParkingSpot> ParkingSpots => Set<ParkingSpot>();
+    public DbSet<ResidentVehicle> ResidentVehicles => Set<ResidentVehicle>();
+    public DbSet<SecurityRound> SecurityRounds => Set<SecurityRound>();
     
     // Subscriptions Module
     public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
@@ -150,6 +158,13 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
         modelBuilder.Entity<ForumPost>().HasQueryFilter(f => !f.IsDeleted);
         modelBuilder.Entity<ForumComment>().HasQueryFilter(c => !c.IsDeleted);
         modelBuilder.Entity<ForumPostAttachment>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<ProviderAppointment>().HasQueryFilter(a => !a.IsDeleted);
+        modelBuilder.Entity<CondominiumDocument>().HasQueryFilter(d => !d.IsDeleted);
+        modelBuilder.Entity<CondominiumAreaReservation>().HasQueryFilter(r => !r.IsDeleted);
+        modelBuilder.Entity<PackageDelivery>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<ParkingSpot>().HasQueryFilter(p => !p.IsDeleted);
+        modelBuilder.Entity<ResidentVehicle>().HasQueryFilter(v => !v.IsDeleted);
+        modelBuilder.Entity<SecurityRound>().HasQueryFilter(r => !r.IsDeleted);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

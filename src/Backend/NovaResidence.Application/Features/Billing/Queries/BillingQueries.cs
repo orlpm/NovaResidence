@@ -37,7 +37,8 @@ public record ChargePaymentDto(
     bool IsVerified,
     DateTime? VerifiedAt,
     bool IsRefunded,
-    string? ProofImageUrl
+    string? ProofImageUrl,
+    string? ReceiptNumber
 );
 
 public record ChargeDetailDto(

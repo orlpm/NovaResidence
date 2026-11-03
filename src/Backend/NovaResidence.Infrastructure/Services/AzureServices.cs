@@ -102,6 +102,13 @@ public class EmailService : IEmailService
 
     public async Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
+        if (_configuration.GetValue<bool>("Email:DisableSending"))
+        {
+            _logger.LogInformation("Email sending disabled. Skipping email to: {To}, Subject: {Subject}", to, subject);
+            await Task.CompletedTask;
+            return;
+        }
+
         var apiKey = _configuration["Email:BrevoApiKey"];
         var senderEmail = _configuration["Email:FromEmail"];
         var senderName = _configuration["Email:FromName"] ?? "NovaResidence";
@@ -142,6 +149,13 @@ public class EmailService : IEmailService
 
     public async Task SendEmailWithTemplateAsync(string to, string templateId, object data, CancellationToken cancellationToken = default)
     {
+        if (_configuration.GetValue<bool>("Email:DisableSending"))
+        {
+            _logger.LogInformation("Email sending disabled. Skipping template email to: {To}, Template: {TemplateId}", to, templateId);
+            await Task.CompletedTask;
+            return;
+        }
+
         var apiKey = _configuration["Email:BrevoApiKey"];
         var senderEmail = _configuration["Email:FromEmail"];
         var senderName = _configuration["Email:FromName"] ?? "NovaResidence";

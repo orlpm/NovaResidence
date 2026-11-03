@@ -79,10 +79,12 @@ public class UpdateIncidentCommandHandler : IRequestHandler<UpdateIncidentComman
 public class AssignIncidentCommandHandler : IRequestHandler<AssignIncidentCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IOperationalNotifier _notifier;
 
-    public AssignIncidentCommandHandler(IApplicationDbContext context)
+    public AssignIncidentCommandHandler(IApplicationDbContext context, IOperationalNotifier notifier)
     {
         _context = context;
+        _notifier = notifier;
     }
 
     public async Task<Result> Handle(AssignIncidentCommand request, CancellationToken cancellationToken)
@@ -103,13 +105,23 @@ public class AssignIncidentCommandHandler : IRequestHandler<AssignIncidentComman
 
         var isOperationalStaff = assignee.CondominiumRoles.Any(cr =>
             cr.CondominiumId == incident.CondominiumId &&
-            (cr.Role == UserRole.Maintenance || cr.Role == UserRole.SecurityGuard || cr.Role == UserRole.Cleaning));
+            (cr.Role == UserRole.Maintenance || cr.Role == UserRole.SecurityGuard || cr.Role == UserRole.Cleaning || cr.Role == UserRole.ServiceProvider));
 
         if (!isOperationalStaff)
             return Result.Error(new Ardalis.Result.ErrorList(new[] { "Assignee must be operational staff from the same condominium" }, null));
 
         incident.AssignTo(request.AssignedToId, request.EstimatedCompletion);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notifier.NotifyUsersAsync(
+            new[] { request.AssignedToId },
+            incident.CondominiumId,
+            NotificationType.IncidentUpdate,
+            "Incidencia asignada",
+            incident.Title,
+            "Incident",
+            incident.Id,
+            null,
+            cancellationToken);
 
         return Result.Success();
     }
@@ -174,10 +186,12 @@ public class StartIncidentProgressCommandHandler : IRequestHandler<StartIncident
 public class ResolveIncidentCommandHandler : IRequestHandler<ResolveIncidentCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IOperationalNotifier _notifier;
 
-    public ResolveIncidentCommandHandler(IApplicationDbContext context)
+    public ResolveIncidentCommandHandler(IApplicationDbContext context, IOperationalNotifier notifier)
     {
         _context = context;
+        _notifier = notifier;
     }
 
     public async Task<Result> Handle(ResolveIncidentCommand request, CancellationToken cancellationToken)
@@ -188,6 +202,16 @@ public class ResolveIncidentCommandHandler : IRequestHandler<ResolveIncidentComm
 
         incident.Resolve(request.ResolvedById, request.ResolutionNotes, request.ActualCost);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notifier.NotifyUsersAsync(
+            new[] { incident.ReportedById },
+            incident.CondominiumId,
+            NotificationType.IncidentUpdate,
+            "Incidencia resuelta",
+            incident.Title,
+            "Incident",
+            incident.Id,
+            "/resident/incidents",
+            cancellationToken);
 
         return Result.Success();
     }

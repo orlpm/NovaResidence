@@ -36,6 +36,7 @@ function Payments() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<ChargePaymentDto | null>(null);
 
   useEffect(() => {
     loadCharges();
@@ -199,7 +200,7 @@ function Payments() {
     <div className="p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-black text-gray-900 dark:text-white">Mis Pagos</h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">Gestiona tus cargos y pagos</p>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">Estado de cuenta de tu unidad</p>
       </div>
 
       {/* Summary Cards */}
@@ -402,6 +403,15 @@ function Payments() {
                             </p>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                            {payment.receiptNumber && (
+                              <button
+                                type="button"
+                                onClick={() => setReceipt(payment)}
+                                className="px-2 py-1 text-xs font-semibold rounded-lg bg-sky-100 text-sky-700"
+                              >
+                                Ver recibo
+                              </button>
+                            )}
                             {payment.proofImageUrl && (
                               <a
                                 href={`http://localhost:5001${payment.proofImageUrl}`}
@@ -666,6 +676,20 @@ function Payments() {
                   </>
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {receipt && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-800 p-6 space-y-3">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Recibo de pago</h2>
+            <p className="text-sm text-gray-500">Folio {receipt.receiptNumber}</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">${receipt.amount.toFixed(2)}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300">{receipt.paymentMethodName}</p>
+            <div className="flex justify-end">
+              <button onClick={() => setReceipt(null)} className="px-4 py-2 rounded-lg bg-sky-600 text-white">Cerrar</button>
             </div>
           </div>
         </div>

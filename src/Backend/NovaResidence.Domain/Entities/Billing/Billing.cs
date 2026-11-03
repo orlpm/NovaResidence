@@ -181,6 +181,7 @@ public class Payment : BaseEntity
     public PaymentMethod PaymentMethod { get; private set; }
     public string? ReferenceNumber { get; private set; }
     public string? Notes { get; private set; }
+    public string? ReceiptNumber { get; private set; }
     
     public DateTime PaymentDate { get; private set; }
     public bool IsVerified { get; private set; }
@@ -223,6 +224,7 @@ public class Payment : BaseEntity
             ReceivedById = receivedById,
             ReferenceNumber = referenceNumber,
             Notes = notes,
+            ReceiptNumber = $"REC-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}",
             IsVerified = false,
             IsRefunded = false
         };

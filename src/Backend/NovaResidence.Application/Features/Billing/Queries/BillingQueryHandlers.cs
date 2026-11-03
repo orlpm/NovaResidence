@@ -100,7 +100,7 @@ public class GetChargeQueryHandler : IRequestHandler<GetChargeQuery, Result<Char
         var charge = await _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
-            .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .Include(c => c.Payments)
             .FirstOrDefaultAsync(c => c.Id == request.ChargeId && !c.IsDeleted, cancellationToken);
 
         if (charge == null)
@@ -129,7 +129,7 @@ public class GetChargeQueryHandler : IRequestHandler<GetChargeQuery, Result<Char
             charge.LateFeeAmount,
             charge.LateFeeAppliedAt,
             charge.CreatedAt,
-            charge.Payments.Select(p => new PaymentDto(
+            charge.Payments.Where(p => !p.IsDeleted).Select(p => new PaymentDto(
                 p.Id,
                 p.Amount,
                 p.PaymentMethod,
@@ -168,7 +168,7 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
         var query = _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
-            .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .Include(c => c.Payments)
             .Where(c => c.CondominiumId == request.CondominiumId && !c.IsDeleted);
 
         if (request.Month.HasValue)
@@ -191,11 +191,11 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
         var charges = rawCharges.Select(c =>
         {
             var (status, statusName, isOverdue) = BillingEnumNames.ComputeStatus(c.Status, c.DueDate, c.Balance);
-            var payments = c.Payments.Select(p => new ChargePaymentDto(
+            var payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new ChargePaymentDto(
                 p.Id, p.Amount, p.PaymentMethod,
                 BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
                 p.ReferenceNumber, p.PaymentDate,
-                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl
+                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl, p.ReceiptNumber
             )).ToList();
             return new ChargeListDto(
                 c.Id,
@@ -238,7 +238,7 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
         var query = _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
-            .Include(c => c.Payments.Where(p => !p.IsDeleted))
+            .Include(c => c.Payments)
             .Where(c => c.UnitId == request.UnitId && !c.IsDeleted);
 
         if (request.Month.HasValue)
@@ -257,11 +257,11 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
         var charges = rawCharges.Select(c =>
         {
             var (status, statusName, isOverdue) = BillingEnumNames.ComputeStatus(c.Status, c.DueDate, c.Balance);
-            var payments = c.Payments.Select(p => new ChargePaymentDto(
+            var payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new ChargePaymentDto(
                 p.Id, p.Amount, p.PaymentMethod,
                 BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
                 p.ReferenceNumber, p.PaymentDate,
-                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl
+                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl, p.ReceiptNumber
             )).ToList();
             return new ChargeListDto(
                 c.Id,
@@ -492,26 +492,28 @@ public class GetOverdueChargesQueryHandler : IRequestHandler<GetOverdueChargesQu
     {
         // Get charges that are either marked as overdue OR are past due date with balance > 0
         var now = DateTime.UtcNow.Date;
-        var rawCharges = await _context.Charges
+        var loadedCharges = await _context.Charges
             .Include(c => c.Unit)
                 .ThenInclude(u => u.Building)
-            .Include(c => c.Payments.Where(p => !p.IsDeleted))
-            .Where(c => c.CondominiumId == request.CondominiumId 
-                && !c.IsDeleted
-                && c.Amount > c.PaidAmount
+            .Include(c => c.Payments)
+            .Where(c => c.CondominiumId == request.CondominiumId && !c.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        var rawCharges = loadedCharges
+            .Where(c => c.Amount > c.PaidAmount
                 && (c.Status == ChargeStatus.Overdue || c.Status == ChargeStatus.Pending || c.Status == ChargeStatus.PartiallyPaid)
                 && c.DueDate < now)
             .OrderBy(c => c.Unit.UnitNumber)
             .ThenBy(c => c.DueDate)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var charges = rawCharges.Select(c =>
         {
-            var payments = c.Payments.Select(p => new ChargePaymentDto(
+            var payments = c.Payments.Where(p => !p.IsDeleted).Select(p => new ChargePaymentDto(
                 p.Id, p.Amount, p.PaymentMethod,
                 BillingEnumNames.GetPaymentMethodName(p.PaymentMethod),
                 p.ReferenceNumber, p.PaymentDate,
-                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl
+                p.IsVerified, p.VerifiedAt, p.IsRefunded, p.ProofImageUrl, p.ReceiptNumber
             )).ToList();
             return new ChargeListDto(
                 c.Id,

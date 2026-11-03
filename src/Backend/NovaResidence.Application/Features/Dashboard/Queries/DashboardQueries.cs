@@ -117,12 +117,16 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
         var totalOverdue = overdueCharges.Sum(c => c.Amount - c.PaidAmount);
         
         // Collection rate (paid this month vs total due this month)
-        var paidThisMonth = await chargesQuery
+        var paidAmounts = await chargesQuery
             .Where(c => c.Status == ChargeStatus.Paid && c.UpdatedAt >= startOfMonth)
-            .SumAsync(c => c.Amount, cancellationToken);
-        var totalDueThisMonth = await chargesQuery
+            .Select(c => c.Amount)
+            .ToListAsync(cancellationToken);
+        var dueAmounts = await chargesQuery
             .Where(c => c.DueDate >= startOfMonth && c.DueDate < startOfMonth.AddMonths(1))
-            .SumAsync(c => c.Amount, cancellationToken);
+            .Select(c => c.Amount)
+            .ToListAsync(cancellationToken);
+        var paidThisMonth = paidAmounts.Sum();
+        var totalDueThisMonth = dueAmounts.Sum();
         var collectionRate = totalDueThisMonth > 0 ? Math.Round(paidThisMonth / totalDueThisMonth * 100, 1) : 100;
 
         // Recent activities

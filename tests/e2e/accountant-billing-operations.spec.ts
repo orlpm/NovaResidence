@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, loginAPI, registerConfirmedUser, unwrapData, uniqueEmail } from './helpers/auth'
 import { buildScenarioProfile } from './helpers/demo-data'
-import { runSql } from './helpers/sql'
+import { ensureCondominiumRole } from './helpers/sql'
 
 type BillingScenario = {
   superToken: string
@@ -12,19 +12,7 @@ type BillingScenario = {
 }
 
 function assignAccountantToCondominium(userId: string, condominiumId: string) {
-  runSql(`
-IF NOT EXISTS (
-    SELECT 1
-    FROM [auth].[UserCondominiumRoles]
-    WHERE [UserId] = '${userId}'
-      AND [CondominiumId] = '${condominiumId}'
-      AND [Role] = 8
-)
-BEGIN
-    INSERT INTO [auth].[UserCondominiumRoles] ([CondominiumId], [Role], [AssignedAt], [UserId])
-    VALUES ('${condominiumId}', 8, SYSUTCDATETIME(), '${userId}')
-END
-`)
+  ensureCondominiumRole(userId, condominiumId, 8)
 }
 
 function asId(payload: unknown): string {

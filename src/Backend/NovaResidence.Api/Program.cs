@@ -109,6 +109,7 @@ using (var scope = app.Services.CreateScope())
         
         // Ensure database is created (for SQLite)
         context.Database.EnsureCreated();
+        await NovaResidence.Infrastructure.Persistence.SqliteSchemaPatch.ApplyAsync(context);
     }
     else
     {
@@ -133,6 +134,15 @@ using (var scope = app.Services.CreateScope())
     // Seed jurisdictional procedure templates
     var procedureTemplateSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.ProcedureTemplateSeeder(dbContext);
     await procedureTemplateSeeder.SeedAsync();
+
+    if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Demo:SeedOnStartup"))
+    {
+        var passwordHasher = scope.ServiceProvider.GetRequiredService<NovaResidence.Application.Common.Interfaces.IPasswordHasher>();
+        var demoLogger = scope.ServiceProvider.GetRequiredService<ILogger<NovaResidence.Infrastructure.Persistence.Seeders.DemoScenarioSeeder>>();
+        var demoSeeder = new NovaResidence.Infrastructure.Persistence.Seeders.DemoScenarioSeeder(context, passwordHasher, demoLogger);
+        await demoSeeder.SeedAsync();
+        await demoSeeder.EnsureShowcaseAsync();
+    }
 }
 
 // Configure the HTTP request pipeline
@@ -152,6 +162,13 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowFrontend");
+
+var webRoot = app.Environment.WebRootPath;
+if (!string.IsNullOrEmpty(webRoot) && Directory.Exists(webRoot))
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 
 // Serve uploaded files (payment proofs, etc.)
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
@@ -174,5 +191,6 @@ app.UseMiddleware<SubscriptionValidationMiddleware>();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+app.MapFallbackToFile("index.html");
 
 app.Run();

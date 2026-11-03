@@ -1,11 +1,13 @@
 # Sistema de Permisos NovaResidence
 
-Sistema completo de permisos dinámicos multi-rol para la plataforma SaaS de gestión de condominios.
+Permisos dinámicos por rol para el SaaS de condominios. El mapa de procesos y la tenencia están en [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) y [ARCHITECTURE.md](ARCHITECTURE.md). Este archivo solo describe la resolución de permisos.
 
-## 📋 Características
+Hay un décimo rol, `Cleaning` (valor 9). El token lo colapsa junto con mantenimiento a `maintenance`; el permiso y la ruta deciden la pantalla. Las pantallas de documentos, agenda de proveedor, paquetería, rondas, cajones y multas no usan un código nuevo: un `PermissionRoute` con un código sin sembrar responde Acceso Denegado.
 
-- ✅ **66 permisos** organizados en 9 categorías
-- ✅ **9 roles** con permisos predefinidos (SuperAdmin, Admin, SubAdmin, Owner, Tenant, SecurityGuard, Maintenance, ServiceProvider, Accountant)
+## Características
+
+- 66 permisos organizados en 9 categorías
+- 10 roles con permisos predefinidos (SuperAdmin, CondominiumAdmin, SubAdmin, Owner, Tenant, SecurityGuard, Maintenance, ServiceProvider, Accountant, Cleaning)
 - ✅ **3 niveles de resolución** jerárquica de permisos
 - ✅ **Caché inteligente** (15 minutos) para optimizar consultas
 - ✅ **Permisos temporales** con fecha de expiración

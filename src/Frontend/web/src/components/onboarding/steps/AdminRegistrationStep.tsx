@@ -34,7 +34,9 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = 'Email inválido'
 
     if (!formData.password) newErrors.password = 'Contraseña requerida'
-    else if (formData.password.length < 8) newErrors.password = 'Mínimo 8 caracteres'
+    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).{8,}$/.test(formData.password)) {
+      newErrors.password = 'Mínimo 8 caracteres, con mayúscula, minúscula, número y un símbolo'
+    }
 
     if (!formData.confirmPassword) newErrors.confirmPassword = 'Confirma tu contraseña'
     else if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Las contraseñas no coinciden'
@@ -163,7 +165,7 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
             {errors.password}
           </p>
         )}
-        <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres</p>
+        <p className="mt-1 text-xs text-gray-500">Mínimo 8 caracteres, con mayúscula, minúscula, número y un símbolo. Ejemplo: Pass123.</p>
       </div>
 
       <div>

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Api.Security;
+using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Visits;
 using NovaResidence.Domain.Enums;
 using NovaResidence.Infrastructure.Persistence;
@@ -17,12 +18,18 @@ public class VisitsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<VisitsController> _logger;
     private readonly ITenantAccessService _tenantAccessService;
+    private readonly IOperationalNotifier _notifier;
 
-    public VisitsController(ApplicationDbContext context, ILogger<VisitsController> logger, ITenantAccessService tenantAccessService)
+    public VisitsController(
+        ApplicationDbContext context,
+        ILogger<VisitsController> logger,
+        ITenantAccessService tenantAccessService,
+        IOperationalNotifier notifier)
     {
         _context = context;
         _logger = logger;
         _tenantAccessService = tenantAccessService;
+        _notifier = notifier;
     }
 
     /// <summary>
@@ -268,6 +275,15 @@ public class VisitsController : ControllerBase
 
             _context.Visits.Add(visit);
             await _context.SaveChangesAsync();
+            await _notifier.NotifyRoleAsync(
+                visit.CondominiumId,
+                UserRole.SecurityGuard,
+                NotificationType.General,
+                "Nueva visita",
+                visit.VisitorName,
+                "Visit",
+                visit.Id,
+                "/security/access-control");
 
             return Ok(ApiResponse<Guid>.SuccessResponse(visit.Id, "Visita registrada exitosamente"));
         }
@@ -521,6 +537,153 @@ public class VisitsController : ControllerBase
     }
 
     /// <summary>
+    /// Get the QR access pass of a visit (resident shares it with the visitor)
+    /// </summary>
+    [HttpGet("{id:guid}/access-pass")]
+    public async Task<IActionResult> GetAccessPass(Guid id)
+    {
+        if (!await _tenantAccessService.CanAccessVisitAsync(User, id))
+            return TenantForbidden();
+
+        var visit = await _context.Visits.FindAsync(id);
+        if (visit == null)
+            return NotFound(ApiResponse<object>.FailureResponse("Visita no encontrada"));
+
+        if (visit.EnsureAccessCode())
+            await _context.SaveChangesAsync();
+
+        var code = Visit.FormatAccessCode(visit.AccessCode!);
+        return Ok(ApiResponse<VisitAccessPassDto>.SuccessResponse(new VisitAccessPassDto(
+            visit.Id,
+            visit.VisitorName,
+            code,
+            visit.AccessValidFrom,
+            visit.AccessValidUntil,
+            visit.Status,
+            GetVisitStatusName(visit.Status),
+            visit.GetEntryDenialReason(DateTime.UtcNow) == null)));
+    }
+
+    /// <summary>
+    /// Validate a scanned or typed QR access code (security booth)
+    /// </summary>
+    [HttpPost("access/scan")]
+    [Authorize(Roles = "admin,superadmin,security")]
+    public async Task<IActionResult> ScanAccessCode([FromBody] VisitAccessCodeRequest request)
+    {
+        var visit = await FindVisitByAccessCodeAsync(request.Code);
+        if (visit == null)
+            return InvalidAccessCode();
+
+        return Ok(ApiResponse<VisitAccessScanDto>.SuccessResponse(await BuildScanResultAsync(visit)));
+    }
+
+    /// <summary>
+    /// Register the visitor entry from a QR access code
+    /// </summary>
+    [HttpPost("access/check-in")]
+    [Authorize(Roles = "admin,superadmin,security")]
+    public async Task<IActionResult> CheckInWithAccessCode([FromBody] VisitAccessCodeRequest request)
+    {
+        var guardId = GetCurrentUserId();
+        if (guardId == null)
+            return Unauthorized(ApiResponse<object>.FailureResponse("Sesión inválida"));
+
+        var visit = await FindVisitByAccessCodeAsync(request.Code);
+        if (visit == null)
+            return InvalidAccessCode();
+
+        var denialReason = visit.GetEntryDenialReason(DateTime.UtcNow);
+        if (denialReason != null)
+            return BadRequest(ApiResponse<object>.FailureResponse(denialReason));
+
+        visit.CheckIn(guardId.Value);
+        await _context.SaveChangesAsync();
+
+        await _notifier.NotifyUsersAsync(
+            new[] { visit.RequestedById },
+            visit.CondominiumId,
+            NotificationType.General,
+            "Tu visita llegó",
+            $"{visit.VisitorName} ingresó con su pase QR",
+            "Visit",
+            visit.Id,
+            $"/resident/visits/{visit.Id}");
+
+        return Ok(ApiResponse<VisitAccessScanDto>.SuccessResponse(await BuildScanResultAsync(visit), "Entrada registrada"));
+    }
+
+    /// <summary>
+    /// Register the visitor exit from a QR access code
+    /// </summary>
+    [HttpPost("access/check-out")]
+    [Authorize(Roles = "admin,superadmin,security")]
+    public async Task<IActionResult> CheckOutWithAccessCode([FromBody] VisitAccessCodeRequest request)
+    {
+        var guardId = GetCurrentUserId();
+        if (guardId == null)
+            return Unauthorized(ApiResponse<object>.FailureResponse("Sesión inválida"));
+
+        var visit = await FindVisitByAccessCodeAsync(request.Code);
+        if (visit == null)
+            return InvalidAccessCode();
+
+        if (visit.Status != VisitStatus.CheckedIn)
+            return BadRequest(ApiResponse<object>.FailureResponse("El visitante no está dentro del condominio"));
+
+        visit.CheckOut(guardId.Value);
+        await _context.SaveChangesAsync();
+
+        return Ok(ApiResponse<VisitAccessScanDto>.SuccessResponse(await BuildScanResultAsync(visit), "Salida registrada"));
+    }
+
+    private async Task<Visit?> FindVisitByAccessCodeAsync(string? rawCode)
+    {
+        var code = Visit.NormalizeAccessCode(rawCode);
+        if (code == null)
+            return null;
+
+        var visit = await _context.Visits.FirstOrDefaultAsync(v => v.AccessCode == code);
+        if (visit == null || !await _tenantAccessService.CanAccessCondominiumAsync(User, visit.CondominiumId))
+            return null;
+
+        return visit;
+    }
+
+    private async Task<VisitAccessScanDto> BuildScanResultAsync(Visit visit)
+    {
+        var unitNumber = await _context.Units.AsNoTracking()
+            .Where(u => u.Id == visit.UnitId)
+            .Select(u => u.UnitNumber)
+            .FirstOrDefaultAsync();
+        var denialReason = visit.GetEntryDenialReason(DateTime.UtcNow);
+
+        return new VisitAccessScanDto(
+            visit.Id,
+            visit.VisitorName,
+            visit.VisitorCount,
+            visit.VehiclePlate,
+            unitNumber,
+            visit.Purpose,
+            visit.ExpectedArrival,
+            visit.ExpectedDeparture,
+            visit.Status,
+            GetVisitStatusName(visit.Status),
+            denialReason == null,
+            visit.Status == VisitStatus.CheckedIn,
+            denialReason);
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var value = User.FindFirst("userId")?.Value ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(value, out var userId) ? userId : null;
+    }
+
+    private IActionResult InvalidAccessCode() =>
+        NotFound(ApiResponse<object>.FailureResponse("Código QR no válido para este condominio"));
+
+    /// <summary>
     /// Get today's visits for a condominium (security dashboard)
     /// </summary>
     [HttpGet("today/{condominiumId:guid}")]
@@ -531,8 +694,8 @@ public class VisitsController : ControllerBase
 
         try
         {
-            var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var today = TimeZoneInfo.ConvertTimeToUtc(DateTime.Today);
+            var tomorrow = TimeZoneInfo.ConvertTimeToUtc(DateTime.Today.AddDays(1));
 
             var visits = await _context.Visits
                 .Where(v => v.CondominiumId == condominiumId && 
@@ -696,3 +859,31 @@ public record ApproveVisitRequest(Guid ApprovedById);
 public record RejectVisitRequest(Guid RejectedById, string? Reason = null);
 public record CheckInVisitRequest(Guid SecurityGuardId);
 public record CheckOutVisitRequest(Guid SecurityGuardId);
+public record VisitAccessCodeRequest(string? Code);
+
+public record VisitAccessPassDto(
+    Guid VisitId,
+    string VisitorName,
+    string AccessCode,
+    DateTime ValidFrom,
+    DateTime ValidUntil,
+    VisitStatus Status,
+    string StatusName,
+    bool IsUsable
+);
+
+public record VisitAccessScanDto(
+    Guid VisitId,
+    string VisitorName,
+    int VisitorCount,
+    string? VehiclePlate,
+    string? UnitNumber,
+    string? Purpose,
+    DateTime ExpectedArrival,
+    DateTime? ExpectedDeparture,
+    VisitStatus Status,
+    string StatusName,
+    bool CanCheckIn,
+    bool CanCheckOut,
+    string? Message
+);

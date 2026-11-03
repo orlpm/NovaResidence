@@ -17,7 +17,10 @@ import {
   Users,
   Trees,
   Map,
-  ClipboardCheck
+  ClipboardCheck,
+  FileText,
+  Package,
+  Car
 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useTheme } from '../contexts/ThemeContext'
@@ -37,6 +40,9 @@ const navigation = [
   { name: 'Visitas', href: '/resident/visits', icon: Users },
   { name: 'Trámites', href: '/resident/procedures', icon: ClipboardCheck },
   { name: 'Comunicación', href: '/resident/communications', icon: MessageSquare },
+  { name: 'Documentos', href: '/resident/documents', icon: FileText },
+  { name: 'Paquetería', href: '/resident/packages', icon: Package },
+  { name: 'Vehículos', href: '/resident/vehicles', icon: Car },
 ]
 
 function ResidentLayout() {

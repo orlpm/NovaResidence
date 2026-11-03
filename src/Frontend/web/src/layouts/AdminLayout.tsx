@@ -18,6 +18,7 @@ import {
   Map,
   Trees,
   CalendarCheck,
+  CalendarClock,
   MessageSquare,
   Shield,
   UserCheck,
@@ -55,6 +56,10 @@ const navigation = [
   { name: 'Visitas', href: '/admin/visits', icon: UserCheck },
   { name: 'Trámites', href: '/admin/procedures', icon: ClipboardCheck },
   { name: 'Comunicaciones', href: '/admin/communications', icon: MessageSquare },
+  { name: 'Agenda proveedores', href: '/admin/provider-agenda', icon: CalendarClock },
+  { name: 'Documentos', href: '/admin/documents', icon: FileText },
+  { name: 'Vehículos y cajones', href: '/admin/parking', icon: Map },
+  { name: 'Multas', href: '/admin/fines', icon: AlertCircle },
   { name: 'Reportes', href: '/admin/reports', icon: FileText },
   { name: 'Mi Suscripción', href: '/admin/subscription', icon: CreditCard },
   {

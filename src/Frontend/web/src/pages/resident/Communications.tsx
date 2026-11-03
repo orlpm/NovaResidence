@@ -18,6 +18,7 @@ import {
   AnnouncementPriority,
   PollStatus,
   MeetingStatus,
+  AttendeeStatus,
   ForumCategory,
   forumCategoryNames,
   type AnnouncementDto,
@@ -36,6 +37,7 @@ export default function ResidentCommunications() {
   const [activeTab, setActiveTab] = useState<TabType>('announcements')
   const [condominiumId, setCondominiumId] = useState<string>('')
   const [unitId, setUnitId] = useState<string>('')
+  const [residentId, setResidentId] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -83,6 +85,7 @@ export default function ResidentCommunications() {
       if (resident?.condominiumId) {
         setCondominiumId(resident.condominiumId)
         setUnitId(resident.unitId || '')
+        setResidentId(resident.id)
       }
     } catch { 
       setError('Error al cargar información del residente') 
@@ -101,7 +104,19 @@ export default function ResidentCommunications() {
           break
         case 'polls':
           const pollsData = await communicationsService.getPolls(condominiumId, { status: PollStatus.Active })
-          setPolls(pollsData.items)
+          const polls = pollsData.items
+          if (unitId) {
+            const voted = await Promise.all(polls.map(async poll => {
+              try {
+                return { ...poll, hasVoted: await communicationsService.hasUnitVoted(poll.id, unitId) }
+              } catch {
+                return poll
+              }
+            }))
+            setPolls(voted)
+          } else {
+            setPolls(polls)
+          }
           break
         case 'meetings':
           const meetingsData = await communicationsService.getMeetings(condominiumId)
@@ -146,13 +161,28 @@ export default function ResidentCommunications() {
       await communicationsService.castVote(selectedPoll.id, {
         optionId: selectedOptionId,
         unitId: unitId,
-        residentId: user?.id || null
+        residentId: residentId || null
       })
       setShowVoteModal(false)
       setSelectedPoll(null)
       loadDataForTab()
       showSuccess('Voto registrado exitosamente')
     } catch { setError('Error al votar') }
+  }
+
+  const handleAttendance = async (meetingId: string, attendeeId: string, action: 'confirm' | 'decline') => {
+    try {
+      if (action === 'confirm') {
+        await communicationsService.confirmMeetingAttendance(meetingId, attendeeId)
+        showSuccess('Asistencia confirmada')
+      } else {
+        await communicationsService.declineMeetingAttendance(meetingId, attendeeId)
+        showSuccess('Asistencia rechazada')
+      }
+      await loadDataForTab()
+    } catch {
+      setError('No se pudo actualizar la asistencia')
+    }
   }
 
   // Forum handlers
@@ -403,7 +433,7 @@ export default function ResidentCommunications() {
                       {poll.totalVotes} votos
                     </span>
                     <span>
-                      Participación: {poll.participationPercentage.toFixed(0)}%
+                      Participación: {(poll.participationPercentage ?? 0).toFixed(0)}%
                     </span>
                   </div>
 
@@ -419,7 +449,7 @@ export default function ResidentCommunications() {
                           </div>
                           <span className="text-sm text-gray-600 dark:text-gray-400 w-28 truncate">{option.text}</span>
                           <span className="text-sm font-medium text-gray-900 dark:text-white w-12 text-right">
-                            {option.percentage.toFixed(0)}%
+                            {(option.percentage ?? 0).toFixed(0)}%
                           </span>
                         </div>
                       ))}
@@ -492,12 +522,33 @@ export default function ResidentCommunications() {
                           <ChevronRight className="w-4 h-4" />
                         </a>
                       )}
-                      {meeting.minutes && meeting.status === MeetingStatus.Completed && (
+                      {meeting.minutes && (
                         <div className="mt-3">
                           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-1">Acta de la Reunión</h4>
                           <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{meeting.minutes}</p>
                         </div>
                       )}
+                      {meeting.attendees?.filter(attendee => attendee.residentId?.toLowerCase() === residentId.toLowerCase()).map(attendee => (
+                        <div key={attendee.id} className="mt-4 flex flex-wrap items-center gap-2" onClick={event => event.stopPropagation()}>
+                          <span className="text-sm text-gray-600 dark:text-gray-300">Tu asistencia: {attendee.statusName}</span>
+                          {attendee.status === AttendeeStatus.Invited && (
+                            <>
+                              <button
+                                onClick={() => handleAttendance(meeting.id, attendee.id, 'confirm')}
+                                className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm"
+                              >
+                                Confirmar asistencia
+                              </button>
+                              <button
+                                onClick={() => handleAttendance(meeting.id, attendee.id, 'decline')}
+                                className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm"
+                              >
+                                Rechazar asistencia
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

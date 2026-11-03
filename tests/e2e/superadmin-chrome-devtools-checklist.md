@@ -1,5 +1,7 @@
 # SuperAdmin - Chrome DevTools Test Checklist
 
+Lista manual del plano de control de la plataforma. El proceso de suscripción y el resto de la operación están en [docs/BUSINESS-PROCESSES.md](../../docs/BUSINESS-PROCESSES.md). El estado del producto, en [docs/HANDOFF.md](../../docs/HANDOFF.md).
+
 ## Preconditions
 - Backend running on `http://localhost:5001`
 - Frontend running on `http://localhost:3001` (or active Vite port)

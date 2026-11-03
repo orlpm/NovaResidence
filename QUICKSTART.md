@@ -1,171 +1,67 @@
-# Guía de Inicio Rápido - NovaResidence
+# Inicio rápido
 
-## ⚡ Iniciar Desarrollo
+Para el contexto del producto lee [docs/HANDOFF.md](docs/HANDOFF.md). Esta página solo dice cómo levantarlo y cómo probarlo.
 
-### 1. Backend (API)
+## Local
 
-```bash
-# Terminal 1 - API
-cd src/Backend/NovaResidence.Api
-dotnet run
-```
-
-Acceso:
-- API: https://localhost:7001
-- Swagger: https://localhost:7001/swagger
-- Scalar API Docs: https://localhost:7001/scalar/v1
-
-### 2. Frontend (Web)
+Terminal de la API, desde la raíz del repositorio:
 
 ```bash
-# Terminal 2 - Web App
-cd src/Frontend
-npm install
-npm run web
+dotnet run --project src/Backend/NovaResidence.Api/NovaResidence.Api.csproj --urls http://localhost:5001
 ```
 
-Acceso: http://localhost:3000
+El directorio de trabajo del proceso debe ser el proyecto de la API si se arranca desde ahí. La base SQLite queda en `src/Backend/NovaResidence.Api/data/novaresidence.dev.db`. No hace falta SQL Server ni `dotnet ef database update` mientras `UseSqlite` sea true. El arranque crea el archivo, aplica `SqliteSchemaPatch` y, en Development, siembra el demo.
 
-## 🗄️ Base de Datos
-
-### Primera vez
-
-```bash
-cd src/Backend/NovaResidence.Infrastructure
-
-# Crear migración inicial
-dotnet ef migrations add InitialCreate --startup-project ../NovaResidence.Api
-
-# Aplicar a base de datos
-dotnet ef database update --startup-project ../NovaResidence.Api
-```
-
-### Configuración de correo y recuperación de contraseña
-
-Completa estos valores en `src/Backend/NovaResidence.Api/appsettings.Development.json` o mediante secretos:
-
-```json
-{
-  "Auth": {
-    "FrontendBaseUrl": "http://localhost:3001",
-    "RequireConfirmedEmailForLogin": true
-  },
-  "Email": {
-    "BrevoApiKey": "TU_API_KEY_O_SMTP_KEY_DE_BREVO",
-    "SmtpUsername": "tu-login-smtp-brevo-si-usas-xsmtpsib",
-    "FromEmail": "no-reply@tu-dominio.com",
-    "FromName": "NovaResidence"
-  }
-}
-```
-
-Notas:
-- `FrontendBaseUrl` debe apuntar al frontend real para generar enlaces válidos.
-- `RequireConfirmedEmailForLogin` ya está activo para bloquear login hasta confirmar el correo.
-- Si la clave de Brevo empieza con `xsmtpsib-`, el backend usa SMTP relay y `SmtpUsername` debe ser el login SMTP real de Brevo.
-- Si la clave empieza con `xkeysib-`, el backend usa la API REST y `SmtpUsername` no es necesario.
-- La migración `AddEmailConfirmationAndPasswordResetTokens` ya quedó aplicada a la base local.
-
-### Agregar nuevas migraciones
-
-```bash
-# Desde Infrastructure project
-dotnet ef migrations add NombreDeLaMigracion --startup-project ../NovaResidence.Api
-dotnet ef database update --startup-project ../NovaResidence.Api
-```
-
-## 📦 Paquetes Útiles
-
-### Backend - Agregar paquetes
-
-```bash
-# En Directory.Packages.props agregar:
-<PackageVersion Include="NombrePaquete" Version="X.X.X" />
-
-# En el .csproj del proyecto:
-<PackageReference Include="NombrePaquete" />
-```
-
-### Frontend - Agregar paquetes
+Terminal del web:
 
 ```bash
 cd src/Frontend/web
-npm install nombre-paquete
+npm install
+npm run dev
 ```
 
-## 🔍 Endpoints Principales
+Vite usa el puerto 3000. `src/Frontend/web/.env` debe apuntar a `http://localhost:5001/api`. Playwright levanta el mismo Vite en el puerto 3001. Swagger solo aparece en Development: `http://localhost:5001/swagger`.
 
-### Authentication
-- POST `/api/auth/register` - Registro de usuario
-- POST `/api/auth/login` - Login
-- POST `/api/auth/refresh` - Refresh token
-- GET `/api/auth/confirm-email` - Confirmar correo
-- POST `/api/auth/resend-email-confirmation` - Reenviar confirmación
-- POST `/api/auth/forgot-password` - Solicitar reset de contraseña
-- POST `/api/auth/reset-password` - Restablecer contraseña
+Cuentas del demo: cualquier correo de la tabla del README, contraseña `Pass123.`
 
-### Condominiums
-- GET `/api/condominiums` - Listar condominios
-- GET `/api/condominiums/{id}` - Obtener condominio
-- POST `/api/condominiums` - Crear condominio
-- PUT `/api/condominiums/{id}` - Actualizar condominio
-- DELETE `/api/condominiums/{id}` - Eliminar condominio (soft delete)
+## Correo
 
-## 🎨 Estructura de Módulos
+El envío está apagado. No lo enciendas sin una clave de Brevo dada por el usuario. Si más adelante se enciende, `xkeysib-` usa la API REST y `xsmtpsib-` usa SMTP con `SmtpUsername`. `Auth:FrontendBaseUrl` arma los enlaces de confirmación y de restablecimiento. Los registros públicos no confirman solos. El personal creado por un administrador sí queda confirmado.
 
-Cada módulo sigue el patrón CQRS:
+## Pruebas de extremo a extremo
 
-```
-Features/
-└── [ModuleName]/
-    ├── Commands/
-    │   └── [CommandName]/
-    │       ├── CommandName.cs
-    │       ├── CommandNameHandler.cs
-    │       └── CommandNameValidator.cs
-    └── Queries/
-        └── [QueryName]/
-            ├── QueryName.cs
-            └── QueryNameHandler.cs
-```
+Desde la raíz, con los puertos 5001 y 3001 libres para que Playwright no reutilice un API viejo:
 
-## 🚀 Próximos Pasos
-
-1. ✅ Estructura base creada
-2. ⏳ Implementar autenticación JWT completa
-3. ⏳ Agregar módulo de Billing
-4. ⏳ Agregar módulo de Incidents
-5. ⏳ Agregar módulo de Reservations
-6. ⏳ Implementar React Native (Mobile)
-7. ⏳ Configurar Azure DevOps CI/CD
-8. ⏳ Implementar tests unitarios e integración
-
-## 🐛 Troubleshooting
-
-### Error: No se puede conectar a la base de datos
-
-**Solución**: Verifica que SQL Server esté corriendo:
 ```bash
-# Para LocalDB
-sqllocaldb start mssqllocaldb
+npx playwright test tests/e2e/notifications-events.spec.ts tests/e2e/documents.spec.ts tests/e2e/common-areas-maps.spec.ts tests/e2e/cleaning-provider-work.spec.ts tests/e2e/polls-meetings.spec.ts tests/e2e/packages.spec.ts tests/e2e/vehicles-parking.spec.ts tests/e2e/resident-fee-payment.spec.ts tests/e2e/security-rounds.spec.ts tests/e2e/fines.spec.ts tests/e2e/demo-pedregal-showcase.spec.ts
 ```
 
-### Error: Puerto en uso
+Antes de esa corrida local, `E2E_TARGET`, `E2E_BASE_URL` y `E2E_API_BASE` tienen que estar vacíos.
 
-**API**: Cambia el puerto en `launchSettings.json`
-**Web**: Cambia el puerto en `vite.config.ts`
+Contra el sitio publicado:
 
-### Error: CORS
-
-Verifica que el origen del frontend esté en `appsettings.json`:
-```json
-{
-  "Cors": {
-    "AllowedOrigins": ["http://localhost:3000"]
-  }
-}
+```bash
+set E2E_TARGET=azure
+set E2E_BASE_URL=https://novaresidence-api.azurewebsites.net
+set E2E_API_BASE=https://novaresidence-api.azurewebsites.net/api
+npx playwright test tests/e2e/<spec>.spec.ts
 ```
 
-## 📞 Contacto
+En PowerShell se asignan con `$env:`. El sitio F1 puede tardar en despertar. No reactivar `tests/record-demo.spec.ts`.
 
-Para dudas o problemas, contacta al equipo de desarrollo.
+## Publicar
+
+1. `npm run build` en `src/Frontend/web`.
+2. `dotnet publish` en Release a una carpeta temporal.
+3. Copiar `dist` dentro del `wwwroot` de esa carpeta.
+4. `az webapp deploy --resource-group NovaResidence-RG --name novaresidence-api --src-path <zip> --type zip`.
+
+La raíz del sitio debe responder 200. Swagger en Azure responde 404 y eso es esperado.
+
+## Si algo no aparece en una base que ya existe
+
+`EnsureCreated` no agrega tablas a un SQLite viejo. La tabla o la columna nueva tiene que estar en `SqliteSchemaPatch` y el proceso tiene que reiniciar. Borrar la base solo es válido en local y pierde el demo.
+
+## Si una pantalla dice Acceso Denegado
+
+El rol del token no coincide con la ruta, o `PermissionRoute` exige un código que el seeder no dio a ese rol. Vigilancia se evalúa con su rol de condominio, no como propietario. No protejas una pantalla nueva con un permiso que no esté sembrado.

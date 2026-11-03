@@ -282,10 +282,12 @@ public class UpdatePollCommandHandler : IRequestHandler<UpdatePollCommand, Resul
 public class PublishPollCommandHandler : IRequestHandler<PublishPollCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IOperationalNotifier _notifier;
 
-    public PublishPollCommandHandler(IApplicationDbContext context)
+    public PublishPollCommandHandler(IApplicationDbContext context, IOperationalNotifier notifier)
     {
         _context = context;
+        _notifier = notifier;
     }
 
     public async Task<Result> Handle(PublishPollCommand request, CancellationToken cancellationToken)
@@ -296,6 +298,15 @@ public class PublishPollCommandHandler : IRequestHandler<PublishPollCommand, Res
 
         poll.Publish();
         await _context.SaveChangesAsync(cancellationToken);
+        await _notifier.NotifyResidentsAsync(
+            poll.CondominiumId,
+            NotificationType.Poll,
+            "Nueva encuesta",
+            poll.Title,
+            "Poll",
+            poll.Id,
+            "/resident/communications",
+            cancellationToken);
         return Result.Success();
     }
 }
@@ -636,14 +647,20 @@ public class SetMeetingMinutesCommandHandler : IRequestHandler<SetMeetingMinutes
 public class InviteToMeetingCommandHandler : IRequestHandler<InviteToMeetingCommand, Result<Guid>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IOperationalNotifier _notifier;
 
-    public InviteToMeetingCommandHandler(IApplicationDbContext context)
+    public InviteToMeetingCommandHandler(IApplicationDbContext context, IOperationalNotifier notifier)
     {
         _context = context;
+        _notifier = notifier;
     }
 
     public async Task<Result<Guid>> Handle(InviteToMeetingCommand request, CancellationToken cancellationToken)
     {
+        var meeting = await _context.Meetings.FindAsync(new object[] { request.MeetingId }, cancellationToken);
+        if (meeting == null)
+            return Result.NotFound("Meeting not found");
+
         var attendee = MeetingAttendee.Create(
             request.MeetingId,
             request.UnitId,
@@ -653,6 +670,26 @@ public class InviteToMeetingCommandHandler : IRequestHandler<InviteToMeetingComm
 
         _context.MeetingAttendees.Add(attendee);
         await _context.SaveChangesAsync(cancellationToken);
+
+        var residentUserId = await _context.Residents
+            .Where(resident => resident.Id == request.ResidentId && resident.UserId != null)
+            .Select(resident => resident.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (residentUserId.HasValue)
+        {
+            await _notifier.NotifyUsersAsync(
+                new[] { residentUserId.Value },
+                meeting.CondominiumId,
+                NotificationType.Meeting,
+                "Invitación a asamblea",
+                meeting.Title,
+                "Meeting",
+                meeting.Id,
+                "/resident/communications",
+                cancellationToken);
+        }
+
         return Result.Success(attendee.Id);
     }
 }

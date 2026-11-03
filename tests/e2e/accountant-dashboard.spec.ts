@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext } from '@playwright/test'
 import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, loginAPI, loginUI, registerConfirmedUser, uniqueEmail, unwrapData } from './helpers/auth'
 import { createAdminCondominiumScenario, asId } from './helpers/condominium'
 import { buildScenarioProfile } from './helpers/demo-data'
-import { runSql } from './helpers/sql'
+import { ensureCondominiumRole } from './helpers/sql'
 
 async function createAccountantUser(request: APIRequestContext, superToken: string, condominiumId: string): Promise<{ email: string; password: string }> {
   const profile = buildScenarioProfile('accountant.ops')
@@ -34,19 +34,7 @@ async function grantAccountantPermissions(request: APIRequestContext, superToken
 }
 
 function assignAccountantToCondominium(userId: string, condominiumId: string) {
-  runSql(`
-IF NOT EXISTS (
-    SELECT 1
-    FROM [auth].[UserCondominiumRoles]
-    WHERE [UserId] = '${userId}'
-      AND [CondominiumId] = '${condominiumId}'
-      AND [Role] = 8
-)
-BEGIN
-    INSERT INTO [auth].[UserCondominiumRoles] ([CondominiumId], [Role], [AssignedAt], [UserId])
-    VALUES ('${condominiumId}', 8, SYSUTCDATETIME(), '${userId}')
-END
-`)
+  ensureCondominiumRole(userId, condominiumId, 8)
 }
 
 test.describe('Accountant dashboard KPIs', () => {

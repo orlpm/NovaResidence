@@ -115,6 +115,7 @@ export interface ChargePaymentDto {
   verifiedAt: string | null
   isRefunded: boolean
   proofImageUrl: string | null
+  receiptNumber?: string | null
 }
 
 export interface ChargeListDto {

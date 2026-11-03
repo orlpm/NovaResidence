@@ -1,343 +1,85 @@
-# NovaResidence - Plataforma SaaS de Administración de Condominios
+# NovaResidence
 
-## 🏗️ Arquitectura
+SaaS de administración de condominios. Un App Service sirve la API y la aplicación web. El piloto cubre la operación diaria del edificio y la suscripción de la plataforma. No es todavía un sistema de producción para un condominio real.
 
-Este proyecto sigue **Clean Architecture** con separación clara entre capas:
+La arquitectura está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Los procesos, en [docs/BUSINESS-PROCESSES.md](docs/BUSINESS-PROCESSES.md). Para continuar el trabajo en otro chat, empieza por [docs/HANDOFF.md](docs/HANDOFF.md).
 
-```
-NovaResidence/
-├── src/
-│   ├── Backend/
-│   │   ├── NovaResidence.Api          # Capa de Presentación (REST API)
-│   │   ├── NovaResidence.Application  # Casos de uso (CQRS + MediatR)
-│   │   ├── NovaResidence.Domain       # Entidades y lógica de negocio
-│   │   ├── NovaResidence.Infrastructure # Implementaciones (EF Core, Azure)
-│   │   └── NovaResidence.Shared       # Utilidades compartidas
-│   └── Frontend/
-│       ├── web/                       # React Web (Vite + TypeScript)
-│       ├── mobile/                    # React Native (TODO)
-│       └── shared/                    # Código compartido (TODO)
-└── NovaResidence.sln
-```
-
-## 🚀 Stack Tecnológico
-
-### Backend
-- **.NET 8** - Framework principal
-- **ASP.NET Core Web API** - API REST
-- **Entity Framework Core 8** - ORM con SQL Server
-- **MediatR** - Patrón CQRS
-- **FluentValidation** - Validación de datos
-- **AutoMapper** - Mapeo de objetos
-- **Azure SDK** - Servicios en la nube
-
-### Frontend
-- **React 18** - Librería UI
-- **TypeScript** - Tipado estático
-- **Vite** - Build tool
-- **TailwindCSS** - Estilos
-- **React Router** - Navegación
-- **Zustand** - State management
-- **React Query** - Data fetching
-- **Axios** - Cliente HTTP
-
-### Azure Services
-- **Azure SQL Database** - Base de datos
-- **Azure Blob Storage** - Almacenamiento de archivos
-- **Azure Service Bus** - Mensajería asíncrona
-- **Azure Key Vault** - Gestión de secretos
-- **Azure Application Insights** - Monitoreo
-- **Azure App Service** - Hosting API
-- **Azure Static Web Apps** - Hosting Frontend
-
-## 📋 Requisitos Previos
-
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Node.js 18+](https://nodejs.org/)
-- [SQL Server](https://www.microsoft.com/sql-server) o Azure SQL
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) o [VS Code](https://code.visualstudio.com/)
-- [Azure CLI](https://docs.microsoft.com/cli/azure/install-azure-cli) (opcional)
-
-## 🛠️ Instalación y Configuración
-
-### Backend
-
-1. **Restaurar dependencias**
-   ```bash
-   dotnet restore
-   ```
-
-2. **Configurar connection string**
-   
-   Edita `src/Backend/NovaResidence.Api/appsettings.json`:
-   ```json
-   {
-     "ConnectionStrings": {
-       "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=NovaResidenceDb;Trusted_Connection=true;"
-     }
-   }
-   ```
-
-3. **Crear base de datos**
-   ```bash
-   cd src/Backend/NovaResidence.Infrastructure
-   dotnet ef migrations add InitialCreate --startup-project ../NovaResidence.Api
-   dotnet ef database update --startup-project ../NovaResidence.Api
-   ```
-
-4. **Configurar validación de correo y recuperación de contraseña**
-   
-    Completa estos valores en `src/Backend/NovaResidence.Api/appsettings.Development.json` o vía secretos/variables de entorno:
-    ```json
-    {
-       "Auth": {
-          "FrontendBaseUrl": "http://localhost:5173",
-          "RequireConfirmedEmailForLogin": true
-       },
-       "Email": {
-          "BrevoApiKey": "TU_API_KEY_O_SMTP_KEY_DE_BREVO",
-          "SmtpUsername": "tu-login-smtp-brevo-si-usas-xsmtpsib",
-          "FromEmail": "no-reply@tu-dominio.com",
-          "FromName": "NovaResidence"
-       }
-    }
-    ```
-   
-    `FrontendBaseUrl` se usa para construir los enlaces de confirmación de correo y restablecimiento de contraseña. El proyecto ya exige confirmación de correo antes del login.
-
-    Si `BrevoApiKey` empieza con `xkeysib-`, se usa la API REST de Brevo.
-    Si `BrevoApiKey` empieza con `xsmtpsib-`, se usa SMTP relay y debes completar `SmtpUsername` con el usuario SMTP real de tu cuenta de Brevo. No siempre coincide con `FromEmail`.
-
-5. **Ejecutar API**
-   ```bash
-   cd src/Backend/NovaResidence.Api
-   dotnet run
-   ```
-   
-   La API estará disponible en: `https://localhost:7001`
-
-### Frontend
-
-1. **Instalar dependencias**
-   ```bash
-   cd src/Frontend
-   npm install
-   ```
-
-2. **Configurar variables de entorno**
-   
-   Crea `.env` en `src/Frontend/web/`:
-   ```env
-   VITE_API_URL=https://localhost:7001/api
-   ```
-
-3. **Ejecutar aplicación web**
-   ```bash
-   npm run web
-   ```
-   
-   La aplicación estará disponible en: `http://localhost:3000`
-
-## 🏛️ Arquitectura del Backend
-
-### Domain Layer (Núcleo)
-- **Entities**: Modelos de dominio (User, Condominium, Unit, etc.)
-- **Value Objects**: Objetos inmutables (Address)
-- **Enums**: Enumeraciones de dominio
-- **Domain Events**: Eventos de dominio
-
-### Application Layer
-- **Features**: Casos de uso organizados por módulo (CQRS)
-  - Commands: Operaciones que modifican estado
-  - Queries: Operaciones de lectura
-  - Validators: Validaciones con FluentValidation
-- **Interfaces**: Contratos para infraestructura
-- **Behaviors**: MediatR pipelines (logging, validación)
-
-### Infrastructure Layer
-- **Persistence**: EF Core DbContext, Repositories
-- **Services**: Implementaciones de Azure (Blob, Service Bus, Email)
-- **Configurations**: Configuraciones de EF Core
-
-### API Layer
-- **Controllers**: Endpoints REST
-- **Middleware**: Exception handling, tenant resolution
-- **Configuration**: Startup, DI, Swagger
-
-## 🎯 Módulos Principales
-
-### 1. Authentication (Auth)
-- Registro y login de usuarios
-- JWT tokens y refresh tokens
-- Gestión de roles multi-tenant
-
-### 2. Condominium Management
-- CRUD de condominios, edificios, unidades
-- Gestión de áreas comunes
-- Asignación de propietarios e inquilinos
-
-### 3. Billing & Payments (TODO)
-- Generación de cuotas
-- Integración con pasarelas de pago
-- Facturación electrónica
-
-### 4. Incidents & Maintenance (TODO)
-- Reporte de incidencias
-- Asignación a proveedores
-- Seguimiento y SLA
-
-### 5. Reservations (TODO)
-- Reservación de áreas comunes
-- Calendario de disponibilidad
-- Aprobación automática/manual
-
-### 6. Communication (TODO)
-- Avisos y circulares
-- Notificaciones push/email/SMS
-- Juntas y votaciones
-
-### 7. Reports & Analytics (TODO)
-- Dashboards financieros
-- Reportes de morosidad
-- Métricas de operación
-
-## 🔐 Seguridad
-
-- **JWT Authentication**: Bearer tokens con expiración
-- **Role-Based Authorization**: Múltiples roles por tenant
-- **Multi-tenancy**: Aislamiento de datos por condominio
-- **HTTPS**: Requerido en producción
-- **Azure Key Vault**: Gestión de secretos
-- **SQL Injection Protection**: EF Core parametrizado
-- **CORS**: Configurado para dominios específicos
-
-## 🗄️ Base de Datos
-
-### Esquemas
-
-- `auth`: Usuarios y autenticación
-- `condo`: Condominios, edificios, unidades
-- `billing`: Facturación y pagos (TODO)
-- `maintenance`: Incidencias (TODO)
-- `communication`: Notificaciones (TODO)
-
-### Migraciones
-
-```bash
-# Crear migración
-dotnet ef migrations add MigrationName --project src/Backend/NovaResidence.Infrastructure --startup-project src/Backend/NovaResidence.Api
-
-# Aplicar migración
-dotnet ef database update --project src/Backend/NovaResidence.Infrastructure --startup-project src/Backend/NovaResidence.Api
-
-# Revertir migración
-dotnet ef database update PreviousMigrationName --project src/Backend/NovaResidence.Infrastructure --startup-project src/Backend/NovaResidence.Api
-```
-
-## 🚢 Despliegue en Azure
-
-### Backend (Azure App Service)
-
-```bash
-# Publicar localmente
-dotnet publish -c Release -o ./publish
-
-# Desplegar con Azure CLI
-az webapp up --name novaresidence-api --resource-group NovaResidence-RG --runtime "DOTNETCORE:8.0"
-```
-
-### Frontend (Azure Static Web Apps)
-
-```bash
-# Build
-cd src/Frontend/web
-npm run build
-
-# Desplegar con Azure CLI
-az staticwebapp create --name novaresidence-web --resource-group NovaResidence-RG --source ./dist
-```
-
-## 📝 Estructura de Carpetas Detallada
+## Forma del sistema
 
 ```
-NovaResidence/
-├── src/Backend/
-│   ├── NovaResidence.Api/
-│   │   ├── Controllers/          # REST endpoints
-│   │   ├── Middleware/           # Custom middleware
-│   │   ├── Program.cs            # Application startup
-│   │   └── appsettings.json      # Configuration
-│   ├── NovaResidence.Application/
-│   │   ├── Common/
-│   │   │   ├── Behaviors/        # MediatR behaviors
-│   │   │   └── Interfaces/       # Application contracts
-│   │   └── Features/             # Use cases (CQRS)
-│   │       ├── Authentication/
-│   │       ├── Condominiums/
-│   │       └── [Other Modules]/
-│   ├── NovaResidence.Domain/
-│   │   ├── Common/               # Base classes
-│   │   ├── Entities/             # Domain models
-│   │   ├── Enums/                # Enumerations
-│   │   └── ValueObjects/         # Value objects
-│   ├── NovaResidence.Infrastructure/
-│   │   ├── Persistence/
-│   │   │   ├── Configurations/   # EF configurations
-│   │   │   ├── Repositories/     # Repository implementations
-│   │   │   └── ApplicationDbContext.cs
-│   │   └── Services/             # External services
-│   └── NovaResidence.Shared/
-│       ├── Constants/            # Application constants
-│       ├── Exceptions/           # Custom exceptions
-│       └── Models/               # DTOs and responses
-└── src/Frontend/
-    └── web/
-        ├── src/
-        │   ├── components/       # Reusable UI components
-        │   ├── layouts/          # Page layouts
-        │   ├── pages/            # Route pages
-        │   ├── stores/           # Zustand stores
-        │   ├── lib/              # Utilities
-        │   └── App.tsx           # Main app component
-        ├── index.html
-        └── vite.config.ts
+Navegador  -->  App Service (.NET 8)
+                 |-- /api          Clean Architecture, CQRS donde el módulo ya lo usa
+                 |-- wwwroot       React 18 + Vite + TypeScript
+                 |-- /uploads      mapas, comprobantes, documentos
+                 +-- SQLite        un archivo por entorno
 ```
 
-## 🧪 Testing (Pendiente)
+Capas del backend: `Domain`, `Application`, `Infrastructure`, `Api`, `Shared`. El dominio no referencia a EF ni a HTTP. La tenencia es el condominio. Cada request de datos pasa por `ITenantAccessService` y, en las pantallas ya protegidas, por permisos de rol.
 
-```bash
-# Backend
-dotnet test
+Dos dineros conviven y no se mezclan:
 
-# Frontend
-npm test --workspace=web
-```
+- La suscripción la paga el administrador a NovaResidence. La opera el SuperAdmin.
+- La cuota la paga el residente al condominio. Vive en su estado de cuenta, igual que la multa.
 
-## 📚 Recursos Adicionales
+## Qué hace hoy
 
-- [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)
-- [Azure Architecture Center](https://learn.microsoft.com/azure/architecture/)
-- [React Best Practices](https://react.dev/)
+| Proceso | Resultado de negocio |
+| --- | --- |
+| Alta | Condominio, torres, unidades, residentes invitados y personal por rol. |
+| Caseta | Visita del día, aprobación, entrada, salida y rechazo. Aviso a vigilancia. |
+| Rondas | Bitácora aparte del libro de visitas. |
+| Paquetería | Registro en caseta y aviso al residente de la unidad. |
+| Cámaras | Marcador del plano con reproductor del URL configurado. |
+| Cuotas | Cargo del administrador, pago del residente y recibo con folio. |
+| Multas | Cargo de tipo multa dentro del mismo estado de cuenta. |
+| Incidencias | Asignación a mantenimiento, limpieza o proveedor, y cierre con notas. |
+| Agenda | El administrador cita al proveedor; el panel deja de mostrar cero fijo. |
+| Áreas | Alta, baja lógica y reservación aprobada por administración. |
+| Amenidades | Reservación propia, distinta de las áreas comunes. |
+| Gobierno | Aviso, encuesta, voto, asamblea, asistencia y acta. |
+| Documentos | Contrato, recibo, identificación y reglamento, publicados y consultables. |
+| Vehículos | Cajón del condominio y placa del residente. |
+| Plataforma | Cambio de plan, cancelación y condonación de la suscripción. |
 
-## 🤝 Contribución
+El detalle de estados, actores y excepciones está en el documento de procesos.
 
-1. Fork el proyecto
-2. Crea tu feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+## Qué no hace
 
-## 📄 Licencia
+- No envía correo. Brevo está implementado y el envío está apagado.
+- No cobra con tarjeta. OpenPay tokeniza en el navegador y no hay un cargo de piloto cerrado.
+- No emite CFDI, no concilia bancos y no lleva libro mayor.
+- No graba video ni se conecta a un NVR. La cámara es el URL del marcador.
+- No corre en producción: la base es SQLite, el plan de Azure es F1 y el secreto JWT está en el repositorio.
 
-Proyecto privado - NovaResidence © 2026
+## Roles
 
-## 👥 Equipo
+`SuperAdmin`, `CondominiumAdmin`, `SubAdmin`, `Owner`, `Tenant`, `SecurityGuard`, `Maintenance`, `ServiceProvider`, `Accountant`, `Cleaning`.
 
-- Desarrollo Backend: .NET + Azure
-- Desarrollo Frontend: React + React Native
-- Arquitectura: Clean Architecture + CQRS + Multi-tenancy
+El token colapsa varios roles de administrador a `admin`, vigilancia a `security` y limpieza junto con mantenimiento a `maintenance`. La pantalla correcta la elige el cliente según el rol de condominio. Los permisos finos se resuelven en [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
----
+## Entornos
 
-**Nota**: Este es un MVP (Minimum Viable Product) preparado para evolucionar a una arquitectura de microservicios.
+| | Local | Azure |
+| --- | --- | --- |
+| API | `http://localhost:5001` | `https://novaresidence-api.azurewebsites.net` |
+| Web de desarrollo | `http://localhost:3000` o `3001` si la levanta Playwright | el mismo host que la API |
+| Base | `src/Backend/NovaResidence.Api/data/novaresidence.dev.db` | `D:\home\data\novaresidence.db` |
+| Esquema nuevo | `EnsureCreated` y después `SqliteSchemaPatch` | igual |
+
+`UseSqlite` está activo. No volver a LocalDB. En SQL Server el arranque usa migraciones; las tablas operativas nuevas todavía no tienen migración.
+
+## Demo
+
+Residencial Pedregal Demo. Contraseña de todas las cuentas: `Pass123.` Correos `superadmin`, `admin`, `subadmin`, `accountant`, `resident`, `resident2`, `tenant`, `security`, `maintenance`, `cleaning` y `provider`, todos en `@novaresidence.com`. Áreas, plano y cámara del lobby se siembran al arrancar. En un sitio real ese seed se apaga.
+
+## Pruebas
+
+Playwright está en `tests/e2e`, un worker, Chromium. Local levanta la API en 5001 y Vite en 3001. Contra Azure se definen `E2E_BASE_URL` y `E2E_API_BASE`, y no se levantan servidores. El último pase publicado, el 16 de octubre de 2026, dejó 19 pruebas verdes sobre los flujos de esta versión. Los comandos están en [QUICKSTART.md](QUICKSTART.md).
+
+## Documentos
+
+- [docs/HANDOFF.md](docs/HANDOFF.md) — estado, reglas y cómo publicar.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — capas, tenencia, arranque, datos.
+- [docs/BUSINESS-PROCESSES.md](docs/BUSINESS-PROCESSES.md) — procesos y reglas ya fijadas.
+- [docs/PERMISSIONS.md](docs/PERMISSIONS.md) — resolución de permisos.
+- [ROADMAP.md](ROADMAP.md) — lo cerrado y lo que falta para producción.

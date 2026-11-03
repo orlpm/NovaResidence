@@ -46,6 +46,7 @@ import {
   type MeetingQuorumDto
 } from '../../lib/communicationsService'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { residentService } from '../../lib/residentService'
 import { PERMISSIONS } from '../../config/permissions'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuthStore } from '../../stores/authStore'
@@ -93,6 +94,8 @@ export default function Communications() {
 
   // Meetings state
   const [meetings, setMeetings] = useState<MeetingDto[]>([])
+  const [minutesMeeting, setMinutesMeeting] = useState<MeetingDto | null>(null)
+  const [minutesText, setMinutesText] = useState('')
   const [showMeetingModal, setShowMeetingModal] = useState(false)
   const [showDeleteMeetingModal, setShowDeleteMeetingModal] = useState(false)
   const [showMeetingDetailModal, setShowMeetingDetailModal] = useState(false)
@@ -392,6 +395,27 @@ export default function Communications() {
       loadDataForTab()
       showSuccess('Reunión creada exitosamente')
     } catch { setError('Error al crear reunión') }
+  }
+
+  const inviteResidents = async (meeting: MeetingDto) => {
+    if (!selectedCondominium) return
+    try {
+      const residents = await residentService.getResidentsByCondominium(selectedCondominium)
+      const invitedUnits = new Set((meeting.attendees || []).map(attendee => attendee.unitId))
+      for (const resident of residents) {
+        if (!resident.unitId || invitedUnits.has(resident.unitId)) continue
+        await communicationsService.inviteToMeeting(meeting.id, {
+          unitId: resident.unitId,
+          residentId: resident.id,
+          residentName: `${resident.firstName} ${resident.lastName}`.trim()
+        })
+        invitedUnits.add(resident.unitId)
+      }
+      showSuccess('Residentes invitados')
+      await loadDataForTab()
+    } catch {
+      setError('No se pudo invitar a los residentes')
+    }
   }
 
   const handleUpdateMeeting = async (e: React.FormEvent) => {
@@ -892,6 +916,14 @@ export default function Communications() {
                         <span className={`px-3 py-1 text-xs font-medium rounded-full ${getPollStatusColor(poll.status)}`}>
                           {poll.statusName}
                         </span>
+                        {canManagePolls && poll.status === PollStatus.Draft && (
+                          <button
+                            onClick={() => handlePublishPoll(poll)}
+                            className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm"
+                          >
+                            Publicar
+                          </button>
+                        )}
                         {(canViewPollResults || canManagePolls) && (
                           <div className="relative">
                             <button
@@ -984,7 +1016,7 @@ export default function Communications() {
                         {poll.totalVotes} votos
                       </span>
                       <span>
-                        Participación: {poll.participationPercentage.toFixed(1)}%
+                        Participación: {(poll.participationPercentage ?? 0).toFixed(1)}%
                       </span>
                       {poll.requiresQuorum && (
                         <span className={poll.hasQuorum ? 'text-green-600' : 'text-orange-600'}>
@@ -995,7 +1027,7 @@ export default function Communications() {
 
                     {/* Poll options preview */}
                     <div className="mt-4 space-y-2">
-                      {poll.options.slice(0, 3).map((option) => (
+                      {(poll.options ?? []).slice(0, 3).map((option) => (
                         <div key={option.id} className="flex items-center gap-3">
                           <div className="flex-1 bg-gray-200 dark:bg-gray-600 rounded-full h-6 overflow-hidden">
                             <div 
@@ -1005,12 +1037,12 @@ export default function Communications() {
                           </div>
                           <span className="text-sm text-gray-600 dark:text-gray-300 w-32 truncate">{option.text}</span>
                           <span className="text-sm font-medium text-gray-900 dark:text-white w-16 text-right">
-                            {option.percentage.toFixed(1)}%
+                            {(option.percentage ?? 0).toFixed(1)}%
                           </span>
                         </div>
                       ))}
-                      {poll.options.length > 3 && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">+{poll.options.length - 3} opciones más</p>
+                      {(poll.options?.length ?? 0) > 3 && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">+{(poll.options?.length ?? 0) - 3} opciones más</p>
                       )}
                     </div>
                   </div>
@@ -1150,9 +1182,60 @@ export default function Communications() {
                       <span>
                         Quórum requerido: {meeting.requiredQuorumPercentage}%
                       </span>
+                      {canManageMeetings && meeting.status === MeetingStatus.Scheduled && (
+                        <button
+                          onClick={() => inviteResidents(meeting)}
+                          className="px-3 py-1.5 rounded-lg bg-sky-600 text-white text-sm"
+                        >
+                          Invitar residentes
+                        </button>
+                      )}
+                      {canManageMeetings && (
+                        <button
+                          onClick={() => {
+                            setMinutesMeeting(meeting)
+                            setMinutesText(meeting.minutes || '')
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm"
+                        >
+                          Redactar acta
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
+                {minutesMeeting && (
+                  <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+                    <form
+                      onSubmit={async event => {
+                        event.preventDefault()
+                        try {
+                          await communicationsService.setMeetingMinutes(minutesMeeting.id, minutesText)
+                          setMeetings(current => current.map(item => item.id === minutesMeeting.id ? { ...item, minutes: minutesText } : item))
+                          showSuccess('Acta guardada')
+                          setMinutesMeeting(null)
+                        } catch {
+                          setError('No se pudo guardar el acta')
+                        }
+                      }}
+                      className="w-full max-w-lg rounded-xl bg-white dark:bg-gray-800 p-5 space-y-4"
+                    >
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Redactar acta</h3>
+                      <textarea
+                        required
+                        rows={6}
+                        value={minutesText}
+                        onChange={event => setMinutesText(event.target.value)}
+                        placeholder="Acuerdos de la asamblea"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => setMinutesMeeting(null)} className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700">Cancelar</button>
+                        <button className="px-4 py-2 rounded-lg bg-emerald-600 text-white">Guardar acta</button>
+                      </div>
+                    </form>
+                  </div>
+                )}
                 {meetings.length === 0 && (
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-12 text-center text-gray-500 dark:text-gray-400">
                     <Users className="w-12 h-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
@@ -1448,7 +1531,7 @@ export default function Communications() {
                     required
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                     value={pollForm.title}
-                    onChange={(e) => setPollForm({ ...pollForm, title: e.target.value })}
+                    onChange={(e) => setPollForm(prev => ({ ...prev, title: e.target.value }))}
                   />
                 </div>
                 <div>
@@ -1495,7 +1578,7 @@ export default function Communications() {
                       required
                       className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                       value={pollForm.startDate.split('T')[0]}
-                      onChange={(e) => setPollForm({ ...pollForm, startDate: e.target.value })}
+                      onChange={(e) => setPollForm(prev => ({ ...prev, startDate: e.target.value }))}
                     />
                   </div>
                   <div>
@@ -1505,7 +1588,7 @@ export default function Communications() {
                       required
                       className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                       value={pollForm.endDate.split('T')[0]}
-                      onChange={(e) => setPollForm({ ...pollForm, endDate: e.target.value })}
+                      onChange={(e) => setPollForm(prev => ({ ...prev, endDate: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -1591,7 +1674,7 @@ export default function Communications() {
                     required
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                     value={meetingForm.title}
-                    onChange={(e) => setMeetingForm({ ...meetingForm, title: e.target.value })}
+                    onChange={(e) => setMeetingForm(prev => ({ ...prev, title: e.target.value }))}
                   />
                 </div>
                 <div>
@@ -1638,7 +1721,7 @@ export default function Communications() {
                     required
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                     value={meetingForm.scheduledDate}
-                    onChange={(e) => setMeetingForm({ ...meetingForm, scheduledDate: e.target.value })}
+                    onChange={(e) => setMeetingForm(prev => ({ ...prev, scheduledDate: e.target.value }))}
                   />
                 </div>
                 <div>
@@ -1648,7 +1731,7 @@ export default function Communications() {
                     className="w-full px-4 py-2 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500"
                     placeholder="Ej: Salón de eventos"
                     value={meetingForm.location || ''}
-                    onChange={(e) => setMeetingForm({ ...meetingForm, location: e.target.value || null })}
+                    onChange={(e) => setMeetingForm(prev => ({ ...prev, location: e.target.value || null }))}
                   />
                 </div>
                 <div>

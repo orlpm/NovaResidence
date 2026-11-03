@@ -178,6 +178,22 @@ export interface PollOptionDto {
   displayOrder: number
   voteCount: number
   percentage: number
+  votePercentage?: number
+}
+
+function normalizePoll(poll: PollDto): PollDto {
+  return {
+    ...poll,
+    participationPercentage: poll.participationPercentage ?? 0,
+    totalEligibleVoters: poll.totalEligibleVoters ?? 0,
+    hasQuorum: poll.hasQuorum ?? false,
+    hasVoted: poll.hasVoted ?? false,
+    votedOptionIds: poll.votedOptionIds ?? [],
+    options: (poll.options ?? []).map(option => ({
+      ...option,
+      percentage: option.percentage ?? option.votePercentage ?? 0
+    }))
+  }
 }
 
 export interface PollDto {
@@ -497,7 +513,15 @@ export const communicationsService = {
     
     const queryString = searchParams.toString() ? `?${searchParams}` : ''
     const response = await apiClient.get<PagedList<PollDto>>(`/communications/polls/condominium/${condominiumId}${queryString}`)
-    return response.data
+    return {
+      ...response.data,
+      items: (response.data.items || []).map(normalizePoll)
+    }
+  },
+
+  hasUnitVoted: async (pollId: string, unitId: string): Promise<boolean> => {
+    const response = await apiClient.get<boolean>(`/communications/polls/${pollId}/has-voted/${unitId}`)
+    return response.data === true
   },
 
   getPollById: async (id: string, unitId?: string): Promise<PollDto> => {

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Net.Http.Headers;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Infrastructure.Persistence;
 using NovaResidence.Infrastructure.Persistence.Repositories;
@@ -65,6 +66,19 @@ public static class DependencyInjection
             }
         });
 
+        services.Configure<OpenPaySettings>(configuration.GetSection("OpenPay"));
+        services.AddHttpClient<IOpenPaySubscriptionService, OpenPaySubscriptionService>((provider, client) =>
+        {
+            var settings = configuration.GetSection("OpenPay").Get<OpenPaySettings>() ?? new OpenPaySettings();
+            var baseApi = settings.UseSandbox
+                ? "https://sandbox-api.openpay.mx/v1/"
+                : "https://api.openpay.mx/v1/";
+
+            client.BaseAddress = new Uri(baseApi);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
         // Repositories
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICondominiumRepository, CondominiumRepository>();
@@ -96,6 +110,7 @@ public static class DependencyInjection
         // Permission Service
         services.AddMemoryCache(); // For permission caching
         services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<IOperationalNotifier, OperationalNotifier>();
 
         return services;
     }

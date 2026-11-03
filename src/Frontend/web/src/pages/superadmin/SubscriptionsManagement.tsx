@@ -4,7 +4,7 @@ import {
   ChevronDown, ChevronUp, Gift, Calendar, DollarSign, Building2,
   Timer, Shield, ArrowUpRight, RefreshCw, X, Ban, Play
 } from 'lucide-react';
-import { subscriptionService, type SubscriptionListItem } from '../../lib/subscriptionService';
+import { subscriptionService, type SubscriptionListItem, type SubscriptionPlan } from '../../lib/subscriptionService';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   Trial:     { label: 'Prueba Gratis',  color: 'text-blue-400',   bg: 'bg-blue-500/20 border-blue-500/30',   icon: Gift },
@@ -23,8 +23,10 @@ export default function SubscriptionsManagement() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Action modals
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
   const [actionModal, setActionModal] = useState<{
-    type: 'extend' | 'condone' | 'status';
+    type: 'extend' | 'condone' | 'status' | 'plan';
     subscription: SubscriptionListItem;
   } | null>(null);
   const [actionMonths, setActionMonths] = useState(1);
@@ -46,8 +48,15 @@ export default function SubscriptionsManagement() {
   };
 
   useEffect(() => {
-    loadSubscriptions();
+    subscriptionService.getPlans().then(setPlans).catch(() => setPlans([]));
   }, []);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      loadSubscriptions(searchTerm);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchTerm]);
 
   useEffect(() => {
     if (feedback) {
@@ -56,11 +65,11 @@ export default function SubscriptionsManagement() {
     }
   }, [feedback]);
 
-  const loadSubscriptions = async () => {
+  const loadSubscriptions = async (search?: string) => {
     try {
       setLoading(true);
-      const result: any = await subscriptionService.getAllSubscriptions(undefined, 1, 100);
-      setSubscriptions(result.data || result || []);
+      const result = await subscriptionService.getAllSubscriptions(undefined, 1, 100, search);
+      setSubscriptions(result.items || []);
     } catch (error) {
       console.error('Error loading subscriptions:', error);
       setFeedback({ type: 'error', message: 'Error al cargar las suscripciones' });
@@ -123,6 +132,22 @@ export default function SubscriptionsManagement() {
     }
   };
 
+  const handleChangePlan = async () => {
+    if (!actionModal || !selectedPlanId) return;
+    setActionLoading(true);
+    try {
+      await subscriptionService.changePlan(actionModal.subscription.id, selectedPlanId);
+      setFeedback({ type: 'success', message: 'Plan actualizado' });
+      setActionModal(null);
+      setSelectedPlanId('');
+      await loadSubscriptions(searchTerm);
+    } catch (error: any) {
+      setFeedback({ type: 'error', message: error?.response?.data?.message || error?.response?.data?.Message || 'Error al cambiar el plan' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleChangeStatus = async () => {
     if (!actionModal || !actionStatus) return;
     setActionLoading(true);
@@ -171,7 +196,7 @@ export default function SubscriptionsManagement() {
           <p className="text-gray-400 mt-2">Administra suscripciones por usuario administrador</p>
         </div>
         <button
-          onClick={loadSubscriptions}
+          onClick={() => loadSubscriptions(searchTerm)}
           className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -328,6 +353,13 @@ export default function SubscriptionsManagement() {
                               <Gift className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedPlanId(''); setActionModal({ type: 'plan', subscription: sub }); }}
+                              className="p-1.5 rounded-lg text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+                              title="Cambiar plan"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={(e) => { e.stopPropagation(); setActionModal({ type: 'status', subscription: sub }); }}
                               className="p-1.5 rounded-lg text-yellow-400 hover:bg-yellow-500/20 transition-colors"
                               title="Cambiar Estado"
@@ -377,6 +409,7 @@ export default function SubscriptionsManagement() {
                 {actionModal.type === 'extend' && '📅 Extender Suscripción'}
                 {actionModal.type === 'condone' && '🎁 Condonar Pago'}
                 {actionModal.type === 'status' && '🔄 Cambiar Estado'}
+                {actionModal.type === 'plan' && 'Cambiar plan'}
               </h3>
               <button
                 onClick={() => { setActionModal(null); setActionMonths(1); setActionDays(0); setActionReason(''); setActionStatus(''); }}
@@ -395,7 +428,21 @@ export default function SubscriptionsManagement() {
                 </p>
               </div>
 
-              {actionModal.type === 'status' ? (
+              {actionModal.type === 'plan' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Nuevo plan</label>
+                  <select
+                    value={selectedPlanId}
+                    onChange={(e) => setSelectedPlanId(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  >
+                    <option value="">Seleccionar...</option>
+                    {plans.map(plan => (
+                      <option key={plan.id} value={plan.id}>{plan.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : actionModal.type === 'status' ? (
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Nuevo Estado</label>
                   <select
@@ -477,11 +524,13 @@ export default function SubscriptionsManagement() {
                 onClick={
                   actionModal.type === 'extend' ? handleExtend :
                   actionModal.type === 'condone' ? handleCondone :
+                  actionModal.type === 'plan' ? handleChangePlan :
                   handleChangeStatus
                 }
                 disabled={
                   actionLoading ||
                   (actionModal.type === 'status' && !actionStatus) ||
+                  (actionModal.type === 'plan' && !selectedPlanId) ||
                   (actionModal.type === 'extend' && actionMonths <= 0 && actionDays <= 0)
                 }
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
@@ -489,6 +538,7 @@ export default function SubscriptionsManagement() {
                 {actionLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : (
                   actionModal.type === 'extend' ? <><ArrowUpRight className="w-4 h-4" /> Extender</> :
                   actionModal.type === 'condone' ? <><Gift className="w-4 h-4" /> Condonar</> :
+                  actionModal.type === 'plan' ? <><CreditCard className="w-4 h-4" /> Cambiar plan</> :
                   <><Play className="w-4 h-4" /> Aplicar</>
                 )}
               </button>

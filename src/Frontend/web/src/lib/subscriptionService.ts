@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import type { OpenPayBrowserConfig } from './openpay';
 
 // ---- Types ----
 
@@ -68,6 +69,7 @@ export interface SubscriptionPayment {
   referenceNumber: string | null;
   paymentDate: string;
   isVerified: boolean;
+  verifiedAt?: string | null;
   proofUrl: string | null;
 }
 
@@ -117,6 +119,65 @@ export interface SubscriptionListItem {
   daysRemaining: number;
 }
 
+export interface SubscriptionListResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: SubscriptionListItem[];
+}
+
+export interface OpenPayCardPaymentRequest {
+  tokenId: string;
+  deviceSessionId: string;
+  monthsPaid?: number;
+  amount?: number;
+  planId?: string;
+  paymentMethod?: 'Card';
+  customerFullName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  customerAddressLine1?: string;
+  customerPostalCode?: string;
+  customerCity?: string;
+  customerState?: string;
+  description?: string;
+  notes?: string;
+}
+
+export interface ConfirmOpenPayPaymentRequest {
+  transactionId: string;
+  monthsPaid?: number;
+  planId?: string;
+  paymentMethod?: 'Card';
+  notes?: string;
+}
+
+export interface OpenPayPaymentResult {
+  message: string;
+  transactionId?: string;
+  status?: string;
+  amount?: number;
+  monthlyAmount?: number;
+  currentPeriodEnd?: string;
+}
+
+export interface VerifySubscriptionPaymentResult {
+  message: string;
+  id: string;
+  verifiedAt?: string;
+  currentPeriodEnd?: string;
+  status?: string;
+}
+
+export interface RegisterSubscriptionPaymentResult {
+  message: string;
+  paymentId: string;
+  newStatus?: string;
+  currentPeriodEnd?: string;
+  monthlyAmount?: number;
+  requiresVerification?: boolean;
+}
+
 // ---- Service ----
 
 class SubscriptionService {
@@ -156,6 +217,12 @@ class SubscriptionService {
     return response.data;
   }
 
+  /** Get OpenPay public config for browser tokenization */
+  async getOpenPayConfig(): Promise<OpenPayBrowserConfig> {
+    const response = await apiClient.get<OpenPayBrowserConfig>(`/Subscriptions/openpay/config`);
+    return response.data;
+  }
+
   /** Create a new subscription for an admin user */
   async createSubscription(adminUserId: string, planId: string, unitCount: number) {
     const response = await apiClient.post('/Subscriptions', {
@@ -171,12 +238,12 @@ class SubscriptionService {
     subscriptionId: string,
     amount: number,
     monthsPaid: number = 1,
-    paymentMethod: string = 'BankTransfer',
+    paymentMethod: 'BankTransfer' = 'BankTransfer',
     referenceNumber?: string,
     notes?: string,
     proofUrl?: string
-  ) {
-    const response = await apiClient.post(`/Subscriptions/${subscriptionId}/payments`, {
+  ): Promise<RegisterSubscriptionPaymentResult> {
+    const response = await apiClient.post<RegisterSubscriptionPaymentResult>(`/Subscriptions/${subscriptionId}/payments`, {
       amount,
       monthsPaid,
       paymentMethod,
@@ -184,6 +251,36 @@ class SubscriptionService {
       notes,
       proofUrl
     });
+    return response.data;
+  }
+
+  /** Process payment via OpenPay using tokenized card data */
+  async payWithOpenPayCard(subscriptionId: string, payload: OpenPayCardPaymentRequest): Promise<OpenPayPaymentResult> {
+    const response = await apiClient.post<OpenPayPaymentResult>(`/Subscriptions/${subscriptionId}/payments/openpay/card`, payload);
+    return response.data;
+  }
+
+  /** Confirm OpenPay transaction and apply it to subscription if completed */
+  async confirmOpenPayPayment(subscriptionId: string, payload: ConfirmOpenPayPaymentRequest): Promise<OpenPayPaymentResult> {
+    const response = await apiClient.post<OpenPayPaymentResult>(`/Subscriptions/${subscriptionId}/payments/openpay/confirm`, payload);
+    return response.data;
+  }
+
+  /** Upload payment proof for subscription bank transfers */
+  async uploadPaymentProof(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post<string>('/Subscriptions/payments/upload-proof', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    return response.data;
+  }
+
+  /** Verify a pending subscription payment (SuperAdmin) */
+  async verifyPayment(paymentId: string): Promise<VerifySubscriptionPaymentResult> {
+    const response = await apiClient.post<VerifySubscriptionPaymentResult>(`/Subscriptions/payments/${paymentId}/verify`);
     return response.data;
   }
 
@@ -196,14 +293,32 @@ class SubscriptionService {
   }
 
   /** Get all subscriptions (SuperAdmin) */
-  async getAllSubscriptions(status?: string, page: number = 1, pageSize: number = 20) {
+  async getAllSubscriptions(status?: string, page: number = 1, pageSize: number = 20, search?: string): Promise<SubscriptionListResponse> {
     const params = new URLSearchParams();
     if (status) params.append('status', status);
+    if (search?.trim()) params.append('search', search.trim());
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
     
-    const response = await apiClient.get(`/Subscriptions?${params.toString()}`);
-    return response.data;
+    const response = await apiClient.get<{
+      Total?: number;
+      total?: number;
+      Page?: number;
+      page?: number;
+      PageSize?: number;
+      pageSize?: number;
+      Data?: SubscriptionListItem[];
+      data?: SubscriptionListItem[];
+    }>(`/Subscriptions?${params.toString()}`);
+
+    const payload = response.data;
+
+    return {
+      total: payload.Total ?? payload.total ?? 0,
+      page: payload.Page ?? payload.page ?? page,
+      pageSize: payload.PageSize ?? payload.pageSize ?? pageSize,
+      items: payload.Data ?? payload.data ?? [],
+    };
   }
 
   /** Change subscription status (SuperAdmin) */

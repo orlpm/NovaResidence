@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { 
   Menu, X, Sun, Moon, LogOut, Shield,
-  LayoutDashboard, ClipboardList, Users, AlertCircle, ShieldCheck, Camera
+  LayoutDashboard, ClipboardList, Users, AlertCircle, ShieldCheck, Camera, Package, QrCode
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuthStore } from '../stores/authStore';
@@ -37,6 +37,9 @@ export default function SecurityLayout() {
       icon: ShieldCheck,
       permission: PERMISSIONS.SECURITY_MANAGE_ACCESS_CONTROL
     },
+    { name: 'Acceso con QR', href: '/security/qr-access', icon: QrCode },
+    { name: 'Paquetería', href: '/security/packages', icon: Package },
+    { name: 'Rondas', href: '/security/rounds', icon: ClipboardList },
     {
       name: 'Cámaras',
       href: '/security/cameras',

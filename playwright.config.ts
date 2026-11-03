@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const remoteBaseUrl = process.env.E2E_BASE_URL;
+const isRemote = Boolean(remoteBaseUrl);
+
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
@@ -7,10 +10,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: 'html',
-  timeout: 60000,
+  timeout: isRemote ? 300000 : 60000,
   
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL: remoteBaseUrl || 'http://localhost:3001',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -23,20 +26,20 @@ export default defineConfig({
     },
   ],
 
-  webServer: [
+  webServer: isRemote ? undefined : [
     {
       command: 'dotnet run --project "./src/Backend/NovaResidence.Api/NovaResidence.Api.csproj" --urls "http://localhost:5001"',
       cwd: '.',
       url: 'http://localhost:5001/swagger/index.html',
       reuseExistingServer: true,
-      timeout: 120000,
+      timeout: 240000,
     },
     {
       command: 'npx vite --port 3001',
       cwd: './src/Frontend/web',
       url: 'http://localhost:3001',
       reuseExistingServer: true,
-      timeout: 30000,
+      timeout: 120000,
     },
   ],
 });

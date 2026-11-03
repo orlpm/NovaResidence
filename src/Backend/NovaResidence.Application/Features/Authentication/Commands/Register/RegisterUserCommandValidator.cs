@@ -12,12 +12,12 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .MaximumLength(256);
 
         RuleFor(x => x.Password)
-            .NotEmpty().WithMessage("Password is required")
-            .MinimumLength(8).WithMessage("Password must be at least 8 characters")
-            .Matches(@"[A-Z]").WithMessage("Password must contain at least one uppercase letter")
-            .Matches(@"[a-z]").WithMessage("Password must contain at least one lowercase letter")
-            .Matches(@"[0-9]").WithMessage("Password must contain at least one number")
-            .Matches(@"[^a-zA-Z0-9]").WithMessage("Password must contain at least one special character");
+            .NotEmpty().WithMessage("La contraseña es obligatoria")
+            .MinimumLength(8).WithMessage("La contraseña debe tener al menos 8 caracteres")
+            .Matches(@"[A-Z]").WithMessage("La contraseña debe incluir al menos una mayúscula")
+            .Matches(@"[a-z]").WithMessage("La contraseña debe incluir al menos una minúscula")
+            .Matches(@"[0-9]").WithMessage("La contraseña debe incluir al menos un número")
+            .Matches(@"[^a-zA-Z0-9]").WithMessage("La contraseña debe incluir al menos un símbolo");
 
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("First name is required")

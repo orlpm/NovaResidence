@@ -112,6 +112,33 @@ export interface UpdateVisitRequest {
   notes?: string | null
 }
 
+export interface VisitAccessPassDto {
+  visitId: string
+  visitorName: string
+  accessCode: string
+  validFrom: string
+  validUntil: string
+  status: VisitStatus
+  statusName: string
+  isUsable: boolean
+}
+
+export interface VisitAccessScanDto {
+  visitId: string
+  visitorName: string
+  visitorCount: number
+  vehiclePlate: string | null
+  unitNumber: string | null
+  purpose: string | null
+  expectedArrival: string
+  expectedDeparture: string | null
+  status: VisitStatus
+  statusName: string
+  canCheckIn: boolean
+  canCheckOut: boolean
+  message: string | null
+}
+
 // API Service
 export const visitService = {
   // Get visit by ID
@@ -220,5 +247,27 @@ export const visitService = {
   // Delete a visit
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/visits/${id}`)
+  },
+
+  // QR access pass (resident)
+  async getAccessPass(id: string): Promise<VisitAccessPassDto> {
+    const response = await apiClient.get<{ data: VisitAccessPassDto }>(`/visits/${id}/access-pass`)
+    return response.data.data
+  },
+
+  // QR access validation (security)
+  async scanAccessCode(code: string): Promise<VisitAccessScanDto> {
+    const response = await apiClient.post<{ data: VisitAccessScanDto }>('/visits/access/scan', { code })
+    return response.data.data
+  },
+
+  async checkInWithAccessCode(code: string): Promise<VisitAccessScanDto> {
+    const response = await apiClient.post<{ data: VisitAccessScanDto }>('/visits/access/check-in', { code })
+    return response.data.data
+  },
+
+  async checkOutWithAccessCode(code: string): Promise<VisitAccessScanDto> {
+    const response = await apiClient.post<{ data: VisitAccessScanDto }>('/visits/access/check-out', { code })
+    return response.data.data
   }
 }

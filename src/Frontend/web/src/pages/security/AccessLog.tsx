@@ -39,10 +39,12 @@ export default function SecurityAccessLog() {
         const now = new Date()
         const fromDate = new Date(now)
         fromDate.setDate(now.getDate() - 7)
+        const endOfToday = new Date(now)
+        endOfToday.setHours(23, 59, 59, 999)
         const data = await visitService.getByCondominium(selectedCondominium, {
           status: statusFilter ?? undefined,
           fromDate: fromDate.toISOString(),
-          toDate: now.toISOString()
+          toDate: endOfToday.toISOString()
         })
         setRecords(data)
       } catch {
