@@ -209,7 +209,7 @@ export default function SuperAdminDashboard() {
             Panel de Control - Super Admin
           </h1>
           <p className="text-gray-400 mt-2">
-            Vista general de toda la plataforma NovaResidence
+            Vista general de toda la plataforma DomusCond
           </p>
         </div>
         <div className="flex items-center gap-4">

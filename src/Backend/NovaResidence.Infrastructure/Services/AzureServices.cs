@@ -6,6 +6,7 @@ using NovaResidence.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Json;
+using System.Text.Json;
 using MimeKit;
 
 namespace NovaResidence.Infrastructure.Services;
@@ -102,6 +103,8 @@ public class EmailService : IEmailService
 
     public async Task SendEmailAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
+        await CaptureOutboxAsync(to, subject, body, cancellationToken);
+
         if (_configuration.GetValue<bool>("Email:DisableSending"))
         {
             _logger.LogInformation("Email sending disabled. Skipping email to: {To}, Subject: {Subject}", to, subject);
@@ -109,9 +112,15 @@ public class EmailService : IEmailService
             return;
         }
 
+        if (IsReservedTestRecipient(to))
+        {
+            _logger.LogInformation("Skipping email to reserved test domain: {To}, Subject: {Subject}", to, subject);
+            return;
+        }
+
         var apiKey = _configuration["Email:BrevoApiKey"];
         var senderEmail = _configuration["Email:FromEmail"];
-        var senderName = _configuration["Email:FromName"] ?? "NovaResidence";
+        var senderName = _configuration["Email:FromName"] ?? "DomusCond";
 
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
         {
@@ -149,6 +158,8 @@ public class EmailService : IEmailService
 
     public async Task SendEmailWithTemplateAsync(string to, string templateId, object data, CancellationToken cancellationToken = default)
     {
+        await CaptureOutboxAsync(to, $"template:{templateId}", JsonSerializer.Serialize(data), cancellationToken);
+
         if (_configuration.GetValue<bool>("Email:DisableSending"))
         {
             _logger.LogInformation("Email sending disabled. Skipping template email to: {To}, Template: {TemplateId}", to, templateId);
@@ -156,9 +167,15 @@ public class EmailService : IEmailService
             return;
         }
 
+        if (IsReservedTestRecipient(to))
+        {
+            _logger.LogInformation("Skipping template email to reserved test domain: {To}, Template: {TemplateId}", to, templateId);
+            return;
+        }
+
         var apiKey = _configuration["Email:BrevoApiKey"];
         var senderEmail = _configuration["Email:FromEmail"];
-        var senderName = _configuration["Email:FromName"] ?? "NovaResidence";
+        var senderName = _configuration["Email:FromName"] ?? "DomusCond";
 
         if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
         {
@@ -195,6 +212,36 @@ public class EmailService : IEmailService
         }
 
         _logger.LogInformation("Template email sent via Brevo to: {To}, Template: {TemplateId}", to, templateId);
+    }
+
+    private async Task CaptureOutboxAsync(string to, string subject, string body, CancellationToken cancellationToken)
+    {
+        if (!_configuration.GetValue<bool>("Email:CaptureOutbox"))
+            return;
+
+        var directory = _configuration["Email:OutboxPath"];
+        if (string.IsNullOrWhiteSpace(directory))
+            directory = Path.Combine("data", "email-outbox");
+
+        Directory.CreateDirectory(directory);
+        var fileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.json";
+        var payload = JsonSerializer.Serialize(new { to, subject, body, createdAt = DateTime.UtcNow });
+        await File.WriteAllTextAsync(Path.Combine(directory, fileName), payload, cancellationToken);
+    }
+
+    // RFC 2606 / RFC 6761 names never receive mail; sending to them only produces bounces.
+    private static readonly string[] ReservedTestTlds = { ".test", ".example", ".invalid", ".localhost", ".local" };
+    private static readonly string[] ReservedTestDomains = { "example.com", "example.net", "example.org" };
+
+    internal static bool IsReservedTestRecipient(string to)
+    {
+        var at = to.LastIndexOf('@');
+        if (at < 0)
+            return false;
+
+        var domain = to[(at + 1)..].Trim().TrimEnd('.').ToLowerInvariant();
+        return ReservedTestTlds.Any(tld => domain.EndsWith(tld, StringComparison.Ordinal))
+            || ReservedTestDomains.Any(reserved => domain == reserved || domain.EndsWith("." + reserved, StringComparison.Ordinal));
     }
 
     private static string ConvertHtmlToPlainText(string html)

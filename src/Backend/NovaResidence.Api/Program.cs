@@ -18,13 +18,13 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "NovaResidence API",
+        Title = "DomusCond API",
         Version = "v1",
         Description = "Condominium Management Platform - SaaS Solution",
         Contact = new OpenApiContact
         {
-            Name = "NovaResidence Team",
-            Email = "api@novaresidence.com"
+            Name = "DomusCond",
+            Email = "contacto@domuscond.com"
         }
     });
 
@@ -151,7 +151,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "NovaResidence API v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "DomusCond API v1");
     });
 }
 

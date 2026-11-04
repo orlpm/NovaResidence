@@ -79,7 +79,7 @@ function Login() {
         Iniciar Sesión
       </h2>
       <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
-        Ingresa a tu cuenta de NovaResidence
+        Ingresa a tu cuenta de DomusCond
       </p>
 
       {searchParams.get('next') === '/admin/onboarding' && (

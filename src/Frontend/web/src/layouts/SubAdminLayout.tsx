@@ -96,7 +96,7 @@ export default function SubAdminLayout() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-            <span className="text-2xl font-bold text-blue-600">NovaResidence</span>
+            <span className="text-2xl font-bold text-blue-600">DomusCond</span>
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"

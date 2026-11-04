@@ -93,7 +93,7 @@ export default function SuperAdminLayout() {
                 <Crown className="w-6 h-6 text-purple-900" />
               </div>
               <div>
-                <span className="text-lg font-bold text-white">NovaResidence</span>
+                <span className="text-lg font-bold text-white">DomusCond</span>
                 <p className="text-xs text-purple-300">Super Admin</p>
               </div>
             </div>

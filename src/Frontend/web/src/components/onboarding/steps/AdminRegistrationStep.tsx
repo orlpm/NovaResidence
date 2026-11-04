@@ -62,7 +62,7 @@ export default function AdminRegistrationStep({ data, onUpdate, onNext }: AdminR
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Bienvenido a NovaResidence
+          Bienvenido a DomusCond
         </h3>
         <p className="text-gray-600 dark:text-gray-400">
           Registra tu cuenta de administrador para comenzar

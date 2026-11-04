@@ -1,6 +1,6 @@
-# NovaResidence
+# DomusCond
 
-SaaS de administración de condominios. Un App Service sirve la API y la aplicación web. El piloto cubre la operación diaria del edificio y la suscripción de la plataforma. No es todavía un sistema de producción para un condominio real.
+SaaS de administración de condominios. La marca y el correo público son DomusCond (`contacto@domuscond.com`). El repositorio, los proyectos de código y la app de Azure siguen llamándose NovaResidence. Un App Service sirve la API y la aplicación web. El piloto cubre la operación diaria del edificio y la suscripción de la plataforma. No es todavía un sistema de producción para un condominio real.
 
 La arquitectura está en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Los procesos, en [docs/BUSINESS-PROCESSES.md](docs/BUSINESS-PROCESSES.md). Para continuar el trabajo en otro chat, empieza por [docs/HANDOFF.md](docs/HANDOFF.md).
 

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, ensureConfirmedUserId, loginAPI, registerUser, submitLoginUI, uniqueEmail } from './helpers/auth'
-import { getPasswordResetHash, seedEmailConfirmationToken, seedPasswordResetToken } from './helpers/sql'
+import { emailLink, waitForCapturedEmail } from './helpers/email-outbox'
+import { getPasswordResetHash, isRemoteDatabase, seedEmailConfirmationToken, seedPasswordResetToken } from './helpers/sql'
 
 test.describe('Auth email confirmation and recovery flows', () => {
   test('resident registration is blocked from login until email is confirmed, then login succeeds', async ({ page }) => {
@@ -50,10 +51,16 @@ test.describe('Auth email confirmation and recovery flows', () => {
     const userId = await ensureConfirmedUserId(email)
     expect(userId).toBeTruthy()
 
-    const confirmationToken = `confirm-token-${Date.now()}`
-    seedEmailConfirmationToken(userId, confirmationToken)
-
-    await page.goto(`/auth/confirm-email?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(confirmationToken)}`)
+    if (isRemoteDatabase()) {
+      const confirmationToken = `confirm-token-${Date.now()}`
+      seedEmailConfirmationToken(userId, confirmationToken)
+      await page.goto(`/auth/confirm-email?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(confirmationToken)}`)
+    } else {
+      const message = await waitForCapturedEmail(email, 'Confirma tu correo en DomusCond')
+      expect(message.body).toContain('DomusCond')
+      expect(message.body.toLowerCase()).toContain(userId.toLowerCase())
+      await page.goto(emailLink(message.body))
+    }
     await expect(page.getByText(/Correo confirmado correctamente|Tu correo ya había sido confirmado/)).toBeVisible({ timeout: 15000 })
 
     await page.getByRole('link', { name: 'Ir a iniciar sesión' }).click()
@@ -93,10 +100,16 @@ test.describe('Auth email confirmation and recovery flows', () => {
     await expect(page.getByText('Si el correo existe, te enviamos un enlace para restablecerla.')).toBeVisible()
     expect(getPasswordResetHash(userId)).not.toBe('')
 
-    const resetToken = `reset-token-${Date.now()}`
-    seedPasswordResetToken(userId, resetToken)
-
-    await page.goto(`/auth/reset-password?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(resetToken)}`)
+    if (isRemoteDatabase()) {
+      const resetToken = `reset-token-${Date.now()}`
+      seedPasswordResetToken(userId, resetToken)
+      await page.goto(`/auth/reset-password?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(resetToken)}`)
+    } else {
+      const message = await waitForCapturedEmail(email, 'Restablece tu contraseña en DomusCond')
+      expect(message.body).toContain('DomusCond')
+      expect(message.body.toLowerCase()).toContain(userId.toLowerCase())
+      await page.goto(emailLink(message.body))
+    }
     await page.locator('input[placeholder="Minimo 6 caracteres"]').fill(newPassword)
     await page.locator('input[placeholder="Repite tu contraseña"]').fill(newPassword)
 

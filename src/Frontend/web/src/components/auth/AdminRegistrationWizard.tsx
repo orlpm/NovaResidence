@@ -214,7 +214,7 @@ export default function AdminRegistrationWizard({ isOpen, onClose, initialPlan, 
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
             {shouldSkipPlan 
-              ? 'Registra tus datos y comienza a usar NovaResidence' 
+              ? 'Registra tus datos y comienza a usar DomusCond' 
               : 'Comienza a gestionar tu condominio de manera profesional'}
           </p>
         </div>

@@ -227,7 +227,7 @@ export default function SubscriptionStatusPage() {
           customerPhone: customerPhone.trim() || undefined,
           customerAddressLine1: billingAddressLine1.trim(),
           customerPostalCode: billingPostalCode.trim(),
-          description: `Suscripción NovaResidence - ${payMonths} mes(es)`,
+          description: `Suscripción DomusCond - ${payMonths} mes(es)`,
           notes: payNotes || undefined,
         });
 

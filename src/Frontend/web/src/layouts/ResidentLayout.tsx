@@ -112,7 +112,7 @@ function ResidentLayout() {
               </div>
               <div>
                 <span className="text-lg font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-                  NovaResidence
+                  DomusCond
                 </span>
                 <p className="text-xs text-gray-500 dark:text-gray-400">Portal Residente</p>
               </div>
@@ -178,7 +178,7 @@ function ResidentLayout() {
                   <Building2 className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-lg font-bold bg-gradient-brand bg-clip-text text-transparent">
-                  NovaResidence
+                  DomusCond
                 </span>
               </div>
               <button onClick={() => setSidebarOpen(false)}>

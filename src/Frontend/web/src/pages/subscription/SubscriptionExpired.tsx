@@ -152,7 +152,7 @@ export default function SubscriptionExpired({ subscriptionInfo }: SubscriptionEx
           customerPhone: customerPhone.trim() || undefined,
           customerAddressLine1: billingAddressLine1.trim(),
           customerPostalCode: billingPostalCode.trim(),
-          description: `Suscripción NovaResidence - ${paymentData.monthsPaid} mes(es)`,
+          description: `Suscripción DomusCond - ${paymentData.monthsPaid} mes(es)`,
           notes: paymentData.notes || undefined,
         });
 
@@ -720,7 +720,7 @@ export default function SubscriptionExpired({ subscriptionInfo }: SubscriptionEx
         {/* Contact info */}
         <div className="text-center text-gray-500 dark:text-gray-400 text-sm space-y-2">
           <p>¿Necesitas un plan personalizado? Contacta a nuestro equipo.</p>
-          <p className="font-medium">soporte@novaresidence.com • +52 55 1234 5678</p>
+          <p className="font-medium">contacto@domuscond.com • +52 55 1234 5678</p>
         </div>
       </div>
     </div>

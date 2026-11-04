@@ -135,7 +135,7 @@ export default function RegisterResident() {
             </div>
             <div>
               <span className="text-2xl font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-                NovaResidence
+                DomusCond
               </span>
               <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Gestión de Condominios</p>
             </div>
@@ -178,7 +178,7 @@ export default function RegisterResident() {
           </div>
           <div>
             <span className="text-2xl font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
-              NovaResidence
+              DomusCond
             </span>
             <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">Gestión de Condominios</p>
           </div>

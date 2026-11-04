@@ -450,7 +450,7 @@ test.describe('UI - Subscription Flow', () => {
     await expect(page).toHaveURL(/\/superadmin/);
     
     // Should see navigation items
-    await expect(page.getByText('NovaResidence', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('DomusCond', { exact: true }).first()).toBeVisible();
   });
 });
 

@@ -986,7 +986,7 @@ public class AuthController : ControllerBase
 
         await _emailService.SendEmailAsync(
             user.Email,
-            "Confirma tu correo en NovaResidence",
+            "Confirma tu correo en DomusCond",
             BuildEmailConfirmationBody(user.FirstName, confirmationUrl, expiresAt),
             cancellationToken);
     }
@@ -1003,7 +1003,7 @@ public class AuthController : ControllerBase
 
         await _emailService.SendEmailAsync(
             user.Email,
-            "Restablece tu contraseña en NovaResidence",
+            "Restablece tu contraseña en DomusCond",
             BuildPasswordResetBody(user.FirstName, resetUrl, expiresAt),
             cancellationToken);
     }
@@ -1073,9 +1073,9 @@ public class AuthController : ControllerBase
             <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a;\">
               <h1 style=\"margin:0 0 16px;font-size:28px;color:#0284c7;\">Confirma tu correo</h1>
               <p style=\"font-size:16px;line-height:1.6;\">Hola {safeName},</p>
-              <p style=\"font-size:16px;line-height:1.6;\">Gracias por registrarte en NovaResidence. Para activar tu cuenta, confirma tu correo desde el siguiente enlace:</p>
-              <p style=\"margin:24px 0;\">
-                <a href=\"{safeUrl}\" style=\"display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;\">Confirmar correo</a>
+              <p style="font-size:16px;line-height:1.6;">Gracias por registrarte en DomusCond. Para activar tu cuenta, confirma tu correo desde el siguiente enlace:</p>
+              <p style="margin:24px 0;">
+                <a href="{safeUrl}" style="display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;">Confirmar correo</a>
               </p>
               <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Este enlace vence el {expiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>
               <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Si no solicitaste esta cuenta, puedes ignorar este mensaje.</p>
@@ -1091,9 +1091,9 @@ public class AuthController : ControllerBase
             <div style=\"font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#0f172a;\">
               <h1 style=\"margin:0 0 16px;font-size:28px;color:#0284c7;\">Restablece tu contraseña</h1>
               <p style=\"font-size:16px;line-height:1.6;\">Hola {safeName},</p>
-              <p style=\"font-size:16px;line-height:1.6;\">Recibimos una solicitud para cambiar tu contraseña en NovaResidence. Usa el siguiente enlace para establecer una nueva:</p>
-              <p style=\"margin:24px 0;\">
-                <a href=\"{safeUrl}\" style=\"display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;\">Restablecer contraseña</a>
+              <p style="font-size:16px;line-height:1.6;">Recibimos una solicitud para cambiar tu contraseña en DomusCond. Usa el siguiente enlace para establecer una nueva:</p>
+              <p style="margin:24px 0;">
+                <a href="{safeUrl}" style="display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700;">Restablecer contraseña</a>
               </p>
               <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Este enlace vence el {expiresAt.ToLocalTime():dd/MM/yyyy HH:mm}.</p>
               <p style=\"font-size:14px;line-height:1.6;color:#475569;\">Si no solicitaste el cambio, puedes ignorar este correo.</p>

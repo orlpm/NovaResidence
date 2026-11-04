@@ -59,7 +59,7 @@ export default function Navbar() {
               </div>
               <div className="min-w-0">
                 <span className="text-lg sm:text-2xl font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent block truncate">
-                  NovaResidence
+                  DomusCond
                 </span>
                 <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 font-medium hidden xs:block">Gestión de Condominios</p>
               </div>

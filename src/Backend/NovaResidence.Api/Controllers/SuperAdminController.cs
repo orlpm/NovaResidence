@@ -171,7 +171,7 @@ public class SuperAdminController : ControllerBase
                 MaintenanceMode: false,
                 EnableNewRegistrations: true,
                 SessionTimeoutMinutes: 60,
-                SupportEmail: _configuration["SystemDefaults:SupportEmail"] ?? "soporte@novaresidence.com",
+                SupportEmail: _configuration["SystemDefaults:SupportEmail"] ?? "contacto@domuscond.com",
                 DefaultTimeZone: _configuration["SystemDefaults:DefaultTimeZone"] ?? "America/Mexico_City",
                 AnnouncementBanner: string.Empty,
                 UpdatedAt: DateTime.UtcNow
@@ -186,7 +186,7 @@ public class SuperAdminController : ControllerBase
 
         if (settings == null)
         {
-            return new SystemSettingsDto(false, true, 60, "soporte@novaresidence.com", "America/Mexico_City", string.Empty, DateTime.UtcNow);
+            return new SystemSettingsDto(false, true, 60, "contacto@domuscond.com", "America/Mexico_City", string.Empty, DateTime.UtcNow);
         }
 
         return settings;

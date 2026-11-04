@@ -592,7 +592,7 @@ public class SubscriptionsController : ControllerBase
         var firstName = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "Cliente";
         var lastName = string.Join(' ', fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Skip(1));
         if (string.IsNullOrWhiteSpace(lastName))
-            lastName = "NovaResidence";
+            lastName = "DomusCond";
 
         var charge = await _openPaySubscriptionService.CreateSubscriptionChargeAsync(new OpenPayCreateChargeRequest(
             SubscriptionId: subscriptionId,

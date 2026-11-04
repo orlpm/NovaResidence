@@ -1,10 +1,10 @@
 # Handoff de NovaResidence
 
-Documento para continuar el trabajo en otro chat sin depender del historial. Fecha de corte: 29 de octubre de 2026. El último despliegue conocido a Azure fue el 16 de octubre de 2026.
+Documento para continuar el trabajo en otro chat sin depender del historial. Fecha de corte: 3 de noviembre de 2026. El último despliegue a Azure fue el 3 de noviembre de 2026 y corresponde al commit `6059c34` de `main`.
 
 ## Qué es el producto
 
-NovaResidence es un SaaS de administración de condominios. Un solo sitio sirve la API y la aplicación web. El idioma de la interfaz y de las respuestas al usuario es español. El nombre correcto es NovaResidence. La carpeta vieja del escritorio, con el nombre mal escrito, no se toca y no se publica.
+DomusCond es un SaaS de administración de condominios. Un solo sitio sirve la API y la aplicación web. El idioma de la interfaz y de las respuestas al usuario es español. La marca visible y los correos usan DomusCond, con remitente `contacto@domuscond.com`. El repositorio, los namespaces y la app de Azure conservan el nombre NovaResidence. La carpeta vieja del escritorio, con el nombre mal escrito, no se toca y no se publica.
 
 ## Cómo retomar
 
@@ -15,14 +15,20 @@ Lee, en este orden:
 3. [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) para el comportamiento de cada proceso.
 4. [PERMISSIONS.md](PERMISSIONS.md) solo si el cambio toca roles o pantallas protegidas.
 
-El código de la rama `main` en el working tree es la fuente de verdad. Casi todo el producto operativo está sin commit encima de `a18f779`. Azure recibió un zip de ese working tree el 16 de octubre de 2026. Si el árbol cambió después de esa fecha, el sitio publicado puede ir atrás.
+La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) es la fuente de verdad. El commit `6059c34` (3 nov 2026) subió todo el producto operativo y el acceso con QR; antes de él, el historial terminaba en `a18f779`. Azure tiene publicado exactamente ese commit. Si hay cambios sin commit o commits posteriores, el sitio publicado va atrás.
+
+## Entorno de desarrollo
+
+- Node.js 24.22.1 LTS y npm 11, instalados con winget (`OpenJS.NodeJS.LTS`). `winget upgrade` ofrecerá Node 26; no hace falta.
+- .NET 8 SDK. El frontend es un workspace de npm: instalar dependencias desde `src/Frontend` con `--workspace=web`.
+- Los skills de Neon están en `.agents/skills` del repositorio (instalados con el CLI `skills`). No se usan en el producto; NovaResidence no corre en Neon.
 
 ## Reglas que no se negocian
 
-- No hacer commit ni push salvo que el usuario lo pida.
+- No hacer commit, push ni despliegue a Azure salvo que el usuario lo pida.
 - No hacer force-push, no cambiar `git config`, no usar `git reset --hard`.
 - No imprimir secretos: claves JWT, Brevo, OpenPay ni tokens de Azure.
-- No reactivar el envío de correo. `Email:DisableSending` permanece en true hasta que el usuario entregue credenciales de Brevo.
+- En Azure el correo ya sale por Brevo, desde `contacto@domuscond.com`, con el nombre DomusCond. La API key vive solo en App Settings. En local `Email:DisableSending` sigue en true y `Email:CaptureOutbox` guarda el mensaje en `data/email-outbox` para que las pruebas abran el enlace real. No enviar a dominios reservados (`.test`, `example.com`). No imprimir la API key.
 - No completar un cargo real de OpenPay. El backend no acepta el número de tarjeta; tokeniza el navegador.
 - No volver a SQL Server LocalDB. Local y Azure usan SQLite.
 - No quitar el skip de `tests/record-demo.spec.ts`.
@@ -35,8 +41,10 @@ El código de la rama `main` en el working tree es la fuente de verdad. Casi tod
 | --- | --- |
 | Local | SQLite en `src/Backend/NovaResidence.Api/data/novaresidence.dev.db`. El proceso `dotnet run` usa como directorio de trabajo el proyecto de la API. |
 | Azure | App `novaresidence-api`, grupo `NovaResidence-RG`, región `mexicocentral`, plan `novaresidence-plan` SKU F1. URL `https://novaresidence-api.azurewebsites.net`. Una sola app sirve API y SPA desde `wwwroot`. |
-| Último deploy | 16 oct 2026, id `8a92ce50b6614b3f89536ae7b6b43363`, `provisioningState` Succeeded. |
-| Pruebas de ese deploy | 19 specs de los flujos nuevos, todas verdes, unos 3 minutos. |
+| Último deploy | 3 nov 2026, marca DomusCond, id `58f54b6caba04e82a6ae79ce230499e7`, `provisioningState` Succeeded. El commit de git sigue en `6059c34`; este cambio de marca todavía no está en el repositorio. |
+| Pruebas de ese deploy | Suite completa contra Azure: 98 aprobadas, 1 omitida (`record-demo`), 1 intermitente en 7.7 min. La intermitente fue `polls-meetings` «el residente vota y confirma la asamblea desde su pantalla»: falló el registro del administrador al preparar el escenario y pasó al repetirla. |
+| Pruebas de correo | En local, confirmación y restablecimiento abren el enlace real del mensaje capturado. En Azure, Brevo entregó el correo de DomusCond a `contacto@domuscond.com`. |
+| Pruebas locales | 99 aprobadas y 1 omitida el 3 nov 2026, con Node 24. La suite completa no se volvió a correr después del cambio de marca. |
 
 El plan F1 se duerme y tiene unos 60 minutos de CPU al día. Un arranque en frío más una suite grande agota la cuota.
 
@@ -72,7 +80,12 @@ E2E_API_BASE=https://novaresidence-api.azurewebsites.net/api
 
 Timeout remoto: 300000. El SQL remoto de las pruebas sube `tests/e2e/helpers/e2e-remote-sql.py` por Kudu y lo ejecuta con el Python 2.7 del sitio. En local usa `node:sqlite`. Los Guid de SQLite se guardan en mayúsculas y la comparación de llaves foráneas distingue mayúsculas.
 
-Los 19 specs del último pase en Azure fueron: notificaciones, documentos, áreas/mapas/cámaras, limpieza y proveedor, encuestas y asambleas, paquetería, vehículos, pago de cuota, rondas, multas y el demo de Pedregal.
+El último pase en Azure corrió la suite completa (100 pruebas). El acceso con QR se cubre en `tests/e2e/visit-qr-access.spec.ts`: la prueba toma una captura del QR del residente y vigilancia la sube como foto, así que valida la decodificación real, no solo la API.
+
+Pruebas que dependen de la fecha o del entorno:
+
+- `accountant-dashboard` «API endpoints…» crea un cargo que vence en 5 días y lo busca en el reporte del mes, que filtra por `DueDate`. En los últimos 5 días de cada mes falla. Hay que corregir la prueba.
+- Las que crean escenario registran administradores con `uniqueEmail`, que usa los últimos 4 dígitos de `Date.now()`. En Azure F1 un registro falló una vez y pasó al repetir.
 
 ## Cuentas demo
 
@@ -106,6 +119,7 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 - El cargo de cuota del residente ya existía. Lo que se agregó es el folio de recibo `REC-yyyyMMdd-XXXXXXXX` en `Payment.ReceiptNumber`.
 - La multa no es una entidad aparte: es un `Charge` con `FeeType.Fine` y un aviso al residente.
 - La placa del visitante sigue en la visita. La placa del residente vive en `ResidentVehicle` y el cajón en `ParkingSpot`.
+- El pase QR de visita es `Visit.AccessCode`: 12 caracteres aleatorios de un alfabeto sin 0/O/1/I, mostrados como `NRV-XXXX-XXXX-XXXX`. El QR contiene solo ese texto, no un URL ni datos del visitante. La columna y su índice único entran por `SqliteSchemaPatch`; las visitas viejas reciben código al pedir su pase. Las reglas de vigencia viven en `Visit.GetEntryDenialReason`, no en el controlador. Vigilancia lee el QR con `jsqr` (cámara o foto) en `/security/qr-access`; la pantalla no lleva `PermissionRoute` y el backend exige rol `admin`, `superadmin` o `security`. Un código de otro condominio responde 404, igual que uno inexistente.
 
 ## Qué falta para producción
 
@@ -116,7 +130,9 @@ Correo y OpenPay están fuera de alcance hasta que el usuario lo pida. Aun así,
 - La clave JWT de producción está en `appsettings.Production.json` dentro del repositorio. Hay que rotarla y sacarla del repo. No la copies a chats ni a documentos.
 - Application Insights está vacío.
 - El seed demo no puede quedar encendido.
-- No hay commit del working tree. El historial de git no contiene este producto.
+- .NET 8 deja de recibir parches de seguridad el 10 de noviembre de 2026. Hay que migrar a .NET 10 LTS.
+- `dotnet list package --vulnerable --include-transitive` reporta paquetes con vulnerabilidades altas (entre ellos `AutoMapper`, `System.Text.Json`, `System.Security.Cryptography.Xml`, `SQLitePCLRaw`, `Microsoft.Data.SqlClient`) y `MailKit` moderada. `npm audit` en el frontend reporta altas en `form-data`, `follow-redirects` y `zod`. Varias se cierran con la migración a .NET 10 y con `npm audit fix`; `zod` requiere cambio de versión mayor.
+- No hay rate limiting en login ni en la validación de códigos QR. El código QR tiene 60 bits de entropía, pero conviene limitar intentos por usuario.
 
 ## Trabajo explícitamente no hecho
 

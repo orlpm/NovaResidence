@@ -293,7 +293,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             <TestimonialCard
-              quote="NovaResidence ha transformado la manera en que administramos nuestro condominio. Los residentes están más felices y nosotros ahorramos horas de trabajo."
+              quote="DomusCond ha transformado la manera en que administramos nuestro condominio. Los residentes están más felices y nosotros ahorramos horas de trabajo."
               author="María González"
               role="Administradora"
               company="Torres del Valle"
@@ -325,7 +325,7 @@ export default function Home() {
             <span className="block">tu condominio?</span>
           </h2>
           <p className="text-xl text-sky-100 mb-10 max-w-2xl mx-auto">
-            Únete a cientos de condominios que ya confían en NovaResidence para su gestión diaria.
+            Únete a cientos de condominios que ya confían en DomusCond para su gestión diaria.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
@@ -352,7 +352,7 @@ export default function Home() {
                 <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-blue-600 rounded-xl flex items-center justify-center">
                   <Building2 className="w-7 h-7 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white">NovaResidence</span>
+                <span className="text-2xl font-bold text-white">DomusCond</span>
               </div>
               <p className="text-gray-400 mb-6">
                 La plataforma más completa para la gestión de condominios en México.
@@ -398,7 +398,7 @@ export default function Home() {
               <ul className="space-y-4">
                 <li className="flex items-center space-x-3">
                   <Mail className="w-5 h-5 text-sky-400" />
-                  <span>hola@novaresidence.mx</span>
+                  <span>contacto@domuscond.com</span>
                 </li>
                 <li className="flex items-center space-x-3">
                   <Phone className="w-5 h-5 text-sky-400" />
@@ -413,7 +413,7 @@ export default function Home() {
           </div>
           
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-sm">&copy; 2026 NovaResidence. Todos los derechos reservados.</p>
+            <p className="text-sm">&copy; 2026 DomusCond. Todos los derechos reservados.</p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a href="#" className="text-sm hover:text-sky-400 transition-colors">Privacidad</a>
               <a href="#" className="text-sm hover:text-sky-400 transition-colors">Términos</a>
