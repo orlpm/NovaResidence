@@ -53,7 +53,7 @@ test.describe('Auth email confirmation and recovery flows', () => {
 
     if (isRemoteDatabase()) {
       const confirmationToken = `confirm-token-${Date.now()}`
-      seedEmailConfirmationToken(userId, confirmationToken)
+      await seedEmailConfirmationToken(userId, confirmationToken)
       await page.goto(`/auth/confirm-email?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(confirmationToken)}`)
     } else {
       const message = await waitForCapturedEmail(email, 'Confirma tu correo en DomusCond')
@@ -98,11 +98,11 @@ test.describe('Auth email confirmation and recovery flows', () => {
     expect(forgotResponse.status()).toBe(200)
 
     await expect(page.getByText('Si el correo existe, te enviamos un enlace para restablecerla.')).toBeVisible()
-    expect(getPasswordResetHash(userId)).not.toBe('')
+    expect(await getPasswordResetHash(userId)).not.toBe('')
 
     if (isRemoteDatabase()) {
       const resetToken = `reset-token-${Date.now()}`
-      seedPasswordResetToken(userId, resetToken)
+      await seedPasswordResetToken(userId, resetToken)
       await page.goto(`/auth/reset-password?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(resetToken)}`)
     } else {
       const message = await waitForCapturedEmail(email, 'Restablece tu contraseña en DomusCond')

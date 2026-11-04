@@ -48,9 +48,36 @@ export default function CondominiumEdit() {
   }, [])
 
   useEffect(() => {
-    if (id) {
-      loadCondominium()
+    if (!id) return
+    let cancelled = false
+
+    const load = async () => {
+      try {
+        const data = await condominiumService.getCondominiumById(id)
+        if (cancelled) return
+        setCondoName(data.name)
+        setFormData({
+          name: data.name,
+          description: data.description || '',
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          stateId: data.stateId || '',
+          postalCode: data.postalCode,
+          country: data.country || 'México',
+          countryId: data.countryId || ''
+        })
+      } catch (error) {
+        if (cancelled) return
+        console.error('Failed to load condominium', error)
+        setFormError('Error cargando el condominio')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
+
+    load()
+    return () => { cancelled = true }
   }, [id])
 
   useEffect(() => {
@@ -77,29 +104,6 @@ export default function CondominiumEdit() {
       setCountries(response)
     } catch {
       setCountries([])
-    }
-  }
-
-  const loadCondominium = async () => {
-    try {
-      const data = await condominiumService.getCondominiumById(id!)
-      setCondoName(data.name)
-      setFormData({
-        name: data.name,
-        description: data.description || '',
-        street: data.street,
-        city: data.city,
-        state: data.state,
-        stateId: data.stateId || '',
-        postalCode: data.postalCode,
-        country: data.country || 'México',
-        countryId: data.countryId || ''
-      })
-    } catch (error) {
-      console.error('Failed to load condominium', error)
-      setFormError('Error cargando el condominio')
-    } finally {
-      setLoading(false)
     }
   }
 

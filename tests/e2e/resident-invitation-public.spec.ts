@@ -133,7 +133,7 @@ test.describe('Resident invitation public registration', () => {
     const scenario = await createAdminCondominiumScenario(request)
     const invitation = await createResidentInvitation(request, scenario.superToken, scenario.unitId, 'resident.invite.expired')
 
-    expireResidentInvitation(invitation.token)
+    await expireResidentInvitation(invitation.token)
 
     await page.goto(`/invitation/register/${scenario.unitId}/${invitation.token}`)
     await expect(page.getByRole('heading', { name: 'Invitación no disponible' })).toBeVisible()

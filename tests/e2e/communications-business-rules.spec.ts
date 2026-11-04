@@ -213,8 +213,8 @@ async function checkPermission(request: APIRequestContext, token: string, userId
   return (await response.json()) as { hasPermission: boolean }
 }
 
-function assignSubAdminToCondominium(userId: string, condominiumId: string) {
-  ensureCondominiumRole(userId, condominiumId, 2)
+async function assignSubAdminToCondominium(userId: string, condominiumId: string) {
+  await ensureCondominiumRole(userId, condominiumId, 2)
 }
 
 test.describe('Communications business rules', () => {
@@ -380,7 +380,7 @@ test.describe('Communications business rules', () => {
       role: 'SubAdmin'
     })
     const subAdminLogin = await loginAPI(request, subAdmin.email, subAdmin.password)
-    assignSubAdminToCondominium(subAdminLogin.userId, scenario.condominiumId)
+    await assignSubAdminToCondominium(subAdminLogin.userId, scenario.condominiumId)
     await grantUserPermission(request, superadmin.token, subAdminLogin.userId, 'communications.view_announcements')
 
     await revokeUserPermission(request, superadmin.token, subAdminLogin.userId, 'communications.create_announcements')

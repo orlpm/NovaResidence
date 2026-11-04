@@ -81,7 +81,7 @@ test.describe('Trabajo de limpieza y proveedor', () => {
     })
     expect(register.ok()).toBeTruthy()
     const provider = await loginAPI(request, email, password)
-    ensureCondominiumRole(provider.userId, scenario.condominiumId, 7)
+    await ensureCondominiumRole(provider.userId, scenario.condominiumId, 7)
 
     const incidentId = await createIncident(request, scenario.superToken, scenario.condominiumId, scenario.superUserId, title)
     expect((await request.post(`${API_BASE}/incidents/${incidentId}/assign`, {
@@ -124,7 +124,7 @@ test.describe('Trabajo de limpieza y proveedor', () => {
     })
     expect(register.ok()).toBeTruthy()
     const provider = await loginAPI(request, email, password)
-    ensureCondominiumRole(provider.userId, scenario.condominiumId, 7)
+    await ensureCondominiumRole(provider.userId, scenario.condominiumId, 7)
 
     await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
     await page.goto('/admin/provider-agenda')

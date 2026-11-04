@@ -33,8 +33,8 @@ async function grantAccountantPermissions(request: APIRequestContext, superToken
   }
 }
 
-function assignAccountantToCondominium(userId: string, condominiumId: string) {
-  ensureCondominiumRole(userId, condominiumId, 8)
+async function assignAccountantToCondominium(userId: string, condominiumId: string) {
+  await ensureCondominiumRole(userId, condominiumId, 8)
 }
 
 test.describe('Accountant dashboard KPIs', () => {
@@ -45,7 +45,7 @@ test.describe('Accountant dashboard KPIs', () => {
 
     const accountant = await createAccountantUser(request, superLogin.token, scenario.condominiumId)
     const accountantLogin = await loginAPI(request, accountant.email, accountant.password)
-    assignAccountantToCondominium(accountantLogin.userId!, scenario.condominiumId)
+    await assignAccountantToCondominium(accountantLogin.userId!, scenario.condominiumId)
     await grantAccountantPermissions(request, superLogin.token, accountantLogin.userId!)
 
     const now = new Date()
@@ -125,7 +125,7 @@ test.describe('Accountant dashboard KPIs', () => {
     const accountant = await createAccountantUser(request, superLogin.token, scenario.condominiumId)
     const accountantLogin = await loginAPI(request, accountant.email, accountant.password)
     expect(accountantLogin.userId).toBeTruthy()
-    assignAccountantToCondominium(accountantLogin.userId!, scenario.condominiumId)
+    await assignAccountantToCondominium(accountantLogin.userId!, scenario.condominiumId)
     await grantAccountantPermissions(request, superLogin.token, accountantLogin.userId!)
 
     const seedChargeResponse = await request.post(`${API_BASE}/billing/charges`, {

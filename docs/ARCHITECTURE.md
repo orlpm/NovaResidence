@@ -14,8 +14,9 @@ App Service novaresidence-api
     |-- /api             ASP.NET Core
     |-- /uploads         archivos locales
     |
-    +-- SQLite           local: data/novaresidence.dev.db
-                         Azure: D:\home\data\novaresidence.db
+    +-- Postgres         local: Neon, cadena pooled
+                         Azure: SQLite D:\home\data\novaresidence.db
+                         hasta desplegar este código
 ```
 
 El frontend de producción se compila con `VITE_API_URL` apuntando al mismo host. En desarrollo, Vite corre aparte y la API escucha en `http://localhost:5001`.
@@ -65,14 +66,15 @@ Cuando el condominio del token viene vacío y el usuario tiene exactamente un ro
 
 Al iniciar:
 
-1. Si `UseSqlite` es true, crea el directorio del archivo, ejecuta `EnsureCreated` y luego `SqliteSchemaPatch`.
-2. Si es false, aplica `Database.Migrate()`.
-3. Siembra catálogo geográfico, permisos, permisos por rol, planes y plantillas de trámites.
-4. Si el entorno es Development o `Demo:SeedOnStartup` es true, corre `DemoScenarioSeeder`.
+1. Si hay `ConnectionStrings:Postgres` o `ConnectionStrings:Neon`, usa Npgsql. Una URI `postgresql://` se convierte a claves (`Host`, `Username`, `Password`, `Database`, `SSL Mode`) porque el proveedor de EF no acepta la URI. `Npgsql.EnableLegacyTimestampBehavior` queda activo para aceptar `DateTime` sin zona. La app usa la cadena pooled, con reintentos.
+2. Si esa base no tiene `auth."Users"`, crea las tablas del modelo. No usa `EnsureCreated`: una base Neon puede traer tablas de Neon Auth y EF creería que el esquema ya existe. No usa `Database.Migrate()`: las migraciones del repositorio son de SQL Server.
+3. Luego aplica `PostgresSchemaPatch` (`Payments.ReceiptNumber`, `Visits.AccessCode` y su índice único).
+4. Si no hay cadena de Postgres y `UseSqlite` es true, crea el directorio del archivo, ejecuta `EnsureCreated` y luego `SqliteSchemaPatch`.
+5. Si tampoco hay SQLite, aplica `Database.Migrate()` sobre SQL Server.
+6. Siembra catálogo geográfico, permisos, permisos por rol, planes y plantillas de trámites.
+7. Si el entorno es Development o `Demo:SeedOnStartup` es true, corre `DemoScenarioSeeder`.
 
-`EnsureCreated` no modifica una base que ya existe. Las tablas operativas agregadas después del primer arranque solo aparecen porque el parche ejecuta `CREATE TABLE IF NOT EXISTS`. La columna `Payments.ReceiptNumber` se agrega con `ALTER TABLE` y se ignora el error si ya existe. En SQL Server esas tablas no están en una migración. Cambiar de motor exige generar esa migración antes de apagar SQLite.
-
-SQLite ignora el esquema lógico (`condo`, `auth`) que algunas configuraciones de EF declaran. El nombre físico es el de la tabla, sin prefijo. Los Guid se persisten como texto en mayúsculas.
+En Postgres los esquemas `auth`, `condo`, `catalog`, `ops` y `billing` sí existen. Los Guid son `uuid`. Los filtros de índice usan comillas dobles, no corchetes de SQL Server. SQLite sigue ignorando el esquema lógico y guarda los Guid como texto en mayúsculas.
 
 ## Módulos y dueños de datos
 
@@ -107,13 +109,13 @@ Mapas, comprobantes de pago y documentos del condominio se guardan bajo `Content
 
 ## Integraciones apagadas
 
-El correo sale por Brevo, REST si la clave empieza con `xkeysib-` y SMTP si empieza con `xsmtpsib-`. `DisableSending` corta `SendEmailAsync` antes de la red. Los registros públicos siguen sin confirmar hasta que un proceso de prueba confirme la fila en SQLite. El personal creado por un administrador autenticado queda confirmado.
+El correo sale por Brevo, REST si la clave empieza con `xkeysib-` y SMTP si empieza con `xsmtpsib-`. `DisableSending` corta `SendEmailAsync` antes de la red. Los registros públicos siguen sin confirmar hasta que un proceso de prueba confirme la fila. El personal creado por un administrador autenticado queda confirmado.
 
 OpenPay está deshabilitado en la configuración de producción del repositorio y, cuando se enciende, solo acepta un token y un `deviceSessionId` producidos en el navegador. Un token falso responde 400. El backend no recibe el PAN.
 
 ## Despliegue
 
-El artefacto es un zip del `dotnet publish` más el `dist` de Vite dentro de `wwwroot`. `UseDefaultFiles`, `UseStaticFiles` y el fallback a `index.html` hacen que el mismo host sirva la aplicación. La cadena de conexión de Azure apunta a `D:\home\data\novaresidence.db`, fuera de `wwwroot`, para que un zip no borre la base. La cadena escrita en `appsettings.Production.json` apunta a `wwwroot\data`; la variable del App Service debe seguir ganando.
+El artefacto es un zip del `dotnet publish` más el `dist` de Vite dentro de `wwwroot`. `UseDefaultFiles`, `UseStaticFiles` y el fallback a `index.html` hacen que el mismo host sirva la aplicación. El sitio publicado sigue en SQLite: `D:\home\data\novaresidence.db`, fuera de `wwwroot`. Cuando se despliegue este código, la cadena `ConnectionStrings__Neon` que ya está en App Settings hará que el sitio use Postgres. Hasta entonces no hay que poner `UseSqlite` en false.
 
 El plan actual es F1. No escala, se suspende por inactividad y el techo de CPU vuelve inútiles las suites largas.
 

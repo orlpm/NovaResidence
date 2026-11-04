@@ -11,7 +11,7 @@ Navegador  -->  App Service (.NET 8)
                  |-- /api          Clean Architecture, CQRS donde el módulo ya lo usa
                  |-- wwwroot       React 18 + Vite + TypeScript
                  |-- /uploads      mapas, comprobantes, documentos
-                 +-- SQLite        un archivo por entorno
+                 +-- Postgres      local en Neon; Azure sigue en SQLite hasta el próximo despliegue
 ```
 
 Capas del backend: `Domain`, `Application`, `Infrastructure`, `Api`, `Shared`. El dominio no referencia a EF ni a HTTP. La tenencia es el condominio. Cada request de datos pasa por `ITenantAccessService` y, en las pantallas ya protegidas, por permisos de rol.
@@ -49,7 +49,7 @@ El detalle de estados, actores y excepciones está en el documento de procesos.
 - No cobra con tarjeta. OpenPay tokeniza en el navegador y no hay un cargo de piloto cerrado.
 - No emite CFDI, no concilia bancos y no lleva libro mayor.
 - No graba video ni se conecta a un NVR. La cámara es el URL del marcador.
-- No corre en producción: la base es SQLite, el plan de Azure es F1 y el secreto JWT está en el repositorio.
+- No corre en producción: Azure sigue en SQLite y en el plan F1, y el secreto JWT está en el repositorio. Local ya usa Postgres.
 
 ## Roles
 

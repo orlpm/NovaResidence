@@ -40,8 +40,8 @@ export function asId(payload: unknown): string {
   throw new Error(`No se pudo extraer un id del payload: ${JSON.stringify(payload)}`)
 }
 
-function ensureAdminCondominiumRole(userId: string, condominiumId: string) {
-  ensureCondominiumRole(userId, condominiumId, 1)
+async function ensureAdminCondominiumRole(userId: string, condominiumId: string) {
+  await ensureCondominiumRole(userId, condominiumId, 1)
 }
 
 export async function createAdminCondominiumScenario(
@@ -103,8 +103,8 @@ export async function createAdminCondominiumScenario(
   expect(unitId).toBeTruthy()
 
   const adminLogin = await loginAPI(request, admin.email, admin.password)
-  ensureAdminCondominiumRole(admin.userId, condominiumId)
-  ensureAdminCondominiumRole(adminLogin.userId, condominiumId)
+  await ensureAdminCondominiumRole(admin.userId, condominiumId)
+  await ensureAdminCondominiumRole(adminLogin.userId, condominiumId)
 
   return {
     superToken: superadmin.token,

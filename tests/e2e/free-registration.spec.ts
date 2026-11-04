@@ -39,7 +39,7 @@ test.describe('Dedicated admin registration flow', () => {
     await expect(page.getByRole('button', { name: 'Ir al login de administrador' })).toBeVisible()
 
     const userId = await waitForUserIdByEmail(email)
-    seedEmailConfirmationToken(userId, confirmationToken)
+    await seedEmailConfirmationToken(userId, confirmationToken)
 
     await page.goto(`/auth/confirm-email?userId=${encodeURIComponent(userId)}&token=${encodeURIComponent(confirmationToken)}`)
     await expect(

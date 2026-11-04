@@ -30,7 +30,7 @@ La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) 
 - No imprimir secretos: claves JWT, Brevo, OpenPay ni tokens de Azure.
 - En Azure el correo ya sale por Brevo, desde `contacto@domuscond.com`, con el nombre DomusCond. La API key vive solo en App Settings. En local `Email:DisableSending` sigue en true y `Email:CaptureOutbox` guarda el mensaje en `data/email-outbox` para que las pruebas abran el enlace real. No enviar a dominios reservados (`.test`, `example.com`). No imprimir la API key.
 - No completar un cargo real de OpenPay. El backend no acepta el número de tarjeta; tokeniza el navegador.
-- No volver a SQL Server LocalDB. Local y Azure usan SQLite.
+- No volver a SQL Server LocalDB. Local usa Postgres. Hoy la cadena es la de Neon (`ConnectionStrings:Neon` y `ConnectionStrings:NeonDirect` en user-secrets). Mañana puede ser Azure u otro Postgres con `ConnectionStrings:Postgres`, que gana sobre Neon. No imprimir la cadena. Azure sigue en SQLite hasta que se despliegue este código; no apagar `UseSqlite` allá antes de ese despliegue.
 - No quitar el skip de `tests/record-demo.spec.ts`.
 - No crear cuentas con el correo personal del usuario.
 - Verificar cambios de interfaz con el flujo real. Playwright es el sustituto cuando no hay navegador.
@@ -39,12 +39,12 @@ La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) 
 
 | Entorno | Estado |
 | --- | --- |
-| Local | SQLite en `src/Backend/NovaResidence.Api/data/novaresidence.dev.db`. El proceso `dotnet run` usa como directorio de trabajo el proyecto de la API. |
+| Local | Postgres. La app usa la cadena pooled (`ConnectionStrings:Postgres` o, si no existe, `ConnectionStrings:Neon`). Las pruebas usan la directa. El proceso `dotnet run` usa como directorio de trabajo el proyecto de la API. |
 | Azure | App `novaresidence-api`, grupo `NovaResidence-RG`, región `mexicocentral`, plan `novaresidence-plan` SKU F1. URL `https://novaresidence-api.azurewebsites.net`. Una sola app sirve API y SPA desde `wwwroot`. |
-| Último deploy | 3 nov 2026, marca DomusCond, id `58f54b6caba04e82a6ae79ce230499e7`, `provisioningState` Succeeded. El commit de git sigue en `6059c34`; este cambio de marca todavía no está en el repositorio. |
+| Último deploy | 3 nov 2026, marca DomusCond, id `58f54b6caba04e82a6ae79ce230499e7`, `provisioningState` Succeeded. Ese sitio sigue en SQLite. El cambio a Postgres no está desplegado. |
 | Pruebas de ese deploy | Suite completa contra Azure: 98 aprobadas, 1 omitida (`record-demo`), 1 intermitente en 7.7 min. La intermitente fue `polls-meetings` «el residente vota y confirma la asamblea desde su pantalla»: falló el registro del administrador al preparar el escenario y pasó al repetirla. |
 | Pruebas de correo | En local, confirmación y restablecimiento abren el enlace real del mensaje capturado. En Azure, Brevo entregó el correo de DomusCond a `contacto@domuscond.com`. |
-| Pruebas locales | 99 aprobadas y 1 omitida el 3 nov 2026, con Node 24. La suite completa no se volvió a correr después del cambio de marca. |
+| Pruebas locales | 99 aprobadas y 2 omitidas el 4 nov 2026, contra Postgres. Omitidas: `record-demo` y la entrega Brevo, que solo corre con `E2E_TARGET=azure`. |
 
 El plan F1 se duerme y tiene unos 60 minutos de CPU al día. Un arranque en frío más una suite grande agota la cuota.
 
@@ -78,7 +78,7 @@ E2E_BASE_URL=https://novaresidence-api.azurewebsites.net
 E2E_API_BASE=https://novaresidence-api.azurewebsites.net/api
 ```
 
-Timeout remoto: 300000. El SQL remoto de las pruebas sube `tests/e2e/helpers/e2e-remote-sql.py` por Kudu y lo ejecuta con el Python 2.7 del sitio. En local usa `node:sqlite`. Los Guid de SQLite se guardan en mayúsculas y la comparación de llaves foráneas distingue mayúsculas.
+Timeout remoto: 300000. El SQL de las pruebas corre en local con `pg`, contra la cadena directa, y usa esquemas (`auth."Users"`, `condo."Residents"`). Si `E2E_TARGET=azure`, ese helper se detiene: no se corrigen las pruebas contra App Service.
 
 El último pase en Azure corrió la suite completa (100 pruebas). El acceso con QR se cubre en `tests/e2e/visit-qr-access.spec.ts`: la prueba toma una captura del QR del residente y vigilancia la sube como foto, así que valida la decodificación real, no solo la API.
 
@@ -110,7 +110,7 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 ## Decisiones que no hay que reabrir
 
 - Las áreas de la interfaz son `CondominiumCommonArea`. La reservación nueva es `CondominiumAreaReservation`. No reutilizar `CommonAreaReservation`: su llave apunta a la entidad vieja `CommonArea`.
-- `EnsureCreated` no altera una base SQLite que ya existe. Toda tabla o columna nueva entra por `SqliteSchemaPatch.ApplyAsync`, llamado justo después de `EnsureCreated`.
+- En Postgres no se corre `Database.Migrate()`: esas migraciones son de SQL Server. Si falta `auth."Users"`, el arranque llama `CreateTables`. Neon Auth ya tiene tablas en `neon_auth`, así que `EnsureCreated` no sirve: vería el esquema ajeno y no crearía el de la app. Columnas nuevas entran por `PostgresSchemaPatch`. El camino SQLite y su `SqliteSchemaPatch` siguen en el código por si no hay cadena de Postgres.
 - Las pantallas nuevas no llevan un `PermissionRoute` con un código que el seeder no otorgue. Si no está sembrado, la ruta responde Acceso Denegado.
 - El JWT colapsa `admin`, `condominiumadmin` y `subadmin` a `admin`. Vigilancia sale como `security`. Proveedor sale como `provider`.
 - Si `PermissionService` no recibe condominio y el usuario tiene un solo rol de condominio, usa ese rol. Antes caía en Owner y vigilancia veía Acceso Denegado.
@@ -119,13 +119,13 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 - El cargo de cuota del residente ya existía. Lo que se agregó es el folio de recibo `REC-yyyyMMdd-XXXXXXXX` en `Payment.ReceiptNumber`.
 - La multa no es una entidad aparte: es un `Charge` con `FeeType.Fine` y un aviso al residente.
 - La placa del visitante sigue en la visita. La placa del residente vive en `ResidentVehicle` y el cajón en `ParkingSpot`.
-- El pase QR de visita es `Visit.AccessCode`: 12 caracteres aleatorios de un alfabeto sin 0/O/1/I, mostrados como `NRV-XXXX-XXXX-XXXX`. El QR contiene solo ese texto, no un URL ni datos del visitante. La columna y su índice único entran por `SqliteSchemaPatch`; las visitas viejas reciben código al pedir su pase. Las reglas de vigencia viven en `Visit.GetEntryDenialReason`, no en el controlador. Vigilancia lee el QR con `jsqr` (cámara o foto) en `/security/qr-access`; la pantalla no lleva `PermissionRoute` y el backend exige rol `admin`, `superadmin` o `security`. Un código de otro condominio responde 404, igual que uno inexistente.
+- El pase QR de visita es `Visit.AccessCode`: 12 caracteres aleatorios de un alfabeto sin 0/O/1/I, mostrados como `NRV-XXXX-XXXX-XXXX`. El QR contiene solo ese texto, no un URL ni datos del visitante. La columna y su índice único entran por `PostgresSchemaPatch` (y por `SqliteSchemaPatch` si no hay Postgres); las visitas viejas reciben código al pedir su pase. Las reglas de vigencia viven en `Visit.GetEntryDenialReason`, no en el controlador. Vigilancia lee el QR con `jsqr` (cámara o foto) en `/security/qr-access`; la pantalla no lleva `PermissionRoute` y el backend exige rol `admin`, `superadmin` o `security`. Un código de otro condominio responde 404, igual que uno inexistente.
 
 ## Qué falta para producción
 
 Correo y OpenPay están fuera de alcance hasta que el usuario lo pida. Aun así, el producto no está listo para un condominio real:
 
-- SQLite de un solo archivo, sin respaldos. En SQL Server sí hay migraciones; en SQLite no. Un zip deploy puede pisar datos si la cadena apunta a `wwwroot`.
+- Azure sigue en el archivo SQLite hasta el próximo despliegue. Local ya está en Postgres, pero no hay migraciones de ese motor: el esquema nace con `CreateTables` y el parche. Un zip deploy del sitio viejo puede pisar datos si la cadena apunta a `wwwroot`.
 - Plan F1.
 - La clave JWT de producción está en `appsettings.Production.json` dentro del repositorio. Hay que rotarla y sacarla del repo. No la copies a chats ni a documentos.
 - Application Insights está vacío.

@@ -170,9 +170,9 @@ public class ResidentConfiguration : IEntityTypeConfiguration<Resident>
         builder.HasIndex(r => r.Email);
         builder.HasIndex(r => r.InvitationToken)
             .IsUnique()
-            .HasFilter("[InvitationToken] IS NOT NULL");
+            .HasFilter("\"InvitationToken\" IS NOT NULL");
         builder.HasIndex(r => r.UserId)
-            .HasFilter("[UserId] IS NOT NULL");
+            .HasFilter("\"UserId\" IS NOT NULL");
         builder.HasIndex(r => new { r.UnitId, r.IsActive });
     }
 }

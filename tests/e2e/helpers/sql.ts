@@ -1,23 +1,20 @@
 import { createHash } from 'crypto'
-import { execFileSync } from 'child_process'
-import { writeFileSync } from 'fs'
-import { DatabaseSync } from 'node:sqlite'
+import { readFileSync } from 'fs'
 import os from 'os'
 import path from 'path'
+import { Client } from 'pg'
 
-const localDbPath = process.env.E2E_SQLITE_PATH
-  ?? path.resolve(process.cwd(), 'src/Backend/NovaResidence.Api/data/novaresidence.dev.db')
+const secretsPath = path.join(
+  os.homedir(),
+  'AppData',
+  'Roaming',
+  'Microsoft',
+  'UserSecrets',
+  'novaresidence-api-secrets',
+  'secrets.json'
+)
 
-const kuduCommandUrl = 'https://novaresidence-api.scm.azurewebsites.net/api/command'
-const kuduScriptUrl = 'https://novaresidence-api.scm.azurewebsites.net/api/vfs/data/e2e-sql.py'
-const remoteScriptPath = 'D:\\home\\data\\e2e-sql.py'
-const azPython = process.env.AZ_PYTHON || 'C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\python.exe'
-const curlCommand = process.env.CURL_EXE || 'C:\\Windows\\System32\\curl.exe'
-
-let localDb: DatabaseSync | undefined
-let remoteScriptReady = false
-let cachedAzureToken = ''
-let azureTokenExpiresAt = 0
+let client: Client | undefined
 
 export function isRemoteDatabase(): boolean {
   return process.env.E2E_TARGET === 'azure'
@@ -31,112 +28,68 @@ export function computeTokenHash(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex').toUpperCase()
 }
 
-function sqliteUtc(date = new Date()): string {
-  const pad = (value: number, width = 2) => String(value).padStart(width, '0')
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}.${pad(date.getUTCMilliseconds(), 3)}0000`
+function connectionString(): string {
+  if (process.env.E2E_POSTGRES_URL) return process.env.E2E_POSTGRES_URL
+
+  const secrets = JSON.parse(readFileSync(secretsPath, 'utf8').replace(/^\uFEFF/, '')) as Record<string, string>
+  const value = secrets['ConnectionStrings:PostgresDirect']
+    || secrets['ConnectionStrings:NeonDirect']
+    || secrets['ConnectionStrings:Postgres']
+    || secrets['ConnectionStrings:Neon']
+
+  if (!value) throw new Error('No hay cadena de Postgres para las pruebas. Ejecuta scripts/set-neon-connection.ps1.')
+  return value.replace(/sslmode=require/ig, 'sslmode=verify-full')
 }
 
-function getLocalDb(): DatabaseSync {
-  if (!localDb) {
-    localDb = new DatabaseSync(localDbPath, { timeout: 10000 })
-    localDb.exec('PRAGMA busy_timeout = 10000')
+function expiryReadAsUtc(hoursAhead: number): Date {
+  // Npgsql con EnableLegacyTimestampBehavior lee timestamptz como reloj local
+  // y la API lo compara con DateTime.UtcNow. Se adelanta el instante para que
+  // ese reloj local siga en el futuro.
+  const offsetMs = new Date().getTimezoneOffset() * 60 * 1000
+  return new Date(Date.now() + hoursAhead * 60 * 60 * 1000 + offsetMs)
+}
+
+async function getClient(): Promise<Client> {
+  if (!client) {
+    client = new Client({ connectionString: connectionString() })
+    await client.connect()
   }
 
-  return localDb
+  return client
 }
 
-function azureToken(): string {
-  if (cachedAzureToken && Date.now() < azureTokenExpiresAt) return cachedAzureToken
-
-  const raw = execFileSync(azPython, [
-    '-IBm', 'azure.cli',
-    'account', 'get-access-token',
-    '--resource', 'https://management.azure.com/',
-    '-o', 'json'
-  ], { encoding: 'utf8' })
-  const parsed = JSON.parse(raw) as { accessToken?: string; expiresOn?: string }
-  if (!parsed.accessToken) throw new Error('No se pudo obtener el token de Azure para consultar SQLite')
-
-  cachedAzureToken = parsed.accessToken
-  const expiresAt = parsed.expiresOn ? Date.parse(parsed.expiresOn) : Date.now() + 20 * 60 * 1000
-  azureTokenExpiresAt = Number.isNaN(expiresAt) ? Date.now() + 20 * 60 * 1000 : expiresAt - 60_000
-  return cachedAzureToken
-}
-
-function ensureRemoteScript() {
-  if (remoteScriptReady) return
-
-  const scriptPath = path.resolve(process.cwd(), 'tests/e2e/helpers/e2e-remote-sql.py')
-  execFileSync(curlCommand, [
-    '-sS', '-f', '-X', 'PUT',
-    '-H', `Authorization: Bearer ${azureToken()}`,
-    '-H', 'If-Match: *',
-    '--data-binary', `@${scriptPath}`,
-    kuduScriptUrl
-  ], { encoding: 'utf8' })
-  remoteScriptReady = true
-}
-
-function remoteExecute(sql: string, params: Array<string | number | null>): string {
-  ensureRemoteScript()
-  const payload = Buffer.from(JSON.stringify({ sql, params }), 'utf8').toString('base64')
-  const bodyPath = path.join(os.tmpdir(), `novaresidence-kudu-${process.pid}.json`)
-  writeFileSync(bodyPath, JSON.stringify({
-    command: `C:\\Python27\\python.exe ${remoteScriptPath} ${payload}`,
-    dir: 'D:\\home'
-  }))
-
-  const raw = execFileSync(curlCommand, [
-    '-sS', '-X', 'POST',
-    '-H', `Authorization: Bearer ${azureToken()}`,
-    '-H', 'Content-Type: application/json',
-    '--data-binary', `@${bodyPath}`,
-    kuduCommandUrl
-  ], { encoding: 'utf8' })
-
-  const parsed = JSON.parse(raw) as { ExitCode?: number; Error?: string; Output?: string }
-  if (parsed.ExitCode !== 0) {
-    throw new Error(parsed.Error || parsed.Output || 'No se pudo consultar SQLite en Azure')
+async function queryScalar(sql: string, params: unknown[] = []): Promise<string> {
+  if (isRemoteDatabase()) {
+    throw new Error('Las pruebas de base se corren en local contra Postgres, no contra App Service.')
   }
 
-  return String(parsed.Output ?? '').replace(/\r/g, '').trim()
-}
-
-function queryScalar(sql: string, params: Array<string | number | null> = []): string {
-  if (isRemoteDatabase()) return remoteExecute(sql, params)
-
-  const row = getLocalDb().prepare(sql).get(...params) as Record<string, unknown> | undefined
-  if (!row) return ''
-  const value = Object.values(row)[0]
+  const result = await getClient().then(db => db.query(sql, params))
+  const value = result.rows[0] ? Object.values(result.rows[0])[0] : null
   return value == null ? '' : String(value)
 }
 
-function execute(sql: string, params: Array<string | number | null> = []) {
+async function execute(sql: string, params: unknown[] = []): Promise<void> {
   if (isRemoteDatabase()) {
-    remoteExecute(sql, params)
-    return
+    throw new Error('Las pruebas de base se corren en local contra Postgres, no contra App Service.')
   }
 
-  getLocalDb().prepare(sql).run(...params)
+  await getClient().then(db => db.query(sql, params))
 }
 
 export function runSql(_query: string): string {
-  throw new Error('runSql de SQL Server ya no aplica. Usa las funciones de tests/e2e/helpers/sql.ts sobre SQLite.')
+  throw new Error('runSql de SQL Server ya no aplica. Las pruebas locales usan Postgres.')
 }
 
-export function getUserIdByEmail(email: string): string {
-  return queryScalar('SELECT Id FROM Users WHERE UPPER(Email) = UPPER(?) LIMIT 1', [email])
+export async function getUserIdByEmail(email: string): Promise<string> {
+  return queryScalar('SELECT "Id"::text FROM auth."Users" WHERE lower("Email") = lower($1) LIMIT 1', [email])
 }
 
 export async function waitForUserIdByEmail(email: string): Promise<string> {
-  const timeoutMs = isRemoteDatabase() ? 60000 : 8000
-  const intervalMs = isRemoteDatabase() ? 3000 : 200
-  const deadline = Date.now() + timeoutMs
-
+  const deadline = Date.now() + 15000
   while (Date.now() <= deadline) {
-    const userId = getUserIdByEmail(email)
+    const userId = await getUserIdByEmail(email)
     if (userId) return userId
-    await new Promise(resolve => setTimeout(resolve, intervalMs))
+    await new Promise(resolve => setTimeout(resolve, 200))
   }
 
   throw new Error(`No se encontró el usuario ${email}`)
@@ -144,65 +97,64 @@ export async function waitForUserIdByEmail(email: string): Promise<string> {
 
 export async function confirmUserEmailByEmail(email: string): Promise<string> {
   const userId = await waitForUserIdByEmail(email)
-  execute(`
-    UPDATE Users
-    SET IsEmailConfirmed = 1,
-        EmailConfirmationTokenHash = NULL,
-        EmailConfirmationTokenExpiresAt = NULL,
-        UpdatedAt = ?
-    WHERE UPPER(Id) = UPPER(?)
-  `, [sqliteUtc(), userId])
+  await execute(`
+    UPDATE auth."Users"
+    SET "IsEmailConfirmed" = true,
+        "EmailConfirmationTokenHash" = NULL,
+        "EmailConfirmationTokenExpiresAt" = NULL,
+        "UpdatedAt" = $1
+    WHERE "Id" = $2::uuid
+  `, [new Date(), userId])
   return userId
 }
 
-export function getPasswordResetHash(userId: string): string {
-  return queryScalar(`SELECT IFNULL(PasswordResetTokenHash, '') FROM Users WHERE UPPER(Id) = UPPER(?)`, [userId])
+export async function getPasswordResetHash(userId: string): Promise<string> {
+  return queryScalar(
+    'SELECT COALESCE("PasswordResetTokenHash", \'\') FROM auth."Users" WHERE "Id" = $1::uuid',
+    [userId]
+  )
 }
 
-export function seedEmailConfirmationToken(userId: string, token: string) {
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
-  execute(`
-    UPDATE Users
-    SET EmailConfirmationTokenHash = ?,
-        EmailConfirmationTokenExpiresAt = ?,
-        UpdatedAt = ?
-    WHERE UPPER(Id) = UPPER(?)
-  `, [computeTokenHash(token), sqliteUtc(expiresAt), sqliteUtc(), userId])
+export async function seedEmailConfirmationToken(userId: string, token: string): Promise<void> {
+  await execute(`
+    UPDATE auth."Users"
+    SET "EmailConfirmationTokenHash" = $1,
+        "EmailConfirmationTokenExpiresAt" = $2,
+        "UpdatedAt" = $3
+    WHERE "Id" = $4::uuid
+  `, [computeTokenHash(token), expiryReadAsUtc(2), new Date(), userId])
 }
 
-export function seedPasswordResetToken(userId: string, token: string) {
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
-  execute(`
-    UPDATE Users
-    SET PasswordResetTokenHash = ?,
-        PasswordResetTokenExpiresAt = ?,
-        UpdatedAt = ?
-    WHERE UPPER(Id) = UPPER(?)
-  `, [computeTokenHash(token), sqliteUtc(expiresAt), sqliteUtc(), userId])
+export async function seedPasswordResetToken(userId: string, token: string): Promise<void> {
+  await execute(`
+    UPDATE auth."Users"
+    SET "PasswordResetTokenHash" = $1,
+        "PasswordResetTokenExpiresAt" = $2,
+        "UpdatedAt" = $3
+    WHERE "Id" = $4::uuid
+  `, [computeTokenHash(token), expiryReadAsUtc(2), new Date(), userId])
 }
 
-export function expireResidentInvitation(token: string) {
+export async function expireResidentInvitation(token: string): Promise<void> {
   const sentAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
-  execute(`
-    UPDATE Residents
-    SET InvitationSentAt = ?,
-        UpdatedAt = ?
-    WHERE InvitationToken = ?
-  `, [sqliteUtc(sentAt), sqliteUtc(), token])
+  await execute(`
+    UPDATE condo."Residents"
+    SET "InvitationSentAt" = $1,
+        "UpdatedAt" = $2
+    WHERE "InvitationToken" = $3
+  `, [sentAt, new Date(), token])
 }
 
-export function ensureCondominiumRole(userId: string, condominiumId: string, role: number) {
-  const canonicalUserId = queryScalar('SELECT Id FROM Users WHERE UPPER(Id) = UPPER(?)', [userId]) || userId
-  const canonicalCondominiumId = queryScalar('SELECT Id FROM Condominiums WHERE UPPER(Id) = UPPER(?)', [condominiumId]) || condominiumId
-  execute(`
-    INSERT INTO UserCondominiumRoles (CondominiumId, Role, AssignedAt, UserId)
-    SELECT ?, ?, ?, ?
+export async function ensureCondominiumRole(userId: string, condominiumId: string, role: number): Promise<void> {
+  await execute(`
+    INSERT INTO auth."UserCondominiumRoles" ("CondominiumId", "Role", "AssignedAt", "UserId")
+    SELECT $1::uuid, $2, $3, $4::uuid
     WHERE NOT EXISTS (
       SELECT 1
-      FROM UserCondominiumRoles
-      WHERE UPPER(UserId) = UPPER(?)
-        AND UPPER(CondominiumId) = UPPER(?)
-        AND Role = ?
+      FROM auth."UserCondominiumRoles"
+      WHERE "UserId" = $4::uuid
+        AND "CondominiumId" = $1::uuid
+        AND "Role" = $2
     )
-  `, [canonicalCondominiumId, role, sqliteUtc(), canonicalUserId, canonicalUserId, canonicalCondominiumId, role])
+  `, [condominiumId, role, new Date(), userId])
 }

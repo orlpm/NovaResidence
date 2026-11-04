@@ -3,6 +3,8 @@
     "test:e2e:guarded": "node ./scripts/playwright-guarded-runner.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.1"
+    "@playwright/test": "^1.58.1",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1"
   }
 }

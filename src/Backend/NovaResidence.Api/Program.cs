@@ -5,6 +5,9 @@ using NovaResidence.Infrastructure;
 using Microsoft.OpenApi.Models;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -91,9 +94,46 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<NovaResidence.Infrastructure.Persistence.ApplicationDbContext>();
     var dbContext = scope.ServiceProvider.GetRequiredService<NovaResidence.Application.Common.Interfaces.IApplicationDbContext>();
+    var postgresConnection = NovaResidence.Infrastructure.PostgresConnection.Resolve(builder.Configuration);
     var useSqlite = builder.Configuration.GetValue<bool>("UseSqlite");
-    
-    if (useSqlite)
+
+    if (!string.IsNullOrWhiteSpace(postgresConnection))
+    {
+        var creator = context.GetService<Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator>();
+        if (!await creator.ExistsAsync())
+        {
+            await creator.CreateAsync();
+        }
+
+        var connection = context.Database.GetDbConnection();
+        var openedHere = connection.State != System.Data.ConnectionState.Open;
+        if (openedHere)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'auth' AND table_name = 'Users'
+            )
+            """;
+        var appTablesExist = (bool)(await command.ExecuteScalarAsync())!;
+        if (openedHere)
+        {
+            await connection.CloseAsync();
+        }
+
+        if (!appTablesExist)
+        {
+            await creator.CreateTablesAsync();
+        }
+
+        await NovaResidence.Infrastructure.Persistence.PostgresSchemaPatch.ApplyAsync(context);
+    }
+    else if (useSqlite)
     {
         // Ensure the data directory exists for SQLite
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

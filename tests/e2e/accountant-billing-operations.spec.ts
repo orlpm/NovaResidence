@@ -11,8 +11,8 @@ type BillingScenario = {
   accountantUserId: string
 }
 
-function assignAccountantToCondominium(userId: string, condominiumId: string) {
-  ensureCondominiumRole(userId, condominiumId, 8)
+async function assignAccountantToCondominium(userId: string, condominiumId: string) {
+  await ensureCondominiumRole(userId, condominiumId, 8)
 }
 
 function asId(payload: unknown): string {
@@ -102,7 +102,7 @@ async function createBillingScenario(request: APIRequestContext): Promise<Billin
   expect(unitId).toBeTruthy()
 
   const accountantLogin = await loginAPI(request, accountant.email, accountant.password)
-  assignAccountantToCondominium(accountantLogin.userId, condominiumId)
+  await assignAccountantToCondominium(accountantLogin.userId, condominiumId)
 
   const permissions = [
     'billing.view',

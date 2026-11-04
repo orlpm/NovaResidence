@@ -24,12 +24,28 @@ public static class DependencyInjection
         // Database Context
         services.AddDbContext<ApplicationDbContext>(options =>
         {
+            var postgresConnection = PostgresConnection.Resolve(configuration);
             var connectionString = configuration.GetConnectionString("DefaultConnection");
             var useSqlite = configuration.GetValue<bool>("UseSqlite");
-            
-            if (useSqlite || connectionString?.Contains("Data Source=") == true)
+
+            if (string.IsNullOrWhiteSpace(postgresConnection)
+                && !useSqlite
+                && string.IsNullOrWhiteSpace(connectionString))
             {
-                // Use SQLite for Azure App Service (free tier)
+                throw new InvalidOperationException(
+                    "No hay cadena de Postgres. Define ConnectionStrings:Postgres o ejecuta scripts/set-neon-connection.ps1.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(postgresConnection))
+            {
+                options.UseNpgsql(postgresConnection, npgsqlOptions =>
+                {
+                    npgsqlOptions.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
+                    npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                });
+            }
+            else if (useSqlite || connectionString?.Contains("Data Source=") == true)
+            {
                 var sqliteConnection = connectionString ?? "Data Source=novaresidence.db";
                 options.UseSqlite(sqliteConnection, sqliteOptions =>
                 {
@@ -38,7 +54,6 @@ public static class DependencyInjection
             }
             else
             {
-                // Use SQL Server for local development or production
                 options.UseSqlServer(connectionString, sqlOptions =>
                 {
                     sqlOptions.EnableRetryOnFailure(
