@@ -14,12 +14,11 @@ App Service novaresidence-api
     |-- /api             ASP.NET Core
     |-- /uploads         archivos locales
     |
-    +-- Postgres         local: Neon, cadena pooled
-                         Azure: SQLite D:\home\data\novaresidence.db
-                         hasta desplegar este código
+    +-- Postgres         Neon, la misma base en local y en Azure
+                         cadena pooled para la app
 ```
 
-El frontend de producción se compila con `VITE_API_URL` apuntando al mismo host. En desarrollo, Vite corre aparte y la API escucha en `http://localhost:5001`.
+El frontend de producción se compila con `VITE_API_URL` apuntando al mismo host. En desarrollo, Vite corre aparte y la API escucha en `http://localhost:5001`. Qué hace cada servicio está en [SERVICIOS-Y-PROCESOS.md](SERVICIOS-Y-PROCESOS.md).
 
 ## Capas
 
@@ -68,7 +67,7 @@ Al iniciar:
 
 1. Si hay `ConnectionStrings:Postgres` o `ConnectionStrings:Neon`, usa Npgsql. Una URI `postgresql://` se convierte a claves (`Host`, `Username`, `Password`, `Database`, `SSL Mode`) porque el proveedor de EF no acepta la URI. `Npgsql.EnableLegacyTimestampBehavior` queda activo para aceptar `DateTime` sin zona. La app usa la cadena pooled, con reintentos.
 2. Si esa base no tiene `auth."Users"`, crea las tablas del modelo. No usa `EnsureCreated`: una base Neon puede traer tablas de Neon Auth y EF creería que el esquema ya existe. No usa `Database.Migrate()`: las migraciones del repositorio son de SQL Server.
-3. Luego aplica `PostgresSchemaPatch` (`Payments.ReceiptNumber`, `Visits.AccessCode` y su índice único).
+3. Luego aplica `PostgresSchemaPatch`. Cada cambio tiene un id. La tabla `SchemaPatches` guarda los ya aplicados y no los repite. El primero agrega el folio de recibo y el código QR de la visita.
 4. Si no hay cadena de Postgres y `UseSqlite` es true, crea el directorio del archivo, ejecuta `EnsureCreated` y luego `SqliteSchemaPatch`.
 5. Si tampoco hay SQLite, aplica `Database.Migrate()` sobre SQL Server.
 6. Siembra catálogo geográfico, permisos, permisos por rol, planes y plantillas de trámites.
@@ -107,18 +106,18 @@ La campana no recibe siempre el condominio. Lo resuelve con la propiedad, con el
 
 Mapas, comprobantes de pago y documentos del condominio se guardan bajo `ContentRootPath/uploads` y se publican en `/uploads`. No pasan por Blob Storage. Un deploy que reemplace el contenido del sitio no garantiza conservar esa carpeta si el almacenamiento no está fuera de `wwwroot`.
 
-## Integraciones apagadas
+## Correo y pagos
 
-El correo sale por Brevo, REST si la clave empieza con `xkeysib-` y SMTP si empieza con `xsmtpsib-`. `DisableSending` corta `SendEmailAsync` antes de la red. Los registros públicos siguen sin confirmar hasta que un proceso de prueba confirme la fila. El personal creado por un administrador autenticado queda confirmado.
+En Azure el correo sale por Brevo, desde `contacto@domuscond.com`. En local `DisableSending` corta el envío y `CaptureOutbox` guarda el mensaje para las pruebas. REST si la clave empieza con `xkeysib-` y SMTP si empieza con `xsmtpsib-`. Los registros públicos siguen sin confirmar hasta abrir el enlace. El personal creado por un administrador autenticado queda confirmado.
 
 OpenPay está deshabilitado en la configuración de producción del repositorio y, cuando se enciende, solo acepta un token y un `deviceSessionId` producidos en el navegador. Un token falso responde 400. El backend no recibe el PAN.
 
 ## Despliegue
 
-El artefacto es un zip del `dotnet publish` más el `dist` de Vite dentro de `wwwroot`. `UseDefaultFiles`, `UseStaticFiles` y el fallback a `index.html` hacen que el mismo host sirva la aplicación. El sitio publicado sigue en SQLite: `D:\home\data\novaresidence.db`, fuera de `wwwroot`. Cuando se despliegue este código, la cadena `ConnectionStrings__Neon` que ya está en App Settings hará que el sitio use Postgres. Hasta entonces no hay que poner `UseSqlite` en false.
+El artefacto es un zip del `dotnet publish` más el `dist` de Vite dentro de `wwwroot`. `UseDefaultFiles`, `UseStaticFiles` y el fallback a `index.html` hacen que el mismo host sirva la aplicación. Desde el 4 nov 2026 el sitio usa Neon por `ConnectionStrings__Neon`. `UseSqlite` sigue en true en App Settings, pero la cadena de Postgres gana. El archivo `D:\home\data\novaresidence.db` ya no lo lee este código.
 
 El plan actual es F1. No escala, se suspende por inactividad y el techo de CPU vuelve inútiles las suites largas.
 
 ## Frontera de producción
 
-Lista para un piloto de producto. No lista como sistema de registro de un condominio. La deuda que bloquea esa frontera es de plataforma, no de pantallas: motor de base de datos con migraciones y respaldos, plan con más de una instancia, secreto JWT fuera del repositorio, seed demo apagado, y telemetría. El detalle de procesos que ya cubre el piloto está en [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md).
+Lista para un piloto de producto. No lista como sistema de registro de un condominio. La deuda que bloquea esa frontera es de plataforma, no de pantallas: local y Azure comparten la misma Neon, el plan F1 se duerme, el seed demo sigue encendido y no hay telemetría. La clave JWT ya está fuera del repositorio. Los cambios de columnas de Postgres quedan en `PostgresSchemaPatch`, no en las migraciones de SQL Server. Qué hace cada servicio está en [SERVICIOS-Y-PROCESOS.md](SERVICIOS-Y-PROCESOS.md). Las reglas están en [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md).

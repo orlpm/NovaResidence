@@ -1,6 +1,6 @@
 # SuperAdmin - Chrome DevTools Test Checklist
 
-Lista manual del plano de control de la plataforma. El proceso de suscripción y el resto de la operación están en [docs/BUSINESS-PROCESSES.md](../../docs/BUSINESS-PROCESSES.md). El estado del producto, en [docs/HANDOFF.md](../../docs/HANDOFF.md).
+Lista manual del plano de control de la plataforma. Qué hace cada servicio está en [docs/SERVICIOS-Y-PROCESOS.md](../../docs/SERVICIOS-Y-PROCESOS.md). El proceso de suscripción y el resto de la operación están en [docs/BUSINESS-PROCESSES.md](../../docs/BUSINESS-PROCESSES.md). El estado del producto, en [docs/HANDOFF.md](../../docs/HANDOFF.md).
 
 ## Preconditions
 - Backend running on `http://localhost:5001`

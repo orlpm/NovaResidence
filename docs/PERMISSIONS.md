@@ -1,6 +1,6 @@
-# Sistema de Permisos NovaResidence
+# Permisos de DomusCond
 
-Permisos dinámicos por rol para el SaaS de condominios. El mapa de procesos y la tenencia están en [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) y [ARCHITECTURE.md](ARCHITECTURE.md). Este archivo solo describe la resolución de permisos.
+Permisos dinámicos por rol para el SaaS de condominios. El producto visible es DomusCond. Los proyectos siguen llamándose NovaResidence. Qué hace cada servicio está en [SERVICIOS-Y-PROCESOS.md](SERVICIOS-Y-PROCESOS.md). Las reglas de negocio y la tenencia están en [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) y [ARCHITECTURE.md](ARCHITECTURE.md). Este archivo solo describe la resolución de permisos.
 
 Hay un décimo rol, `Cleaning` (valor 9). El token lo colapsa junto con mantenimiento a `maintenance`; el permiso y la ruta deciden la pantalla. Las pantallas de documentos, agenda de proveedor, paquetería, rondas, cajones y multas no usan un código nuevo: un `PermissionRoute` con un código sin sembrar responde Acceso Denegado.
 

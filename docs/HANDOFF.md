@@ -1,6 +1,6 @@
 # Handoff de NovaResidence
 
-Documento para continuar el trabajo en otro chat sin depender del historial. Fecha de corte: 3 de noviembre de 2026. El último despliegue a Azure fue el 3 de noviembre de 2026 y corresponde al commit `6059c34` de `main`.
+Documento para continuar el trabajo en otro chat sin depender del historial. Fecha de corte: 4 de noviembre de 2026. El sitio publicado ese día es el deploy `535c10aea2004112a8a5722bd0dc52d5`.
 
 ## Qué es el producto
 
@@ -11,17 +11,18 @@ DomusCond es un SaaS de administración de condominios. Un solo sitio sirve la A
 Lee, en este orden:
 
 1. Este archivo.
-2. [ARCHITECTURE.md](ARCHITECTURE.md) para capas, tenencia, datos y despliegue.
-3. [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) para el comportamiento de cada proceso.
-4. [PERMISSIONS.md](PERMISSIONS.md) solo si el cambio toca roles o pantallas protegidas.
+2. [SERVICIOS-Y-PROCESOS.md](SERVICIOS-Y-PROCESOS.md) para qué hace la plataforma, servicio por servicio.
+3. [ARCHITECTURE.md](ARCHITECTURE.md) para capas, tenencia, datos y despliegue.
+4. [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) para las reglas y excepciones de cada proceso.
+5. [PERMISSIONS.md](PERMISSIONS.md) solo si el cambio toca roles o pantallas protegidas.
 
-La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) es la fuente de verdad. El commit `6059c34` (3 nov 2026) subió todo el producto operativo y el acceso con QR; antes de él, el historial terminaba en `a18f779`. Azure tiene publicado exactamente ese commit. Si hay cambios sin commit o commits posteriores, el sitio publicado va atrás.
+La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) es la fuente de verdad del código. El sitio de Azure puede ir adelante o atrás de `main` si hay cambios locales sin commit. El deploy vigente es el del 4 de noviembre de 2026.
 
 ## Entorno de desarrollo
 
 - Node.js 24.22.1 LTS y npm 11, instalados con winget (`OpenJS.NodeJS.LTS`). `winget upgrade` ofrecerá Node 26; no hace falta.
 - .NET 8 SDK. El frontend es un workspace de npm: instalar dependencias desde `src/Frontend` con `--workspace=web`.
-- Los skills de Neon están en `.agents/skills` del repositorio (instalados con el CLI `skills`). No se usan en el producto; NovaResidence no corre en Neon.
+- Los skills de Neon están en `.agents/skills` del repositorio. La base del producto es Postgres y hoy apunta a Neon, tanto en local como en Azure.
 
 ## Reglas que no se negocian
 
@@ -30,7 +31,7 @@ La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) 
 - No imprimir secretos: claves JWT, Brevo, OpenPay ni tokens de Azure.
 - En Azure el correo ya sale por Brevo, desde `contacto@domuscond.com`, con el nombre DomusCond. La API key vive solo en App Settings. En local `Email:DisableSending` sigue en true y `Email:CaptureOutbox` guarda el mensaje en `data/email-outbox` para que las pruebas abran el enlace real. No enviar a dominios reservados (`.test`, `example.com`). No imprimir la API key.
 - No completar un cargo real de OpenPay. El backend no acepta el número de tarjeta; tokeniza el navegador.
-- No volver a SQL Server LocalDB. Local usa Postgres. Hoy la cadena es la de Neon (`ConnectionStrings:Neon` y `ConnectionStrings:NeonDirect` en user-secrets). Mañana puede ser Azure u otro Postgres con `ConnectionStrings:Postgres`, que gana sobre Neon. No imprimir la cadena. Azure sigue en SQLite hasta que se despliegue este código; no apagar `UseSqlite` allá antes de ese despliegue.
+- No volver a SQL Server LocalDB. Local y Azure usan Postgres. Hoy la cadena es la de Neon. `ConnectionStrings:Postgres` gana sobre `ConnectionStrings:Neon`, para poder cambiar de proveedor sin tocar código. No imprimir la cadena. `UseSqlite` puede seguir en true: si hay cadena de Postgres, esa gana. No borres `ConnectionStrings__Neon` en Azure si el paquete todavía puede caer al archivo SQLite.
 - No quitar el skip de `tests/record-demo.spec.ts`.
 - No crear cuentas con el correo personal del usuario.
 - Verificar cambios de interfaz con el flujo real. Playwright es el sustituto cuando no hay navegador.
@@ -40,9 +41,9 @@ La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) 
 | Entorno | Estado |
 | --- | --- |
 | Local | Postgres. La app usa la cadena pooled (`ConnectionStrings:Postgres` o, si no existe, `ConnectionStrings:Neon`). Las pruebas usan la directa. El proceso `dotnet run` usa como directorio de trabajo el proyecto de la API. |
-| Azure | App `novaresidence-api`, grupo `NovaResidence-RG`, región `mexicocentral`, plan `novaresidence-plan` SKU F1. URL `https://novaresidence-api.azurewebsites.net`. Una sola app sirve API y SPA desde `wwwroot`. |
-| Último deploy | 3 nov 2026, marca DomusCond, id `58f54b6caba04e82a6ae79ce230499e7`, `provisioningState` Succeeded. Ese sitio sigue en SQLite. El cambio a Postgres no está desplegado. |
-| Pruebas de ese deploy | Suite completa contra Azure: 98 aprobadas, 1 omitida (`record-demo`), 1 intermitente en 7.7 min. La intermitente fue `polls-meetings` «el residente vota y confirma la asamblea desde su pantalla»: falló el registro del administrador al preparar el escenario y pasó al repetirla. |
+| Azure | App `novaresidence-api`, grupo `NovaResidence-RG`, región `mexicocentral`, plan `novaresidence-plan` SKU F1. URL `https://novaresidence-api.azurewebsites.net`. Una sola app sirve API y SPA desde `wwwroot`. Desde el 4 nov 2026 el sitio usa la misma Postgres de Neon que local, porque `ConnectionStrings__Neon` ya estaba en App Settings y gana sobre `UseSqlite`. |
+| Último deploy | 4 nov 2026, JWT fuera del paquete y parche con historial, id `535c10aea2004112a8a5722bd0dc52d5`, `provisioningState` Succeeded. El login demo respondió 200 con la clave nueva de App Settings. No se corrió la suite contra App Service. |
+| Pruebas contra Azure | La suite no se volvió a correr después de pasar a Postgres ni después de sacar la clave JWT del paquete. El pase anterior, todavía sobre el código de SQLite, dejó 98 aprobadas, 1 omitida (`record-demo`) y 1 intermitente en `polls-meetings`, que pasó al repetirla. |
 | Pruebas de correo | En local, confirmación y restablecimiento abren el enlace real del mensaje capturado. En Azure, Brevo entregó el correo de DomusCond a `contacto@domuscond.com`. |
 | Pruebas locales | 99 aprobadas y 2 omitidas el 4 nov 2026, contra Postgres. Omitidas: `record-demo` y la entrega Brevo, que solo corre con `E2E_TARGET=azure`. |
 
@@ -80,7 +81,7 @@ E2E_API_BASE=https://novaresidence-api.azurewebsites.net/api
 
 Timeout remoto: 300000. El SQL de las pruebas corre en local con `pg`, contra la cadena directa, y usa esquemas (`auth."Users"`, `condo."Residents"`). Si `E2E_TARGET=azure`, ese helper se detiene: no se corrigen las pruebas contra App Service.
 
-El último pase en Azure corrió la suite completa (100 pruebas). El acceso con QR se cubre en `tests/e2e/visit-qr-access.spec.ts`: la prueba toma una captura del QR del residente y vigilancia la sube como foto, así que valida la decodificación real, no solo la API.
+El acceso con QR se cubre en `tests/e2e/visit-qr-access.spec.ts`: la prueba toma una captura del QR del residente y vigilancia la sube como foto, así que valida la decodificación real, no solo la API. Esa suite no se volvió a correr contra Azure después del cambio a Postgres.
 
 Pruebas que dependen de la fecha o del entorno:
 
@@ -110,7 +111,7 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 ## Decisiones que no hay que reabrir
 
 - Las áreas de la interfaz son `CondominiumCommonArea`. La reservación nueva es `CondominiumAreaReservation`. No reutilizar `CommonAreaReservation`: su llave apunta a la entidad vieja `CommonArea`.
-- En Postgres no se corre `Database.Migrate()`: esas migraciones son de SQL Server. Si falta `auth."Users"`, el arranque llama `CreateTables`. Neon Auth ya tiene tablas en `neon_auth`, así que `EnsureCreated` no sirve: vería el esquema ajeno y no crearía el de la app. Columnas nuevas entran por `PostgresSchemaPatch`. El camino SQLite y su `SqliteSchemaPatch` siguen en el código por si no hay cadena de Postgres.
+- En Postgres no se corre `Database.Migrate()`: esas migraciones son de SQL Server. Si falta `auth."Users"`, el arranque llama `CreateTables`. Neon Auth ya tiene tablas en `neon_auth`, así que `EnsureCreated` no sirve. Cada cambio de columnas posterior es una entrada nueva de `PostgresSchemaPatch`, con id propio. La tabla `SchemaPatches` guarda los ids ya aplicados y no los repite. El camino SQLite y su `SqliteSchemaPatch` siguen en el código por si no hay cadena de Postgres.
 - Las pantallas nuevas no llevan un `PermissionRoute` con un código que el seeder no otorgue. Si no está sembrado, la ruta responde Acceso Denegado.
 - El JWT colapsa `admin`, `condominiumadmin` y `subadmin` a `admin`. Vigilancia sale como `security`. Proveedor sale como `provider`.
 - Si `PermissionService` no recibe condominio y el usuario tiene un solo rol de condominio, usa ese rol. Antes caía en Owner y vigilancia veía Acceso Denegado.
@@ -125,9 +126,9 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 
 Correo y OpenPay están fuera de alcance hasta que el usuario lo pida. Aun así, el producto no está listo para un condominio real:
 
-- Azure sigue en el archivo SQLite hasta el próximo despliegue. Local ya está en Postgres, pero no hay migraciones de ese motor: el esquema nace con `CreateTables` y el parche. Un zip deploy del sitio viejo puede pisar datos si la cadena apunta a `wwwroot`.
+- Local y Azure comparten la misma base Neon. El esquema nace con `CreateTables` y cada columna nueva queda en `SchemaPatches`. El archivo SQLite de Azure quedó atrás y no se copió. Si se quita `ConnectionStrings__Neon`, la app vuelve al SQLite de `wwwroot` y un zip puede pisarlo.
 - Plan F1.
-- La clave JWT de producción está en `appsettings.Production.json` dentro del repositorio. Hay que rotarla y sacarla del repo. No la copies a chats ni a documentos.
+- `Jwt:SecretKey` no vive en el repositorio. Producción la lee de App Settings (`Jwt__SecretKey`). Local la lee de user-secrets. Si falta o tiene menos de 32 caracteres, el proceso no arranca. No la copies a chats ni a documentos.
 - Application Insights está vacío.
 - El seed demo no puede quedar encendido.
 - .NET 8 deja de recibir parches de seguridad el 10 de noviembre de 2026. Hay que migrar a .NET 10 LTS.
@@ -136,4 +137,4 @@ Correo y OpenPay están fuera de alcance hasta que el usuario lo pida. Aun así,
 
 ## Trabajo explícitamente no hecho
 
-Paquetería de correo postal más allá del registro en caseta, vehículos de visitantes como padrón, pago con tarjeta del residente, bitácora de rondas con checkpoints GPS, conciliación contable de la multa, y CFDI. OpenPay sandbox no tiene un cargo exitoso. Brevo está apagado.
+Paquetería de correo postal más allá del registro en caseta, vehículos de visitantes como padrón, pago con tarjeta del residente, bitácora de rondas con checkpoints GPS, conciliación contable de la multa, y CFDI. OpenPay sandbox no tiene un cargo exitoso. Brevo sí entrega en Azure. En local el envío está apagado.

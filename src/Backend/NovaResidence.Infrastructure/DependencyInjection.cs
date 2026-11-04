@@ -133,15 +133,9 @@ public static class DependencyInjection
     private static void AddJwtAuthentication(IServiceCollection services, IConfiguration configuration)
     {
         var jwtSettings = configuration.GetSection("Jwt");
-        var secretKey = jwtSettings["SecretKey"] ?? "NovaResidence-Super-Secret-Key-2024-Min32Chars!@#";
+        var secretKey = JwtSigningKey.Require(configuration);
         var issuer = jwtSettings["Issuer"] ?? "NovaResidence";
         var audience = jwtSettings["Audience"] ?? "NovaResidenceApp";
-
-        // Ensure minimum key length
-        if (secretKey.Length < 32)
-        {
-            secretKey = secretKey.PadRight(32, '!');
-        }
 
         services.AddAuthentication(options =>
         {

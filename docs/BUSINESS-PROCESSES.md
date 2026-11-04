@@ -2,6 +2,8 @@
 
 Cada proceso indica quién lo dispara, qué queda registrado y qué ve la otra parte. La suscripción de la plataforma y la cuota del condominio son dineros distintos.
 
+La lectura comercial, con un diagrama por servicio, está en [SERVICIOS-Y-PROCESOS.md](SERVICIOS-Y-PROCESOS.md). Este archivo fija las reglas que las pruebas ya cubren.
+
 ## Actores
 
 | Actor | Qué custodia |
@@ -19,7 +21,7 @@ El demo Residencial Pedregal Demo materializa a todos. Áreas, plano y cámara d
 
 ## Suscripción de la plataforma
 
-El administrador contrata NovaResidence, no la cuota de mantenimiento. El plan cobra por unidad. El SuperAdmin, en `/superadmin/subscriptions`, cambia plan, cancela y condona meses. Cancelar corta el acceso: el guardia de suscripción muestra que hay que reactivarla. Condonar vuelve a abrir el acceso.
+El administrador contrata DomusCond, no la cuota de mantenimiento. El plan cobra por unidad. El SuperAdmin, en `/superadmin/subscriptions`, cambia plan, cancela y condona meses. Cancelar corta el acceso: el guardia de suscripción muestra que hay que reactivarla. Condonar vuelve a abrir el acceso.
 
 OpenPay puede cobrar esa suscripción cuando esté configurado. Hoy el circuito de tarjeta no está cerrado y no forma parte del piloto. Extender, condonar o cambiar el plan no requiere un cargo.
 

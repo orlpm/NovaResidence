@@ -26,17 +26,11 @@ public class JwtService : IJwtService
         
         // Get JWT settings from configuration
         var jwtSettings = _configuration.GetSection("Jwt");
-        _secretKey = jwtSettings["SecretKey"] ?? GenerateRandomKey(32);
+        _secretKey = JwtSigningKey.Require(configuration);
         _issuer = jwtSettings["Issuer"] ?? "NovaResidence";
         _audience = jwtSettings["Audience"] ?? "NovaResidenceApp";
         _accessTokenExpirationMinutes = jwtSettings.GetValue<int>("AccessTokenExpirationMinutes", 60);
         _refreshTokenExpirationDays = jwtSettings.GetValue<int>("RefreshTokenExpirationDays", 7);
-        
-        // Ensure minimum key length for HS256 (256 bits = 32 bytes)
-        if (_secretKey.Length < 32)
-        {
-            _secretKey = _secretKey.PadRight(32, '!');
-        }
     }
 
     public string GenerateAccessToken(Guid userId, string email, string role, string? firstName = null, string? lastName = null)
@@ -133,11 +127,4 @@ public class JwtService : IJwtService
         return _accessTokenExpirationMinutes * 60;
     }
 
-    private static string GenerateRandomKey(int length)
-    {
-        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        var random = new Random();
-        return new string(Enumerable.Repeat(chars, length)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
-    }
 }
