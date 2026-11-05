@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, unwrapData } from './helpers/auth'
+import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, loginUI, unwrapData } from './helpers/auth'
+import { createAdminCondominiumScenario } from './helpers/condominium'
 
 function getAccessToken(payload: any): string | undefined {
   return payload?.accessToken || payload?.AccessToken
@@ -80,5 +81,16 @@ test.describe('Auth refresh token', () => {
     })
 
     expect(refreshAfterLogoutResponse.status()).toBe(401)
+  })
+
+  test('cerrar sesión desde el menú del administrador sale de la pantalla protegida', async ({ request, page }) => {
+    const scenario = await createAdminCondominiumScenario(request, 'auth.logout.ui')
+    await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
+    await page.getByRole('button', { name: /^[A-Z]{2}$/ }).click()
+    await page.getByRole('button', { name: 'Cerrar Sesión' }).click()
+    await page.waitForURL(/\/auth\/login/, { timeout: 15000 })
+
+    await page.goto('/admin/dashboard')
+    await expect(page).toHaveURL(/\/auth\/login/)
   })
 })

@@ -1,6 +1,8 @@
 import { test, expect, type APIRequestContext } from '@playwright/test'
 import { API_BASE, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD, loginAPI, loginUI, registerConfirmedUser, uniqueEmail } from './helpers/auth'
+import { createAdminCondominiumScenario } from './helpers/condominium'
 import { buildScenarioProfile } from './helpers/demo-data'
+import { ensureCondominiumRole } from './helpers/sql'
 
 async function registerSubAdminUser(request: APIRequestContext): Promise<{ email: string; password: string }> {
   const profile = buildScenarioProfile('subadmin.extension')
@@ -82,39 +84,22 @@ test.describe('SubAdmin extension of Admin', () => {
     await expect(page).toHaveURL(/\/subadmin\/reports$/, { timeout: 15000 })
   })
 
-  test('subadmin token should access key API flows for extension modules', async ({ request }) => {
-    const superLogin = await loginAPI(request, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD)
-
+  test('el subadmin consulta las visitas del condominio que administra', async ({ request, page }) => {
+    const scenario = await createAdminCondominiumScenario(request, 'subadmin.operate')
     const subAdmin = await registerSubAdminUser(request)
     const subLogin = await loginAPI(request, subAdmin.email, subAdmin.password)
     expect(subLogin.userId).toBeTruthy()
-    await grantSubAdminExtensionPermissions(request, superLogin.token, subLogin.userId!)
+    await grantSubAdminExtensionPermissions(request, scenario.superToken, subLogin.userId!)
+    await ensureCondominiumRole(subLogin.userId!, scenario.condominiumId, 2)
 
-    const condominiumId = await getFirstCondominiumId(request, superLogin.token)
-    test.skip(!condominiumId, 'No hay condominios para validar flujos API de subadmin')
+    const visits = await request.get(`${API_BASE}/visits/condominium/${scenario.condominiumId}`, {
+      headers: { Authorization: `Bearer ${subLogin.token}` }
+    })
+    expect(visits.status(), await visits.text()).toBe(200)
 
-    const startDate = new Date()
-    startDate.setDate(1)
-    const endDate = new Date()
-
-    const qs = `startDate=${encodeURIComponent(startDate.toISOString())}&endDate=${encodeURIComponent(endDate.toISOString())}`
-
-    const checks = [
-      request.get(`${API_BASE}/commonareas/condominium/${condominiumId}`, { headers: { Authorization: `Bearer ${subLogin.token}` } }),
-      request.get(`${API_BASE}/condominiummaps/condominium/${condominiumId}`, { headers: { Authorization: `Bearer ${subLogin.token}` } }),
-      request.get(`${API_BASE}/reservations/condominium/${condominiumId}`, { headers: { Authorization: `Bearer ${subLogin.token}` } }),
-      request.get(`${API_BASE}/visits/condominium/${condominiumId}`, { headers: { Authorization: `Bearer ${subLogin.token}` } }),
-      request.get(`${API_BASE}/reports/financial/${condominiumId}?${qs}`, { headers: { Authorization: `Bearer ${subLogin.token}` } })
-    ]
-
-    const responses = await Promise.all(checks)
-
-    for (const response of responses) {
-      expect(response.status(), `status inesperado para ${response.url()}`).toBeLessThan(500)
-      expect([200, 401, 403, 404]).toContain(response.status())
-    }
-
-    const forbiddenCount = responses.filter(r => r.status() === 403).length
-    expect(forbiddenCount).toBeLessThanOrEqual(2)
+    await loginUI(page, subAdmin.email, subAdmin.password, /\/subadmin(\/|$)/)
+    await page.getByRole('link', { name: 'Visitas' }).first().click()
+    await expect(page).toHaveURL(/\/subadmin\/visits/)
+    await expect(page.getByRole('heading', { name: 'Gestión de Visitas' })).toBeVisible()
   })
 })

@@ -92,7 +92,7 @@ flowchart TD
     K -->|Condona o cambia el plan| J
 ```
 
-El cobro con tarjeta de esta suscripción está preparado y hoy no forma parte del piloto. Cambiar el plan, cancelar o condonar no exige un cargo.
+El cobro con tarjeta de esta suscripción ya opera en el sandbox de OpenPay. Cambiar el plan, cancelar o condonar no exige un cargo. El comercio de producción sigue fuera.
 
 ## 3. Puesta en marcha del condominio
 
@@ -343,7 +343,7 @@ Se puede prometer la operación del edificio: padrón, caseta, paquete, ronda, c
 
 Conviene decir con claridad lo que el piloto todavía no cierra, para no venderlo como incluido:
 
-- El cargo con tarjeta de la suscripción de la plataforma.
+- El comercio de producción de OpenPay. El sandbox de la suscripción de la plataforma ya cobra.
 - El pago con tarjeta del residente hacia su cuota.
 - CFDI, conciliación bancaria y libro mayor.
 - Recorrido GPS de la ronda y grabación propia de video.

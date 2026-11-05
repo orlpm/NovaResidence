@@ -417,12 +417,14 @@ public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly IMediator _mediator;
+    private readonly IOperationalNotifier _notifier;
     private readonly ILogger<RecordPaymentCommandHandler> _logger;
 
-    public RecordPaymentCommandHandler(IApplicationDbContext context, IMediator mediator, ILogger<RecordPaymentCommandHandler> logger)
+    public RecordPaymentCommandHandler(IApplicationDbContext context, IMediator mediator, IOperationalNotifier notifier, ILogger<RecordPaymentCommandHandler> logger)
     {
         _context = context;
         _mediator = mediator;
+        _notifier = notifier;
         _logger = logger;
     }
 
@@ -457,6 +459,12 @@ public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand,
             await _context.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Recorded payment {PaymentId} for charge {ChargeId}", payment.Id, request.ChargeId);
+
+            if (!payment.IsVerified)
+            {
+                await _notifier.NotifyRoleAsync(charge.CondominiumId, UserRole.CondominiumAdmin, NotificationType.PaymentReceived, "Pago por verificar", $"${request.Amount:N2} para {charge.Concept}", "Payment", payment.Id, null, cancellationToken);
+                await _notifier.NotifyRoleAsync(charge.CondominiumId, UserRole.SubAdmin, NotificationType.PaymentReceived, "Pago por verificar", $"${request.Amount:N2} para {charge.Concept}", "Payment", payment.Id, null, cancellationToken);
+            }
 
             // Get unit info and send notification to residents
             var unit = await _context.Units

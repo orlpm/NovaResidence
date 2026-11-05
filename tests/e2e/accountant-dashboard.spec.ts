@@ -156,4 +156,25 @@ test.describe('Accountant dashboard KPIs', () => {
     await expect(page.getByText('Resumen Mensual')).toBeVisible()
     await expect(page.getByText('Pagos Pendientes por Verificar')).toBeVisible()
   })
+
+  test('el contador abre facturación, cargos y reportes desde su menú', async ({ request, page }) => {
+    const scenario = await createAdminCondominiumScenario(request, 'accountant.doors')
+    const accountant = await createAccountantUser(request, scenario.superToken, scenario.condominiumId)
+    const accountantLogin = await loginAPI(request, accountant.email, accountant.password)
+    await grantAccountantPermissions(request, scenario.superToken, accountantLogin.userId)
+    await assignAccountantToCondominium(accountantLogin.userId, scenario.condominiumId)
+
+    await loginUI(page, accountant.email, accountant.password, /\/accountant(\/|$)/)
+    await page.getByRole('link', { name: 'Facturación' }).first().click()
+    await expect(page).toHaveURL(/\/accountant\/billing/)
+    await expect(page.getByRole('heading', { name: 'Facturación' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Cargos' }).first().click()
+    await expect(page).toHaveURL(/\/accountant\/charges/)
+    await expect(page.getByRole('heading', { name: 'Facturación' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Reportes Financieros' }).first().click()
+    await expect(page).toHaveURL(/\/accountant\/reports/)
+    await expect(page.getByRole('heading', { name: 'Reportes' })).toBeVisible()
+  })
 })

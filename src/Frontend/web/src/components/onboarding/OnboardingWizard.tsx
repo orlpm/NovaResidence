@@ -118,18 +118,21 @@ export default function OnboardingWizard({ isOpen = true, onClose, onComplete, i
     }
   }
 
-  const handleFinish = async () => {
+  const handleFinish = async (invitation?: { invitationMethod: 'manual' | 'link'; residents?: OnboardingData['residents'] }) => {
     setIsSubmitting(true)
     setSubmitError(null)
     
     try {
       // Get user ID from auth store
       const userId = user?.id || ''
+      const data = invitation
+        ? { ...onboardingData, invitationMethod: invitation.invitationMethod, residents: invitation.residents }
+        : onboardingData
       
-      console.log('Creating condominium with data:', onboardingData)
+      console.log('Creating condominium with data:', data)
       
       // Call the backend to create the condominium with all buildings and units
-      const result = await condominiumService.createFromWizardData(onboardingData, userId)
+      const result = await condominiumService.createFromWizardData(data, userId)
       
       console.log('Condominium created successfully:', result)
       
@@ -137,7 +140,7 @@ export default function OnboardingWizard({ isOpen = true, onClose, onComplete, i
       saveOnboardingState({
         currentStep: steps.length,
         data: {
-          ...onboardingData,
+          ...data,
           condominiumId: result.condominiumId
         } as OnboardingData,
         userId

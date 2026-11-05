@@ -12,11 +12,13 @@ public class CreateIncidentCommandHandler : IRequestHandler<CreateIncidentComman
 {
     private readonly IApplicationDbContext _context;
     private readonly ILogger<CreateIncidentCommandHandler> _logger;
+    private readonly IOperationalNotifier _notifier;
 
-    public CreateIncidentCommandHandler(IApplicationDbContext context, ILogger<CreateIncidentCommandHandler> logger)
+    public CreateIncidentCommandHandler(IApplicationDbContext context, ILogger<CreateIncidentCommandHandler> logger, IOperationalNotifier notifier)
     {
         _context = context;
         _logger = logger;
+        _notifier = notifier;
     }
 
     public async Task<Result<Guid>> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
@@ -42,6 +44,8 @@ public class CreateIncidentCommandHandler : IRequestHandler<CreateIncidentComman
 
             _context.Incidents.Add(incident);
             await _context.SaveChangesAsync(cancellationToken);
+            await _notifier.NotifyRoleAsync(incident.CondominiumId, UserRole.CondominiumAdmin, NotificationType.IncidentUpdate, "Nueva incidencia", incident.Title, "Incident", incident.Id, null, cancellationToken);
+            await _notifier.NotifyRoleAsync(incident.CondominiumId, UserRole.SubAdmin, NotificationType.IncidentUpdate, "Nueva incidencia", incident.Title, "Incident", incident.Id, null, cancellationToken);
 
             _logger.LogInformation("Created incident {IncidentId} for condominium {CondominiumId}", incident.Id, request.CondominiumId);
             return Result.Success(incident.Id);

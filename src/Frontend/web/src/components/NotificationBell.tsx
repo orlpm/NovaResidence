@@ -24,6 +24,7 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
   const [loading, setLoading] = useState(false)
   const [markingAllRead, setMarkingAllRead] = useState(false)
   const [resolvedCondominiumId, setResolvedCondominiumId] = useState<string | null>(null)
+  const [condominiumResolved, setCondominiumResolved] = useState(Boolean(condominiumId))
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -50,32 +51,48 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
     const resolveCondominiumId = async () => {
       if (condominiumId) {
         setResolvedCondominiumId(null)
+        setCondominiumResolved(true)
         return
       }
 
+      setCondominiumResolved(false)
+
       if (user?.condominiumId) {
-        setResolvedCondominiumId(user.condominiumId)
+        if (!cancelled) {
+          setResolvedCondominiumId(user.condominiumId)
+          setCondominiumResolved(true)
+        }
         return
       }
 
       if (!user?.id) {
-        setResolvedCondominiumId(null)
+        if (!cancelled) {
+          setResolvedCondominiumId(null)
+          setCondominiumResolved(true)
+        }
         return
       }
 
       try {
         const condominiums = await condominiumService.getUserCondominiums(user.id)
-        setResolvedCondominiumId(condominiums[0]?.id ?? null)
+        if (!cancelled) setResolvedCondominiumId(condominiums[0]?.id ?? null)
       } catch (error) {
         console.error('Error resolving condominium for notifications:', error)
-        setResolvedCondominiumId(null)
+        if (!cancelled) setResolvedCondominiumId(null)
+      } finally {
+        if (!cancelled) setCondominiumResolved(true)
       }
     }
 
-    resolveCondominiumId()
+    void resolveCondominiumId()
+    return () => {
+      cancelled = true
+    }
   }, [condominiumId, user?.condominiumId, user?.id])
 
   // Fetch notification summary
@@ -224,12 +241,12 @@ export function NotificationBell({ condominiumId, isAdmin = false }: Notificatio
 
           {/* Notifications List */}
           <div className="max-h-[400px] overflow-y-auto">
-            {loading && !summary ? (
+            {(loading && !summary) || !condominiumResolved ? (
               <div className="p-8 text-center">
                 <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto" />
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Cargando...</p>
               </div>
-            ) : !effectiveCondominiumId ? (
+            ) : !effectiveCondominiumId && condominiumResolved ? (
               <div className="p-8 text-center">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
                   <Bell className="w-8 h-8 text-gray-400" />

@@ -185,4 +185,31 @@ test.describe('Maintenance operational flow', () => {
     })
     expect([200, 204, 400]).toContain(closeApi.status())
   })
+
+  test('mantenimiento reporta una incidencia de su condominio', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'maintenance.door')
+    const maintenance = await createMaintenanceUser(request, scenario.superToken, scenario.condominiumId)
+    const title = uniqueIncidentTitle('maintenance.report')
+
+    await loginUIAs(page, maintenance.email, maintenance.password)
+    await page.waitForURL(/\/maintenance(\/|$)/, { timeout: 15000 })
+    await page.getByRole('link', { name: 'Reportar Incidencia' }).first().click()
+    await expect(page).toHaveURL(/\/maintenance\/new-incident/)
+    await expect(page.getByRole('heading', { name: 'Reportar Nueva Incidencia' })).toBeVisible()
+    await page.getByPlaceholder('Ej: Fuga de agua en baño principal').fill(title)
+    await page.getByPlaceholder('Describe el problema con el mayor detalle posible. Incluye desde cuándo ocurre, qué tan frecuente es, y cualquier otro dato relevante.').fill('La luminaria del lobby no enciende.')
+    await page.getByPlaceholder('Ej: Lobby, estacionamiento o jardín').fill('Lobby')
+    await page.getByRole('button', { name: 'Reportar Incidencia' }).click()
+    await expect(page.getByText('Incidencia reportada exitosamente')).toBeVisible({ timeout: 15000 })
+
+    const session = await loginAPI(request, maintenance.email, maintenance.password)
+    const reported = await request.get(`${API_BASE}/incidents/my-incidents/${session.userId}`, {
+      headers: { Authorization: `Bearer ${session.token}` }
+    })
+    expect(reported.ok()).toBeTruthy()
+    const incidents = await reported.json()
+    const list = Array.isArray(incidents) ? incidents : incidents.data || []
+    expect(list.some((item: { title?: string }) => item.title === title)).toBeTruthy()
+  })
 })

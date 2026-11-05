@@ -287,12 +287,10 @@ function AdminLayout() {
                 )}
               </button>
 
-              {selectedCondominiumId && (
-                <NotificationBell 
-                  condominiumId={selectedCondominiumId} 
-                  isAdmin={true} 
-                />
-              )}
+              <NotificationBell
+                condominiumId={selectedCondominiumId ?? undefined}
+                isAdmin={true}
+              />
 
               <div className="relative">
                 <button

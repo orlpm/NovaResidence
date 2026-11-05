@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
 import { documentService, type CondominiumDocumentDto } from '../../lib/operationsService'
 import { useAuthStore } from '../../stores/authStore'
+import { getApiErrorMessage } from '../../lib/apiErrors'
 
 const documentTypes = [
   { value: 0, label: 'Contrato' },
@@ -53,8 +54,8 @@ export default function Documents() {
       setTitle('')
       setFile(null)
       await load(condominiumId)
-    } catch {
-      toast.error('No se pudo publicar el documento')
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'No se pudo publicar el documento'))
     } finally {
       setSaving(false)
     }

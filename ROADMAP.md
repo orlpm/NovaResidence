@@ -23,15 +23,16 @@ Corte: 4 de noviembre de 2026. El mapa de servicios está en [docs/SERVICIOS-Y-P
 - Playwright de esos flujos en local: 99 aprobadas y 2 omitidas el 4 de noviembre de 2026. La suite contra el App Service de ese día no se volvió a correr.
 - Correo de confirmación y restablecimiento por Brevo en Azure, desde `contacto@domuscond.com`. En local el envío está apagado y las pruebas leen el buzón capturado.
 - Postgres en Neon para local y para el sitio publicado. La clave JWT no está en el repositorio.
+- Cobro sandbox de la suscripción de la plataforma con OpenPay. La tarjeta se tokeniza en el navegador.
 
 ## Fuera del piloto, a propósito
 
-- Cargo con tarjeta en OpenPay.
+- Comercio OpenPay de producción y cobro con tarjeta de la cuota del residente.
 - CFDI y facturación electrónica.
 - App móvil.
 - Base distinta para el sitio publicado y para las pruebas locales.
 
-El código de OpenPay existe y el cargo de piloto no está cerrado.
+El sandbox de OpenPay ya aceptó un cargo de la suscripción. Las llaves viven en user-secrets y en App Settings, con `UseSandbox` en true.
 
 ## Para salir a producción
 

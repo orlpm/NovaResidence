@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { 
   Users, 
   Search, 
@@ -35,6 +36,8 @@ const RESIDENT_TYPE_COLORS: Record<ResidentType, string> = {
 }
 
 export default function Residents() {
+  const [searchParams] = useSearchParams()
+  const linkedResidentId = searchParams.get('id')
   const { user } = useAuthStore()
   const [residents, setResidents] = useState<ResidentWithUnitDto[]>([])
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
@@ -62,6 +65,11 @@ export default function Residents() {
       loadResidents()
     }
   }, [selectedCondominium])
+
+  useEffect(() => {
+    if (!linkedResidentId || isLoading) return
+    document.getElementById(`resident-${linkedResidentId}`)?.scrollIntoView({ block: 'center' })
+  }, [linkedResidentId, residents, isLoading])
 
   const loadCondominiums = async () => {
     try {
@@ -318,7 +326,7 @@ export default function Residents() {
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {buildingResidents.map(resident => (
-                      <tr key={resident.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                      <tr id={`resident-${resident.id}`} key={resident.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 ${linkedResidentId === resident.id ? 'ring-2 ring-inset ring-sky-500' : ''}`}>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm">

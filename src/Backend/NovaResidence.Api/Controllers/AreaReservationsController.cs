@@ -90,6 +90,8 @@ public class AreaReservationsController : ControllerBase
 
         _context.CondominiumAreaReservations.Add(reservation);
         await _context.SaveChangesAsync();
+        await _notifier.NotifyRoleAsync(reservation.CondominiumId, UserRole.CondominiumAdmin, NotificationType.Reservation, "Nueva reservación", reservation.AreaName, "AreaReservation", reservation.Id, null);
+        await _notifier.NotifyRoleAsync(reservation.CondominiumId, UserRole.SubAdmin, NotificationType.Reservation, "Nueva reservación", reservation.AreaName, "AreaReservation", reservation.Id, null);
         return Ok(ApiResponse<Guid>.SuccessResponse(reservation.Id, "Reservación enviada"));
     }
 

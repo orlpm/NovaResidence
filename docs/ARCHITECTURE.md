@@ -110,7 +110,7 @@ Mapas, comprobantes de pago y documentos del condominio se guardan bajo `Content
 
 En Azure el correo sale por Brevo, desde `contacto@domuscond.com`. En local `DisableSending` corta el envío y `CaptureOutbox` guarda el mensaje para las pruebas. REST si la clave empieza con `xkeysib-` y SMTP si empieza con `xsmtpsib-`. Los registros públicos siguen sin confirmar hasta abrir el enlace. El personal creado por un administrador autenticado queda confirmado.
 
-OpenPay está deshabilitado en la configuración de producción del repositorio y, cuando se enciende, solo acepta un token y un `deviceSessionId` producidos en el navegador. Un token falso responde 400. El backend no recibe el PAN.
+OpenPay cobra la suscripción de la plataforma en sandbox. Las llaves están vacías en el repositorio: local las lee de user-secrets y Azure de App Settings, con `UseSandbox` en true. El cargo solo acepta un token y un `deviceSessionId` producidos en el navegador. Un token falso responde 400. El backend no recibe el PAN.
 
 ## Despliegue
 

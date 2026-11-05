@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { 
   Search, 
   MoreVertical, 
@@ -24,6 +25,8 @@ import { useAuthStore } from '../../stores/authStore'
 
 export default function Reservations() {
   const { user } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const openedReservationId = useRef<string | null>(null)
   const [reservations, setReservations] = useState<ReservationListDto[]>([])
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState<string>('')
@@ -46,6 +49,13 @@ export default function Reservations() {
   useEffect(() => {
     if (selectedCondominium) loadReservations()
   }, [selectedCondominium, filterStatus])
+
+  useEffect(() => {
+    const linkedId = searchParams.get('id')
+    if (!linkedId || isLoading || openedReservationId.current === linkedId) return
+    openedReservationId.current = linkedId
+    void loadReservationDetail(linkedId)
+  }, [searchParams, isLoading])
 
   const loadCondominiums = async () => {
     try {

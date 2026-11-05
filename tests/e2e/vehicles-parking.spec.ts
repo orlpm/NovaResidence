@@ -37,4 +37,40 @@ test.describe('Vehículos y cajones', () => {
     await expect(page.getByText(`${plate} · Nissan`)).toBeVisible({ timeout: 15000 })
     await expect(page.getByText(`${spot.toUpperCase()} · ${plate}`)).toBeVisible()
   })
+
+  test('registra una placa sin cajón y la placa de una visita no entra al padrón', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'vehicles.noslot')
+    const resident = await createResidentAccount(request, scenario.superToken, scenario.unitId, 'vehicles.noslot')
+    const ownPlate = 'SIN101'
+    const visitPlate = 'VIS202'
+
+    await loginUI(page, resident.email, resident.password, /\/resident(\/|$)/)
+    const vehiclesLoaded = page.waitForResponse(response => response.url().includes('/parking/vehicles/unit/') && response.ok())
+    await page.goto('/resident/vehicles')
+    await vehiclesLoaded
+    await expect(page.getByRole('heading', { name: 'Mis vehículos' })).toBeVisible()
+    await page.getByPlaceholder('Placa').fill(ownPlate)
+    await page.getByPlaceholder('Marca').fill('Nissan')
+    await page.locator('select').selectOption('')
+    await page.getByRole('button', { name: 'Registrar vehículo' }).click()
+    await expect(page.getByText(`${ownPlate} · Nissan`)).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText(`${ownPlate} · Nissan · Cajón`)).toHaveCount(0)
+
+    await page.goto('/resident/visits/new')
+    await expect(page.getByRole('heading', { name: 'Registrar Nueva Visita' })).toBeVisible()
+    const arrival = new Date(Date.now() + 60 * 60 * 1000)
+    const pad = (value: number) => String(value).padStart(2, '0')
+    await page.getByPlaceholder('Nombre completo').fill('Visita sin cajón')
+    await page.locator('input[type="datetime-local"]').first().fill(
+      `${arrival.getFullYear()}-${pad(arrival.getMonth() + 1)}-${pad(arrival.getDate())}T${pad(arrival.getHours())}:${pad(arrival.getMinutes())}`
+    )
+    await page.getByPlaceholder('ABC-1234').fill(visitPlate)
+    await page.getByRole('button', { name: 'Registrar Visita' }).click()
+    await expect(page.getByText('Visita registrada exitosamente')).toBeVisible({ timeout: 15000 })
+
+    await page.goto('/resident/vehicles')
+    await expect(page.getByText(ownPlate)).toBeVisible()
+    await expect(page.getByText(visitPlate)).toHaveCount(0)
+  })
 })

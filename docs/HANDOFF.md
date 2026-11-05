@@ -124,7 +124,7 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 
 ## Qué falta para producción
 
-Correo y OpenPay están fuera de alcance hasta que el usuario lo pida. Aun así, el producto no está listo para un condominio real:
+El correo de Azure y el sandbox de OpenPay ya están conectados. Aun así, el producto no está listo para un condominio real:
 
 - Local y Azure comparten la misma base Neon. El esquema nace con `CreateTables` y cada columna nueva queda en `SchemaPatches`. El archivo SQLite de Azure quedó atrás y no se copió. Si se quita `ConnectionStrings__Neon`, la app vuelve al SQLite de `wwwroot` y un zip puede pisarlo.
 - Plan F1.
@@ -137,4 +137,4 @@ Correo y OpenPay están fuera de alcance hasta que el usuario lo pida. Aun así,
 
 ## Trabajo explícitamente no hecho
 
-Paquetería de correo postal más allá del registro en caseta, vehículos de visitantes como padrón, pago con tarjeta del residente, bitácora de rondas con checkpoints GPS, conciliación contable de la multa, y CFDI. OpenPay sandbox no tiene un cargo exitoso. Brevo sí entrega en Azure. En local el envío está apagado.
+Paquetería de correo postal más allá del registro en caseta, vehículos de visitantes como padrón, pago con tarjeta del residente, bitácora de rondas con checkpoints GPS, conciliación contable de la multa, y CFDI. OpenPay sandbox sí cobró la suscripción de la plataforma: un mes de `admin@novaresidence.com` por 343 MXN quedó `completed` y el periodo pasó al 4 de enero de 2027. Las llaves no están en el repositorio. Brevo sí entrega en Azure. En local el envío está apagado.

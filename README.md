@@ -47,7 +47,7 @@ El correo de confirmación y de restablecimiento sale en Azure por Brevo, desde 
 
 ## Qué no hace
 
-- No cobra con tarjeta. OpenPay tokeniza en el navegador y no hay un cargo de piloto cerrado.
+- El cobro con tarjeta de la suscripción de la plataforma sale por OpenPay en sandbox. La tarjeta se tokeniza en el navegador y el servidor solo recibe el token. No cobra la cuota del residente y no usa un comercio de producción.
 - No emite CFDI, no concilia bancos y no lleva libro mayor.
 - No graba video ni se conecta a un NVR. La cámara es el URL del marcador.
 - No está listo para un condominio real: local y Azure comparten la misma Neon, el plan es F1 y el seed demo sigue encendido. La clave JWT no está en el repositorio.

@@ -21,7 +21,7 @@ export interface DashboardStatsDto {
 
 export interface RecentActivityDto {
   id: string;
-  type: 'incident' | 'payment' | 'resident' | 'reservation';
+  type: 'incident' | 'payment' | 'resident' | 'reservation' | 'visit' | 'invitation';
   title: string;
   description: string;
   timestamp: string;

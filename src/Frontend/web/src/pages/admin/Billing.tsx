@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { 
   Plus, 
   Search, 
@@ -47,7 +48,11 @@ type TabType = 'charges' | 'balances' | 'summary' | 'config' | 'pending'
 
 export default function Billing() {
   const { user } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<TabType>('charges')
+  const [searchParams] = useSearchParams()
+  const linkedPaymentId = searchParams.get('paymentId')
+  const requestedTab = searchParams.get('tab')
+  const scrolledPayment = useRef<string | null>(null)
+  const [activeTab, setActiveTab] = useState<TabType>(linkedPaymentId ? 'pending' : requestedTab === 'pending' || requestedTab === 'balances' || requestedTab === 'summary' || requestedTab === 'config' ? requestedTab : 'charges')
   const [charges, setCharges] = useState<ChargeListDto[]>([])
   const [balances, setBalances] = useState<UnitBalanceDto[]>([])
   const [summary, setSummary] = useState<BillingSummaryDto | null>(null)
@@ -115,6 +120,25 @@ export default function Billing() {
   const [confirmVerifyPaymentId, setConfirmVerifyPaymentId] = useState<string | null>(null)
 
   useEffect(() => { loadCondominiums() }, [])
+
+  useEffect(() => {
+    if (linkedPaymentId) {
+      setActiveTab('pending')
+      return
+    }
+
+    if (requestedTab === 'pending' || requestedTab === 'charges' || requestedTab === 'balances' || requestedTab === 'summary' || requestedTab === 'config') {
+      setActiveTab(requestedTab)
+    }
+  }, [linkedPaymentId, requestedTab])
+
+  useEffect(() => {
+    if (!linkedPaymentId || activeTab !== 'pending' || isLoading || scrolledPayment.current === linkedPaymentId) return
+    const node = document.getElementById(`payment-${linkedPaymentId}`)
+    if (!node) return
+    scrolledPayment.current = linkedPaymentId
+    node.scrollIntoView({ block: 'center' })
+  }, [linkedPaymentId, pendingPayments, activeTab, isLoading])
 
   useEffect(() => {
     if (selectedCondominium) {
@@ -839,7 +863,7 @@ export default function Billing() {
                         </p>
                       </div>
                       {pendingPayments.map((payment) => (
-                        <div key={payment.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:shadow-lg transition-all">
+                        <div id={`payment-${payment.id}`} key={payment.id} className={`bg-white dark:bg-gray-800 border rounded-xl p-5 hover:shadow-lg transition-all ${linkedPaymentId === payment.id ? 'border-sky-500 ring-2 ring-sky-500' : 'border-gray-200 dark:border-gray-700'}`}>
                           <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">

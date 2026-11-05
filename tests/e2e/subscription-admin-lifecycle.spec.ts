@@ -121,4 +121,71 @@ test.describe('Suscripción del administrador', () => {
     await expect(page.getByText('Tu suscripción ha sido cancelada')).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Residentes' })).toBeVisible({ timeout: 15000 })
   })
+
+  test('un cargo de sandbox extiende la suscripción y la confirmación reconoce el pago ya registrado', async ({ request }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'subscription.openpay')
+    const adminHeaders = { Authorization: `Bearer ${scenario.adminToken}` }
+
+    const configResponse = await request.get(`${API_BASE}/Subscriptions/openpay/config`, { headers: adminHeaders })
+    expect(configResponse.ok()).toBeTruthy()
+    const config = await configResponse.json()
+    expect(config.enabled).toBe(true)
+    expect(config.useSandbox).toBe(true)
+
+    const currentResponse = await request.get(`${API_BASE}/Subscriptions/user/${scenario.adminUserId}`, {
+      headers: { Authorization: `Bearer ${scenario.superToken}` }
+    })
+    expect(currentResponse.ok()).toBeTruthy()
+    const current = await currentResponse.json()
+    const before = new Date(current.currentPeriodEnd).getTime()
+
+    const tokenResponse = await request.post(`https://sandbox-api.openpay.mx/v1/${config.merchantId}/tokens`, {
+      headers: { Authorization: `Basic ${Buffer.from(`${config.publicKey}:`).toString('base64')}` },
+      data: {
+        card_number: '4111111111111111',
+        holder_name: 'Admin DomusCond',
+        expiration_year: '30',
+        expiration_month: '12',
+        cvv2: '110'
+      }
+    })
+    expect(tokenResponse.status()).toBe(201)
+    const token = await tokenResponse.json()
+
+    const charge = await request.post(`${API_BASE}/Subscriptions/${current.id}/payments/openpay/card`, {
+      headers: adminHeaders,
+      data: {
+        tokenId: token.id,
+        deviceSessionId: 'kR1MiQhz2otdIuUlQkbEyitIqVMiI16f',
+        monthsPaid: 1,
+        paymentMethod: 'Card',
+        customerEmail: scenario.adminEmail,
+        customerPhone: '5512345678',
+        customerAddressLine1: 'Av. Prueba 100',
+        customerPostalCode: '03100',
+        customerCity: 'Ciudad de Mexico',
+        customerState: 'CDMX'
+      }
+    })
+    const chargeBody = await charge.text()
+    expect(charge.status(), chargeBody).toBe(200)
+    const paid = JSON.parse(chargeBody)
+    expect(paid.message ?? paid.Message).toContain('Pago procesado exitosamente')
+
+    const renewedResponse = await request.get(`${API_BASE}/Subscriptions/user/${scenario.adminUserId}`, {
+      headers: { Authorization: `Bearer ${scenario.superToken}` }
+    })
+    const renewed = await renewedResponse.json()
+    expect(new Date(renewed.currentPeriodEnd).getTime()).toBeGreaterThan(before)
+
+    const confirm = await request.post(`${API_BASE}/Subscriptions/${current.id}/payments/openpay/confirm`, {
+      headers: adminHeaders,
+      data: { transactionId: paid.transactionId ?? paid.TransactionId, monthsPaid: 1, paymentMethod: 'Card' }
+    })
+    const confirmBody = await confirm.text()
+    expect(confirm.ok(), confirmBody).toBeTruthy()
+    const confirmed = JSON.parse(confirmBody)
+    expect(confirmed.message ?? confirmed.Message).toContain('El pago ya había sido registrado')
+  })
 })

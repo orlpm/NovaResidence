@@ -23,7 +23,7 @@ El demo Residencial Pedregal Demo materializa a todos. Áreas, plano y cámara d
 
 El administrador contrata DomusCond, no la cuota de mantenimiento. El plan cobra por unidad. El SuperAdmin, en `/superadmin/subscriptions`, cambia plan, cancela y condona meses. Cancelar corta el acceso: el guardia de suscripción muestra que hay que reactivarla. Condonar vuelve a abrir el acceso.
 
-OpenPay puede cobrar esa suscripción cuando esté configurado. Hoy el circuito de tarjeta no está cerrado y no forma parte del piloto. Extender, condonar o cambiar el plan no requiere un cargo.
+OpenPay cobra esa suscripción en sandbox: el navegador tokeniza la tarjeta y el servidor registra el pago cuando el cargo queda completado. Extender, condonar o cambiar el plan no requiere un cargo. El comercio de producción y el pago con tarjeta de la cuota del residente siguen fuera.
 
 ## Alta del condominio y de las personas
 

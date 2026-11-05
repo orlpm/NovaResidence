@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from '@playwright/tes
 import { API_BASE, loginAPI, loginUI, registerConfirmedUser, unwrapData, uniqueEmail } from './helpers/auth'
 import { buildScenarioProfile } from './helpers/demo-data'
 import { createAdminCondominiumScenario, type AdminCondominiumScenario } from './helpers/condominium'
+import { ensureCondominiumRole } from './helpers/sql'
 
 type ResidentScenario = {
   residentId: string
@@ -289,7 +290,8 @@ async function openNotificationBell(page: Page) {
   const bell = page.getByRole('button', { name: 'Notificaciones' })
   await expect(bell).toBeVisible({ timeout: 20000 })
   await bell.click()
-  await expect(page.getByText('Notificaciones')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Notificaciones' })).toBeVisible()
+  await expect(page.getByText('Notificaciones no disponibles')).not.toBeVisible({ timeout: 20000 })
   return bell
 }
 
@@ -319,6 +321,12 @@ test.describe('Dashboard notifications and activity', () => {
       const summary = await getNotificationSummary(request, scenario.adminToken, scenario.adminUserId, scenario.condominiumId)
       return summary.unreadCount
     }, { timeout: 15000 }).toBe(0)
+
+    const notificationRow = page.getByText(notificationTitle).locator('xpath=ancestor::div[contains(@class,"cursor-pointer")]')
+    await notificationRow.hover()
+    await notificationRow.getByTitle('Eliminar').click()
+    await expect(page.getByText(notificationTitle)).not.toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Sin notificaciones')).toBeVisible()
   })
 
   test('resident payment notification opens the payments module and marks the notification as read', async ({ request, page }) => {
@@ -365,15 +373,83 @@ test.describe('Dashboard notifications and activity', () => {
     })
 
     expect(createResident.status()).toBe(201)
-    await createIncident(request, scenario.adminToken, scenario.condominiumId, scenario.adminUserId, incidentTitle, scenario.unitId)
+    const incidentId = await createIncident(request, scenario.adminToken, scenario.condominiumId, scenario.adminUserId, incidentTitle, scenario.unitId)
 
     await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
     await expect(page.getByRole('heading', { name: 'Dashboard Administrativo' })).toBeVisible()
     await expect(page.getByText('Cargando condominios...')).not.toBeVisible({ timeout: 30000 })
 
+    const incidentsCard = page.locator('h3', { hasText: 'Incidencias Abiertas' }).locator('xpath=..')
+    await expect(incidentsCard.getByText('1', { exact: true })).toBeVisible({ timeout: 20000 })
+    await expect(page.getByText('0 pagos pendientes')).toBeVisible()
+
     const incidentActivity = page.locator('p').filter({ hasText: incidentTitle }).first()
     await expect(incidentActivity).toBeVisible({ timeout: 20000 })
     await expect(page.getByText(/Invitación enviada|Residente registrado/i).first()).toBeVisible({ timeout: 20000 })
+
+    await incidentActivity.click()
+    await expect(page).toHaveURL(new RegExp(`/admin/incidents\\?id=${incidentId}`), { timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Detalle de Incidencia' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: incidentTitle })).toBeVisible()
+  })
+
+  test('la campana del administrador abre la incidencia y la marca como leída', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'dashboard.admin.bell.incident')
+    const incidentTitle = `Fuga campana ${Date.now().toString().slice(-4)}`
+    const incidentId = await createIncident(request, scenario.adminToken, scenario.condominiumId, scenario.adminUserId, incidentTitle, scenario.unitId)
+
+    await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
+    await openNotificationBell(page)
+    await expect(page.getByText('Nueva incidencia').first()).toBeVisible({ timeout: 20000 })
+    await page.getByText(incidentTitle).first().click()
+
+    await expect(page).toHaveURL(new RegExp(`/admin/incidents\\?id=${incidentId}`), { timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Detalle de Incidencia' })).toBeVisible()
+
+    await expect.poll(async () => {
+      const summary = await getNotificationSummary(request, scenario.adminToken, scenario.adminUserId, scenario.condominiumId)
+      const item = (summary.recentNotifications ?? summary.RecentNotifications ?? []).find((notification: { message?: string; isRead?: boolean }) => notification.message === incidentTitle)
+      return item?.isRead ?? false
+    }, { timeout: 15000 }).toBe(true)
+  })
+
+  test('el subadministrador ve la actividad de su condominio y abre el recurso', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'dashboard.subadmin.activity')
+    const profile = buildScenarioProfile('dashboard.subadmin.activity')
+    const email = uniqueEmail('dashboard.subadmin.activity')
+    const { password } = await registerConfirmedUser(request, {
+      email,
+      firstName: profile.residentFirstName,
+      lastName: profile.residentLastName,
+      role: 'SubAdmin'
+    })
+    const subLogin = await loginAPI(request, email, password)
+    expect(subLogin.userId).toBeTruthy()
+    const grant = await request.post(`${API_BASE}/permissions/user/${subLogin.userId}/grant`, {
+      headers: { Authorization: `Bearer ${scenario.superToken}` },
+      data: { permissionCode: 'incidents.view' }
+    })
+    expect(grant.ok()).toBeTruthy()
+    await ensureCondominiumRole(subLogin.userId!, scenario.condominiumId, 2)
+
+    const incidentTitle = `Subadmin ${Date.now().toString().slice(-4)}`
+    const incidentId = await createIncident(request, scenario.adminToken, scenario.condominiumId, scenario.adminUserId, incidentTitle, scenario.unitId)
+
+    await loginUI(page, email, password, /\/subadmin(\/|$)/)
+    await expect(page.getByRole('heading', { name: 'Dashboard Administrativo' })).toBeVisible()
+    await expect(page.getByText('Cargando condominios...')).not.toBeVisible({ timeout: 30000 })
+    await expect(page.locator('h3', { hasText: 'Incidencias Abiertas' }).locator('xpath=..').getByText('1', { exact: true })).toBeVisible({ timeout: 20000 })
+
+    await page.locator('p').filter({ hasText: incidentTitle }).first().click()
+    await expect(page).toHaveURL(new RegExp(`/subadmin/incidents\\?id=${incidentId}`), { timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Detalle de Incidencia' })).toBeVisible()
+
+    await page.goto('/subadmin/dashboard')
+    await openNotificationBell(page)
+    await page.getByText(incidentTitle).first().click()
+    await expect(page).toHaveURL(new RegExp(`/subadmin/incidents\\?id=${incidentId}`), { timeout: 15000 })
   })
 
   test('resident dashboard recent activity shows incidents, reservations, and payments from real data', async ({ request, page }) => {

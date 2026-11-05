@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient'
+import { residentService } from './residentService'
 import type { OnboardingData } from '../types/onboarding'
 
 // API Request/Response types
@@ -183,7 +184,41 @@ class CondominiumService {
    */
   async createFromWizardData(data: OnboardingData, userId: string): Promise<CreateCondominiumResponse> {
     const request = transformWizardDataToRequest(data, userId)
-    return this.createCondominium(request)
+    const response = await this.createCondominium(request)
+    const created = response.condominiumId
+      ? response
+      : (response as CreateCondominiumResponse & { data?: CreateCondominiumResponse }).data
+
+    if (created?.condominiumId && data.invitationMethod === 'manual' && data.residents?.length) {
+      await this.createWizardResidents(created.condominiumId, data.residents)
+    }
+
+    return created ?? response
+  }
+
+  private async createWizardResidents(
+    condominiumId: string,
+    residents: NonNullable<OnboardingData['residents']>
+  ) {
+    const detail = await this.getCondominiumById(condominiumId)
+    const units = detail.buildings.flatMap(building => building.units)
+
+    for (const resident of residents) {
+      const unitNumber = resident.unitId.match(/^\d+-(.+)$/)?.[1]
+      const unit = units.find(item => item.unitNumber === unitNumber)
+      if (!unit) {
+        throw new Error(`No se encontró la unidad ${unitNumber ?? resident.unitId} para invitar al residente`)
+      }
+
+      const created = await residentService.createResident({
+        unitId: unit.id,
+        firstName: resident.firstName,
+        lastName: resident.lastName,
+        email: resident.email,
+        type: resident.isOwner ? 'Owner' : 'Tenant'
+      })
+      await residentService.sendInvitation(created.id)
+    }
   }
 
   /**

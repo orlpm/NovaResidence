@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
-import { API_BASE, loginAPI, loginUI, registerConfirmedUser, uniqueEmail } from './helpers/auth'
+import { API_BASE, loginAPI, loginUI, registerConfirmedUser, uniqueEmail, unwrapData } from './helpers/auth'
 import { buildScenarioProfile } from './helpers/demo-data'
 
 type AdminScenario = {
@@ -153,5 +153,54 @@ test.describe('Administrative onboarding flow', () => {
     expect(savedData?.condominium?.name).toBe(condoName)
     expect(savedData?.buildings?.length).toBe(1)
     expect(savedData?.invitationMethod).toBe('link')
+  })
+
+  test('el asistente muestra las unidades generadas e invita al residente de esa unidad', async ({ page, request }) => {
+    test.setTimeout(120000)
+    const admin = await createAdminScenario(request, 'admin.onboarding.invite')
+    const residentEmail = uniqueEmail('onboarding.resident')
+    const condoName = 'Condominio Invitados'
+    const buildingName = 'Torre Invitados'
+
+    await openOnboarding(page, admin)
+    await completeCondominiumStep(page, condoName)
+    await chooseVerticalBuilding(page)
+    await page.getByPlaceholder('Ej: Torre A, Edificio Norte, Manzana 1').fill(buildingName)
+    await page.locator('input[type="number"]').nth(0).fill('2')
+    await page.locator('input[type="number"]').nth(1).fill('1')
+    await page.getByRole('button', { name: 'Agregar Edificio' }).click()
+    await expect(page.getByRole('button', { name: '101' })).toBeVisible()
+    await page.getByRole('button', { name: 'Continuar' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Invitar Residentes' })).toBeVisible()
+    await page.getByRole('heading', { name: 'Invitación Manual' }).click()
+    await page.getByRole('button', { name: 'Agregar Residente' }).click()
+    await page.getByPlaceholder('Juan').fill('Elena')
+    await page.getByPlaceholder('Pérez').fill('Rivas')
+    await page.getByPlaceholder('residente@email.com').fill(residentEmail)
+    await page.locator('select').last().selectOption({ label: `${buildingName} - Unidad 101` })
+    await page.getByRole('button', { name: 'Agregar Residente' }).click()
+    await expect(page.getByText(residentEmail)).toBeVisible()
+    await page.getByRole('button', { name: 'Finalizar Configuración' }).click()
+    await page.waitForURL(/\/admin\/dashboard/, { timeout: 20000 })
+
+    const condominiums = await getAdminCondominiums(request, admin)
+    const created = condominiums.find((item: { name?: string; id?: string }) => item.name === condoName)
+    expect(created?.id).toBeTruthy()
+
+    const detailResponse = await request.get(`${API_BASE}/condominiums/${created.id}`, {
+      headers: { Authorization: `Bearer ${admin.token}` }
+    })
+    expect(detailResponse.ok()).toBeTruthy()
+    const detail = unwrapData<{ buildings?: Array<{ units?: Array<{ unitNumber?: string }> }> }>(await detailResponse.json())
+    const unitNumbers = (detail.buildings ?? []).flatMap(building => building.units ?? []).map(unit => unit.unitNumber)
+    expect(unitNumbers).toContain('101')
+
+    const residentsResponse = await request.get(`${API_BASE}/residents/condominium/${created.id}`, {
+      headers: { Authorization: `Bearer ${admin.token}` }
+    })
+    expect(residentsResponse.ok()).toBeTruthy()
+    const residents = unwrapData<Array<{ email?: string }>>(await residentsResponse.json())
+    expect(residents.some(resident => resident.email === residentEmail)).toBeTruthy()
   })
 })

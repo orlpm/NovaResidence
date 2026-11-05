@@ -2,6 +2,7 @@ import { test, expect, type APIRequestContext, type Page } from '@playwright/tes
 import { buildScenarioProfile } from './helpers/demo-data'
 import { createAdminCondominiumScenario } from './helpers/condominium'
 import { uniqueEmail } from './helpers/auth'
+import { createResidentAccount } from './helpers/resident'
 
 const API_BASE = process.env.E2E_API_BASE || 'http://localhost:5001/api'
 const SUPERADMIN_EMAIL = 'superadmin@novaresidence.com'
@@ -121,5 +122,25 @@ test.describe('Incidents detail assignment UX', () => {
     await page.locator('text=Asignar personal operativo').locator('..').locator('button:has-text("Asignar")').click()
 
     await expect(page.locator('text=Asignado a').locator('xpath=..').locator(`text=${selectedStaffName}`)).toBeVisible({ timeout: 10000 })
+  })
+
+  test('el residente abre su lista y reporta una incidencia', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'resident.incident')
+    const resident = await createResidentAccount(request, scenario.superToken, scenario.unitId, 'resident.incident')
+    const title = `Fuga ${buildScenarioProfile('resident.incident').readableLabel}`
+
+    await loginUI(page, resident.email, resident.password, /\/resident(\/|$)/)
+    await page.getByRole('link', { name: 'Incidencias' }).first().click()
+    await expect(page).toHaveURL(/\/resident\/incidents/)
+    await expect(page.getByRole('heading', { name: 'Mis Incidencias' })).toBeVisible()
+    await page.getByRole('button', { name: 'Reportar Nueva Incidencia' }).click()
+    await expect(page.getByRole('heading', { name: 'Reportar Nueva Incidencia' })).toBeVisible()
+    await page.getByPlaceholder('Ej: Fuga de agua en baño principal').fill(title)
+    await page.getByPlaceholder('Describe el problema con el mayor detalle posible. Incluye desde cuándo ocurre, qué tan frecuente es, y cualquier otro dato relevante.').fill('Hay agua en el baño desde esta mañana.')
+    await page.getByRole('button', { name: 'Reportar Incidencia' }).click()
+    await expect(page.getByText('Incidencia reportada exitosamente')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('heading', { name: 'Mis Incidencias' })).toBeVisible()
+    await expect(page.getByText(title)).toBeVisible({ timeout: 15000 })
   })
 })

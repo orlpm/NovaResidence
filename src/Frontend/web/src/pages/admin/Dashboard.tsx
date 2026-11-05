@@ -21,7 +21,7 @@ function sameUserId(left?: string, right?: string) {
 
 interface RecentActivity {
   id: string
-  type: 'invitation' | 'payment' | 'incident' | 'resident' | 'reservation'
+  type: 'invitation' | 'payment' | 'incident' | 'resident' | 'reservation' | 'visit'
   title: string
   description: string
   timestamp: Date
@@ -44,8 +44,33 @@ function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStatsDto | null>(null)
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
 
+  const basePath = location.pathname.startsWith('/subadmin') ? '/subadmin' : '/admin'
+
   const goToCondominiumDetails = (condominiumId: string) => {
-    navigate(`/admin/condominiums/${condominiumId}`)
+    if (basePath === '/admin') {
+      navigate(`/admin/condominiums/${condominiumId}`)
+      return
+    }
+
+    navigate(`${basePath}/residents`)
+  }
+
+  const activityPath = (activity: RecentActivity) => {
+    switch (activity.type) {
+      case 'incident':
+        return `${basePath}/incidents?id=${activity.id}`
+      case 'payment':
+        return `${basePath}/billing?paymentId=${activity.id}`
+      case 'resident':
+      case 'invitation':
+        return `${basePath}/residents?id=${activity.id}`
+      case 'reservation':
+        return `${basePath}/reservations?id=${activity.id}`
+      case 'visit':
+        return `${basePath}/visits`
+      default:
+        return basePath
+    }
   }
 
   useEffect(() => {
@@ -504,7 +529,12 @@ function AdminDashboard() {
                   </div>
                 ) : (
                   recentActivities.map((activity) => (
-                    <div key={activity.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <button
+                      key={activity.id}
+                      type="button"
+                      onClick={() => navigate(activityPath(activity))}
+                      className="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
                       <div className="flex items-start gap-4">
                         <div className="mt-1">{getActivityIcon(activity.type)}</div>
                         <div className="flex-1 min-w-0">
@@ -516,7 +546,7 @@ function AdminDashboard() {
                         </div>
                         {getStatusBadge(activity.status)}
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
@@ -528,7 +558,7 @@ function AdminDashboard() {
             {/* Add New Resident */}
             <button
               type="button"
-              onClick={() => navigate('/admin/residents')}
+              onClick={() => navigate(`${basePath}/residents`)}
               className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in-50 text-left focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
             >
               <div className="flex items-center gap-4 mb-3">
@@ -543,7 +573,7 @@ function AdminDashboard() {
             {/* Reports */}
             <button
               type="button"
-              onClick={() => navigate('/admin/reports')}
+              onClick={() => navigate(`${basePath}/reports`)}
               className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in-50 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
             >
               <div className="flex items-center gap-4 mb-3">
@@ -556,7 +586,11 @@ function AdminDashboard() {
             </button>
 
             {/* Documents */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 animate-in fade-in-50">
+            <button
+              type="button"
+              onClick={() => navigate(`${basePath}/billing?tab=pending`)}
+              className="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 animate-in fade-in-50 text-left"
+            >
               <div className="flex items-center gap-4 mb-3">
                 <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center">
                   <span className="text-indigo-600 dark:text-indigo-400 font-bold">{stats?.overduePaymentsCount ?? 0}</span>
@@ -564,7 +598,7 @@ function AdminDashboard() {
               </div>
               <h4 className="font-bold text-gray-900 dark:text-white mb-1">Pagos Vencidos</h4>
               <p className="text-sm text-gray-600 dark:text-gray-400">${(stats?.totalOverduePayments ?? 0).toLocaleString()} total</p>
-            </div>
+            </button>
           </div>
         </div>
           </>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { 
   Plus, 
   Search, 
@@ -35,6 +36,8 @@ import { userManagementService, type StaffUserItem } from '../../lib/userManagem
 
 export default function Incidents() {
   const { user } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const openedIncidentId = useRef<string | null>(null)
   const [incidents, setIncidents] = useState<IncidentListDto[]>([])
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState<string>('')
@@ -82,6 +85,15 @@ export default function Incidents() {
   useEffect(() => {
     if (selectedCondominium) loadIncidents()
   }, [selectedCondominium, filterType, filterPriority, filterStatus])
+
+  useEffect(() => {
+    const linkedId = searchParams.get('id')
+    if (!linkedId || isLoading || openedIncidentId.current === linkedId) return
+    const match = incidents.find(item => item.id === linkedId)
+    if (!match && incidents.length === 0) return
+    openedIncidentId.current = linkedId
+    void loadIncidentDetail(linkedId, match)
+  }, [searchParams, incidents, isLoading])
 
   const loadCondominiums = async () => {
     try {

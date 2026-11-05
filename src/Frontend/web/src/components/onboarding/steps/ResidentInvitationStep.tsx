@@ -27,7 +27,7 @@ interface ResidentInvitationStepProps {
   invitationMethod: 'manual' | 'link'
   residents?: Resident[]
   onUpdate: (data: { invitationMethod: 'manual' | 'link'; residents?: Resident[] }) => void
-  onFinish: () => void
+  onFinish: (payload: { invitationMethod: 'manual' | 'link'; residents?: Resident[] }) => void
   onBack: () => void
   isSubmitting?: boolean
   submitError?: string | null
@@ -100,8 +100,9 @@ export default function ResidentInvitationStep({
   }
 
   const handleFinish = () => {
-    onUpdate({ invitationMethod: method, residents: method === 'manual' ? residentsList : [] })
-    onFinish()
+    const payload = { invitationMethod: method, residents: method === 'manual' ? residentsList : [] }
+    onUpdate(payload)
+    onFinish(payload)
   }
 
   return (

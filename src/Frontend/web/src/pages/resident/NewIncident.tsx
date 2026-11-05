@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService';
 import { residentService } from '../../lib/residentService';
 import { 
   incidentService, 
@@ -37,12 +38,20 @@ interface ResidentInfo {
 
 function NewIncident() {
   const navigate = useNavigate();
+  const route = useLocation();
   const { user } = useAuthStore();
+  const incidentsPath = route.pathname.startsWith('/maintenance')
+    ? '/maintenance/incidents'
+    : route.pathname.startsWith('/cleaning')
+      ? '/cleaning/incidents'
+      : '/resident/incidents';
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [residentInfo, setResidentInfo] = useState<ResidentInfo | null>(null);
+  const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([]);
+  const [selectedCondominiumId, setSelectedCondominiumId] = useState('');
   
   const [formData, setFormData] = useState({
     title: '',
@@ -65,22 +74,34 @@ function NewIncident() {
   }, [photoPreviewUrl]);
 
   const loadResidentInfo = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     try {
       const resident = await residentService.getResidentInfo(user.id);
-      if (resident) {
-        const info: ResidentInfo = {
+      if (resident?.condominiumId) {
+        setResidentInfo({
           id: resident.id,
           unitId: resident.unitId,
           unitNumber: resident.unitNumber,
           buildingName: resident.buildingName,
           condominiumId: resident.condominiumId
-        };
-        setResidentInfo(info);
+        });
+        return;
+      }
+
+      const assigned = await condominiumService.getAllCondominiums(user.id);
+      setCondominiums(assigned);
+      if (assigned[0]) {
+        setSelectedCondominiumId(assigned[0].id);
+      }
+      if (route.pathname.startsWith('/cleaning')) {
+        setFormData(current => ({ ...current, type: IncidentType.CommonArea }));
       }
     } catch (error) {
-      console.error('Error loading resident info:', error);
-      toast.error('Error al cargar información del residente');
+      console.error('Error loading incident context:', error);
+      toast.error('No se pudo preparar el reporte');
     } finally {
       setLoading(false);
     }
@@ -89,8 +110,14 @@ function NewIncident() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!residentInfo || !user?.id) {
-      toast.error('No se encontró información del residente');
+    const condominiumId = residentInfo?.condominiumId || selectedCondominiumId;
+    if (!user?.id || !condominiumId) {
+      toast.error(residentInfo ? 'No se encontró información del residente' : 'Selecciona el condominio del reporte');
+      return;
+    }
+
+    if (!residentInfo && !formData.location.trim()) {
+      toast.error('Indica dónde se encuentra el problema');
       return;
     }
 
@@ -104,11 +131,6 @@ function NewIncident() {
       return;
     }
 
-    if (!residentInfo.condominiumId) {
-      toast.error('No se pudo identificar el condominio del residente');
-      return;
-    }
-
     setSubmitting(true);
     try {
       let uploadedPhotoUrl: string | null = null;
@@ -117,19 +139,19 @@ function NewIncident() {
       }
 
       await incidentService.create({
-        condominiumId: residentInfo.condominiumId,
+        condominiumId,
         reportedById: user.id,
         title: formData.title,
         description: formData.description,
         type: formData.type,
         priority: formData.priority,
-        location: formData.location || `Unidad ${residentInfo.unitNumber} - ${residentInfo.buildingName}`,
-        unitId: residentInfo.unitId,
+        location: formData.location || `Unidad ${residentInfo?.unitNumber} - ${residentInfo?.buildingName}`,
+        unitId: residentInfo?.unitId,
         photoUrl: uploadedPhotoUrl
       });
 
       toast.success('Incidencia reportada exitosamente');
-      navigate('/resident/incidents');
+      navigate(incidentsPath);
     } catch (error: any) {
       console.error('Error creating incident:', error);
       const responseData = error?.response?.data;
@@ -222,22 +244,24 @@ function NewIncident() {
     );
   }
 
-  if (!residentInfo) {
+  if (!residentInfo && condominiums.length === 0) {
     return (
       <div className="p-6">
         <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-2xl p-6">
-          <p className="text-yellow-800 dark:text-yellow-200">No se encontró información del residente.</p>
+          <p className="text-yellow-800 dark:text-yellow-200">No tienes un condominio asignado para reportar la incidencia.</p>
         </div>
       </div>
     );
   }
+
+  const selectedCondominium = condominiums.find(item => item.id === selectedCondominiumId);
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <button
-          onClick={() => navigate('/resident/incidents')}
+          onClick={() => navigate(incidentsPath)}
           className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors mb-4"
         >
           <ArrowLeftIcon className="w-5 h-5" />
@@ -245,8 +269,24 @@ function NewIncident() {
         </button>
         <h1 className="text-3xl font-black text-gray-900 dark:text-white">Reportar Nueva Incidencia</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Unidad {residentInfo.unitNumber} - {residentInfo.buildingName}
+          {residentInfo
+            ? `Unidad ${residentInfo.unitNumber} - ${residentInfo.buildingName}`
+            : selectedCondominium?.name || 'Reporta un problema del condominio'}
         </p>
+        {!residentInfo && condominiums.length > 1 && (
+          <label className="block mt-4">
+            <span className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Condominio *</span>
+            <select
+              value={selectedCondominiumId}
+              onChange={(event) => setSelectedCondominiumId(event.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              {condominiums.map(item => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -350,14 +390,17 @@ function NewIncident() {
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
             <div className="flex items-center gap-2">
               <MapPinIcon className="w-5 h-5" />
-              Ubicación Específica (Opcional)
+              {residentInfo ? 'Ubicación Específica (Opcional)' : 'Ubicación *'}
             </div>
           </label>
           <input
             type="text"
             value={formData.location}
             onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-            placeholder={`Ej: Baño principal, Área de estacionamiento, etc. (Por defecto: Unidad ${residentInfo.unitNumber})`}
+            required={!residentInfo}
+            placeholder={residentInfo
+              ? `Ej: Baño principal, Área de estacionamiento, etc. (Por defecto: Unidad ${residentInfo.unitNumber})`
+              : 'Ej: Lobby, estacionamiento o jardín'}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
           />
         </div>
@@ -402,7 +445,7 @@ function NewIncident() {
         <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 sm:justify-end">
           <button
             type="button"
-            onClick={() => navigate('/resident/incidents')}
+            onClick={() => navigate(incidentsPath)}
             className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-center"
           >
             Cancelar

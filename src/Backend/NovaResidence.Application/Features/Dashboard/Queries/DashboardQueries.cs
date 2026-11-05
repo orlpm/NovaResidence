@@ -50,17 +50,16 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
 
     public async Task<Result<DashboardStatsDto>> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
     {
+        var scopedIds = request.CondominiumId.HasValue
+            ? new List<Guid> { request.CondominiumId.Value }
+            : request.CondominiumIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? new List<Guid>();
+        var hasScope = scopedIds.Count > 0;
+
         // Get all buildings for the condominium filter
         var buildingsQuery = _context.Buildings.Where(b => !b.IsDeleted);
-        
-        // Filter by specific condominium or list of condominiums
-        if (request.CondominiumId.HasValue)
+        if (hasScope)
         {
-            buildingsQuery = buildingsQuery.Where(b => b.CondominiumId == request.CondominiumId.Value);
-        }
-        else if (request.CondominiumIds != null && request.CondominiumIds.Count > 0)
-        {
-            buildingsQuery = buildingsQuery.Where(b => request.CondominiumIds.Contains(b.CondominiumId));
+            buildingsQuery = buildingsQuery.Where(b => scopedIds.Contains(b.CondominiumId));
         }
         
         var buildingIds = await buildingsQuery.Select(b => b.Id).ToListAsync(cancellationToken);
@@ -87,8 +86,8 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
         var pendingInvitations = await residentsQuery.CountAsync(r => !r.IsRegistered, cancellationToken);
 
         // Incidents stats
-        var incidentsQuery = request.CondominiumId.HasValue
-            ? _context.Incidents.Where(i => i.CondominiumId == request.CondominiumId.Value)
+        var incidentsQuery = hasScope
+            ? _context.Incidents.Where(i => scopedIds.Contains(i.CondominiumId))
             : _context.Incidents.AsQueryable();
         
         var openIncidents = await incidentsQuery.CountAsync(i => 
@@ -102,8 +101,8 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
             i.ResolvedAt >= startOfMonth, cancellationToken);
 
         // Billing stats
-        var chargesQuery = request.CondominiumId.HasValue
-            ? _context.Charges.Where(c => c.CondominiumId == request.CondominiumId.Value)
+        var chargesQuery = hasScope
+            ? _context.Charges.Where(c => scopedIds.Contains(c.CondominiumId))
             : _context.Charges.AsQueryable();
         
         var pendingCharges = await chargesQuery
@@ -178,11 +177,10 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
 
         // Recent payments
         var recentPayments = await _context.Payments
-            .Where(p => request.CondominiumId == null || 
-                        _context.Charges.Any(c => c.Id == p.ChargeId && c.CondominiumId == request.CondominiumId))
+            .Where(p => !hasScope || _context.Charges.Any(c => c.Id == p.ChargeId && scopedIds.Contains(c.CondominiumId)))
             .OrderByDescending(p => p.PaymentDate)
             .Take(5)
-            .Select(p => new { p.Id, p.Amount, p.PaymentDate })
+            .Select(p => new { p.Id, p.Amount, p.PaymentDate, p.IsVerified })
             .ToListAsync(cancellationToken);
         
         foreach (var payment in recentPayments)
@@ -190,10 +188,30 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
             activities.Add(new RecentActivityDto(
                 payment.Id.ToString(),
                 "payment",
-                "Pago recibido",
+                payment.IsVerified ? "Pago recibido" : "Pago por verificar",
                 $"${payment.Amount:N2}",
                 payment.PaymentDate,
-                "completed"
+                payment.IsVerified ? "completed" : "pending"
+            ));
+        }
+
+        var recentReservations = await _context.CondominiumAreaReservations
+            .Where(reservation => !hasScope || scopedIds.Contains(reservation.CondominiumId))
+            .OrderByDescending(reservation => reservation.CreatedAt)
+            .Take(5)
+            .Select(reservation => new { reservation.Id, reservation.AreaName, reservation.Status, reservation.CreatedAt })
+            .ToListAsync(cancellationToken);
+
+        foreach (var reservation in recentReservations)
+        {
+            var completed = reservation.Status is ReservationStatus.Confirmed or ReservationStatus.Completed;
+            activities.Add(new RecentActivityDto(
+                reservation.Id.ToString(),
+                "reservation",
+                completed ? "Reservación confirmada" : "Reservación solicitada",
+                reservation.AreaName,
+                reservation.CreatedAt,
+                completed ? "completed" : "pending"
             ));
         }
 

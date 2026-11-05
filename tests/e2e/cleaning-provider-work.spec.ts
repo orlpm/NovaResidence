@@ -143,4 +143,45 @@ test.describe('Trabajo de limpieza y proveedor', () => {
     await expect(page.getByText(title)).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('Próximas visitas').locator('xpath=preceding-sibling::p')).toHaveText('1')
   })
+
+  test('limpieza reporta una incidencia de su condominio', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'cleaning.door')
+    const profile = buildScenarioProfile('cleaning.door')
+    const email = uniqueEmail('cleaning.door')
+    const password = 'Pass123.'
+    const title = `Limpieza ${profile.readableLabel}`
+    const staff = await request.post(`${API_BASE}/auth/staff-users`, {
+      headers: { Authorization: `Bearer ${scenario.superToken}` },
+      data: {
+        email,
+        password,
+        firstName: profile.residentFirstName,
+        lastName: profile.residentLastName,
+        phoneNumber: '5512345678',
+        role: 'Cleaning',
+        condominiumId: scenario.condominiumId
+      }
+    })
+    expect(staff.ok()).toBeTruthy()
+
+    await loginUI(page, email, password, /\/cleaning(\/|$)/)
+    await page.getByRole('link', { name: 'Reportar Incidencia' }).first().click()
+    await expect(page).toHaveURL(/\/cleaning\/new-incident/)
+    await expect(page.getByRole('heading', { name: 'Reportar Nueva Incidencia' })).toBeVisible()
+    await page.getByPlaceholder('Ej: Fuga de agua en baño principal').fill(title)
+    await page.getByPlaceholder('Describe el problema con el mayor detalle posible. Incluye desde cuándo ocurre, qué tan frecuente es, y cualquier otro dato relevante.').fill('El pasillo del primer piso necesita limpieza.')
+    await page.getByPlaceholder('Ej: Lobby, estacionamiento o jardín').fill('Pasillo 1')
+    await page.getByRole('button', { name: 'Reportar Incidencia' }).click()
+    await expect(page.getByText('Incidencia reportada exitosamente')).toBeVisible({ timeout: 15000 })
+
+    const session = await loginAPI(request, email, password)
+    const reported = await request.get(`${API_BASE}/incidents/my-incidents/${session.userId}`, {
+      headers: { Authorization: `Bearer ${session.token}` }
+    })
+    expect(reported.ok()).toBeTruthy()
+    const incidents = await reported.json()
+    const list = Array.isArray(incidents) ? incidents : incidents.data || []
+    expect(list.some((item: { title?: string }) => item.title === title)).toBeTruthy()
+  })
 })

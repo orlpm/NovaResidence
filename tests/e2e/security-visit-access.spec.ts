@@ -114,4 +114,13 @@ test.describe('Control de acceso de visitas', () => {
       }
     }
   })
+
+  test('vigilancia abre Visitantes desde su menú', async ({ request, page }) => {
+    const scenario = await createAdminCondominiumScenario(request, 'security.visitors.door')
+    const security = await createSecurityUser(request, scenario.superToken, scenario.condominiumId)
+    await loginUI(page, security.email, security.password, /\/security(\/|$)/)
+    await page.getByRole('link', { name: 'Visitantes' }).first().click()
+    await expect(page).toHaveURL(/\/security\/visitors/)
+    await expect(page.getByRole('heading', { name: 'Gestión de Visitas' })).toBeVisible()
+  })
 })

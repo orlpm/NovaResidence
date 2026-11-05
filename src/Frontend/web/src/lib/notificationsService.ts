@@ -85,15 +85,81 @@ export const getNotificationIcon = (type: NotificationType): string => {
   }
 }
 
+const roleRoots = new Set(['resident', 'admin', 'subadmin', 'security', 'maintenance', 'cleaning', 'accountant', 'provider', 'superadmin'])
+
+function normalizeBasePath(basePath: string): string {
+  return basePath.startsWith('/') ? basePath : `/${basePath}`
+}
+
+function retargetStoredUrl(url: string, basePath: string): string {
+  const [path, query] = url.split('?')
+  const segments = path.split('/').filter(Boolean)
+  if (segments.length === 0 || !roleRoots.has(segments[0])) return url
+
+  segments[0] = basePath.slice(1)
+  if ((segments[0] === 'admin' || segments[0] === 'subadmin' || segments[0] === 'accountant') && segments[1] === 'payments') {
+    segments[1] = 'billing'
+  }
+
+  const next = `/${segments.join('/')}`
+  return query ? `${next}?${query}` : next
+}
+
+function resourceUrl(notification: NotificationDto, basePath: string): string | null {
+  const entity = (notification.relatedEntityType || '').toLowerCase()
+  const id = notification.relatedEntityId
+  const isOffice = basePath === '/admin' || basePath === '/subadmin'
+  const isAccountant = basePath === '/accountant'
+
+  if (entity === 'incident') {
+    if (basePath === '/resident' && id) return `${basePath}/incidents/${id}`
+    if (isOffice && id) return `${basePath}/incidents?id=${id}`
+    return `${basePath}/incidents`
+  }
+
+  if (entity === 'payment' || entity === 'charge') {
+    if (isOffice || isAccountant) return `${isAccountant ? '/accountant' : basePath}/billing${id ? `?paymentId=${id}` : ''}`
+    return `${basePath}/payments`
+  }
+
+  if (entity === 'areareservation' || entity === 'reservation') {
+    if (basePath === '/resident') return `${basePath}/common-areas`
+    if (isOffice && id) return `${basePath}/reservations?id=${id}`
+    return `${basePath}/reservations`
+  }
+
+  if (entity === 'visit') {
+    if (basePath === '/resident' && id) return `${basePath}/visits/${id}`
+    if (basePath === '/security') return `${basePath}/access-control`
+    if (isOffice) return `${basePath}/visits`
+    return basePath
+  }
+
+  if (entity === 'package') {
+    if (basePath === '/resident' || basePath === '/security') return `${basePath}/packages`
+    return basePath
+  }
+
+  if (entity === 'resident' && isOffice && id) return `${basePath}/residents?id=${id}`
+  if (entity === 'poll') return `${basePath}/communications?tab=polls${id ? `&id=${id}` : ''}`
+  if (entity === 'meeting') return `${basePath}/communications?tab=meetings${id ? `&id=${id}` : ''}`
+  if (entity === 'announcement') return `${basePath}/communications?tab=announcements${id ? `&id=${id}` : ''}`
+  if (entity === 'forumpost' || entity === 'forumcomment') return `${basePath}/communications?tab=forum${id ? `&id=${id}` : ''}`
+
+  return null
+}
+
 // Helper function to get action URL based on notification type
 export const getNotificationActionUrl = (notification: NotificationDto, basePath: string = '/resident'): string => {
-  if (notification.actionUrl) return notification.actionUrl
+  const normalizedBasePath = normalizeBasePath(basePath)
+  const linkedResource = resourceUrl(notification, normalizedBasePath)
+  if (linkedResource) return linkedResource
+  if (notification.actionUrl) return retargetStoredUrl(notification.actionUrl, normalizedBasePath)
 
-  const normalizedBasePath = basePath.startsWith('/') ? basePath : `/${basePath}`
   const paymentPath = normalizedBasePath === '/resident'
     ? `${normalizedBasePath}/payments`
     : `${normalizedBasePath}/billing`
-  
+
   switch (notification.type) {
     case NotificationType.Announcement:
       return `${normalizedBasePath}/communications?tab=announcements${notification.relatedEntityId ? `&id=${notification.relatedEntityId}` : ''}`
@@ -108,9 +174,13 @@ export const getNotificationActionUrl = (notification: NotificationDto, basePath
     case NotificationType.PaymentReceived:
       return paymentPath
     case NotificationType.IncidentUpdate:
-      return `${normalizedBasePath}/incidents${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
+      return normalizedBasePath === '/resident'
+        ? `${normalizedBasePath}/incidents${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
+        : `${normalizedBasePath}/incidents${notification.relatedEntityId ? `?id=${notification.relatedEntityId}` : ''}`
     case NotificationType.Reservation:
-      return `${normalizedBasePath}/reservations${notification.relatedEntityId ? `/${notification.relatedEntityId}` : ''}`
+      return normalizedBasePath === '/resident'
+        ? `${normalizedBasePath}/common-areas`
+        : `${normalizedBasePath}/reservations${notification.relatedEntityId ? `?id=${notification.relatedEntityId}` : ''}`
     default:
       return normalizedBasePath
   }

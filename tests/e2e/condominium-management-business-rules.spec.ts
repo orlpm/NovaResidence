@@ -332,4 +332,33 @@ test.describe('Condominium management business rules', () => {
     await expect(residentCard).toBeVisible({ timeout: 15000 })
     await expect(residentCard.getByText('Inquilino')).toBeVisible()
   })
+
+  test('crear un edificio genera las unidades cuando la opción viene activa', async ({ request, page }) => {
+    test.setTimeout(120000)
+    const scenario = await createAdminCondominiumScenario(request, 'condo.autounits')
+    const buildingName = `Torre ${buildScenarioProfile('condo.autounits').readableLabel}`
+
+    await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
+    await page.goto(`/admin/condominiums/${scenario.condominiumId}/units`)
+    await expect(page.getByRole('heading', { name: 'Edificios y Unidades' })).toBeVisible()
+    await page.getByRole('button', { name: 'Agregar Edificio' }).click()
+    const dialog = page.locator('.fixed').filter({ hasText: 'Nuevo Edificio' })
+    await dialog.getByPlaceholder('Ej: Torre A, Edificio Norte').fill(buildingName)
+    await expect(dialog.getByLabel('Auto-generar unidades')).toBeChecked()
+    await dialog.getByRole('button', { name: 'Crear Edificio (4 unidades)' }).click()
+
+    const buildingCard = page.locator('div').filter({ has: page.getByRole('heading', { name: buildingName }) }).first()
+    await expect(buildingCard.getByText('4 unidades')).toBeVisible({ timeout: 15000 })
+    await buildingCard.click()
+    await expect(page.getByText('101', { exact: true })).toBeVisible()
+    await expect(page.getByText('104', { exact: true })).toBeVisible()
+  })
+
+  test('el administrador abre Visitas desde su menú', async ({ request, page }) => {
+    const scenario = await createAdminCondominiumScenario(request, 'admin.visits.door')
+    await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
+    await page.getByRole('link', { name: 'Visitas' }).first().click()
+    await expect(page).toHaveURL(/\/admin\/visits/)
+    await expect(page.getByRole('heading', { name: 'Gestión de Visitas' })).toBeVisible()
+  })
 })
