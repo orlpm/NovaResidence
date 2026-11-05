@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../stores/authStore'
 import { residentService } from '../../lib/residentService'
+import { parkingService, type VehicleDto } from '../../lib/operationsService'
 import { 
   visitService, 
   VisitType, 
@@ -39,6 +40,8 @@ export default function NewVisit() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [residentInfo, setResidentInfo] = useState<ResidentInfo | null>(null)
+  const [vehicles, setVehicles] = useState<VehicleDto[]>([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState('')
 
   const [formData, setFormData] = useState({
     visitorName: '',
@@ -75,6 +78,8 @@ export default function NewVisit() {
           buildingName: resident.buildingName,
           condominiumId: resident.condominiumId
         })
+        const unitVehicles = await parkingService.getUnitVehicles(resident.unitId)
+        setVehicles(unitVehicles)
       }
     } catch (error) {
       console.error('Error loading resident info:', error)
@@ -131,6 +136,7 @@ export default function NewVisit() {
         visitorCount: formData.visitorCount,
         vehiclePlate: formData.vehiclePlate || null,
         vehicleDescription: formData.vehicleDescription || null,
+        residentVehicleId: selectedVehicleId || null,
         purpose: formData.purpose || null,
         notes: formData.notes || null
       })
@@ -289,6 +295,26 @@ export default function NewVisit() {
             Vehículo (Opcional)
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Vehículo registrado</label>
+              <select
+                value={selectedVehicleId}
+                onChange={e => {
+                  const vehicleId = e.target.value
+                  setSelectedVehicleId(vehicleId)
+                  const vehicle = vehicles.find(item => item.id === vehicleId)
+                  if (!vehicle) return
+                  const description = [vehicle.brand, vehicle.color].filter(Boolean).join(' ')
+                  setFormData(prev => ({ ...prev, vehiclePlate: vehicle.plate, vehicleDescription: description }))
+                }}
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              >
+                <option value="">Otro vehículo, capturar placa</option>
+                {vehicles.map(item => (
+                  <option key={item.id} value={item.id}>{item.plate} · {item.brand}{item.residentName ? ` · ${item.residentName}` : ''}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Placa</label>
               <input

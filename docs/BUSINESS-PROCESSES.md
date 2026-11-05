@@ -78,30 +78,29 @@ Vigilancia elige condominio y unidad, captura paquetería y descripción, y el r
 
 ## Vehículos y cajones
 
-El padrón del residente no es la placa de una visita.
+Cajones, vehículos, residentes y visitas están conectados sin perder la opción de anotar un auto externo.
 
-1. El administrador abre un cajón con un código. El código se guarda en mayúsculas.
-2. El residente registra placa y marca, y puede elegir un cajón.
-3. Si elige cajón, el cajón queda con esa placa.
-4. El administrador ve ambos listados en `/admin/parking`.
-
-La placa capturada en una visita sigue siendo de ese visitante y no crea un vehículo del residente.
+1. El administrador crea un cajón con su código en mayúsculas y puede asignarlo o liberarlo para un residente activo del condominio en `/admin/parking`.
+2. Si el residente ya tiene vehículo registrado en su unidad, al asignarle el cajón quedan enlazados la unidad, el residente y la placa.
+3. El residente registra en `/resident/vehicles` su placa, marca, color y un cajón libre o ya asignado a él, y ve cuántas visitas de su unidad han usado esa placa.
+4. Al crear o editar una visita, el residente puede elegir uno de los vehículos registrados de su unidad (lo que llena placa y descripción y guarda `ResidentVehicleId`) o capturar manualmente la placa de un visitante externo.
+5. En `/admin/visits`, cuando la placa de la visita coincide con un vehículo registrado del condominio, aparece debajo el nombre del residente titular.
 
 ## Áreas comunes y reservación
 
-Hay dos catálogos históricos. Las pantallas usan el catálogo nuevo. El administrador crea el área y puede desactivarla. El residente no ve las inactivas.
+Hay dos catálogos históricos. Las pantallas usan el catálogo nuevo. El administrador crea el área, sube fotos (JPG, PNG o WEBP de hasta 8 MB) y puede desactivarla. El residente ve las fotos y no ve las áreas inactivas.
 
 Reservar un área no es reservar una amenidad. La amenidad tiene su propio calendario, cupo y aprobación. El área común se solicita con fecha, hora de inicio, hora de fin y motivo. Nace pendiente. El administrador la aprueba y el residente pasa a verla aprobada. La aprobación también deja un aviso de reservación.
 
 ## Mapas y cámaras
 
-El administrador publica un plano por imagen, archivo o enlace, y le pone marcadores. Un marcador es cámara cuando la etiqueta, la capa, el tooltip o la referencia contienen camera, cámara, camara, cctv o vigilancia. Si la referencia es un URL http, vigilancia ve el reproductor «Transmisión en vivo» y el enlace «Abrir fuente». Un archivo de video usa la etiqueta `video`. Cualquier otro URL usa un marco embebido. No hay stream propio ni grabación.
+El administrador publica un plano subiendo una imagen (JPG, PNG o WEBP de hasta 8 MB) o pegando un enlace de Google Maps, que muestra vista previa tanto al capturar el formulario como en el mapa guardado para administración y residentes. Sobre el plano coloca marcadores. Un marcador es cámara cuando la etiqueta, la capa, el tooltip o la referencia contienen camera, cámara, camara, cctv o vigilancia. Si la referencia es un URL http, vigilancia ve el reproductor «Transmisión en vivo» y el enlace «Abrir fuente». Un archivo de video usa la etiqueta `video`. Cualquier otro URL usa un marco embebido. No hay stream propio ni grabación.
 
 El demo deja «Jardín central», «Lobby principal», «Estacionamiento visitantes», el plano «Plano general Pedregal» y el marcador «Cámara lobby Pedregal».
 
 ## Comunicaciones, votación y acta
 
-El administrador publica un aviso, una encuesta o una asamblea.
+El administrador publica un aviso, una encuesta o una asamblea. Los avisos y las publicaciones del foro permiten adjuntar archivos (PDF, PNG, JPG, WEBP o TXT de hasta 8 MB).
 
 La encuesta solo se vota si está activa y dentro de las fechas. Un voto por unidad, salvo que la encuesta permita más. Publicarla avisa «Nueva encuesta» a los residentes con usuario. El residente ve su voto y el porcentaje. El listado no trae el porcentaje con el nombre que usa la pantalla; el cliente lo normaliza.
 

@@ -272,6 +272,7 @@ public class VisitsController : ControllerBase
                 request.VehicleDescription,
                 request.Purpose,
                 request.Notes);
+            await LinkVehicleAsync(visit, request.UnitId, request.ResidentVehicleId);
 
             _context.Visits.Add(visit);
             await _context.SaveChangesAsync();
@@ -326,6 +327,10 @@ public class VisitsController : ControllerBase
                 request.VehicleDescription,
                 request.Purpose,
                 request.Notes);
+            if (request.ResidentVehicleId.HasValue)
+                await LinkVehicleAsync(visit, visit.UnitId, request.ResidentVehicleId);
+            else
+                visit.UnlinkResidentVehicle();
 
             await _context.SaveChangesAsync();
 
@@ -761,6 +766,20 @@ public class VisitsController : ControllerBase
         _ => "Desconocido"
     };
 
+    private async Task LinkVehicleAsync(Visit visit, Guid unitId, Guid? residentVehicleId)
+    {
+        if (!residentVehicleId.HasValue)
+            return;
+
+        var vehicle = await _context.ResidentVehicles.FirstOrDefaultAsync(item =>
+            item.Id == residentVehicleId && item.UnitId == unitId);
+        if (vehicle == null)
+            throw new InvalidOperationException("El vehículo no pertenece a la unidad");
+
+        var description = string.Join(' ', new[] { vehicle.Brand, vehicle.Color }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        visit.LinkResidentVehicle(vehicle.Id, vehicle.Plate, description);
+    }
+
     private IActionResult TenantForbidden()
     {
         return StatusCode(StatusCodes.Status403Forbidden,
@@ -837,7 +856,8 @@ public record CreateVisitRequest(
     string? VehiclePlate = null,
     string? VehicleDescription = null,
     string? Purpose = null,
-    string? Notes = null
+    string? Notes = null,
+    Guid? ResidentVehicleId = null
 );
 
 public record UpdateVisitRequest(
@@ -852,7 +872,8 @@ public record UpdateVisitRequest(
     string? VehiclePlate = null,
     string? VehicleDescription = null,
     string? Purpose = null,
-    string? Notes = null
+    string? Notes = null,
+    Guid? ResidentVehicleId = null
 );
 
 public record ApproveVisitRequest(Guid ApprovedById);

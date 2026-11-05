@@ -12,6 +12,8 @@ import {
   type SubscriptionPlan
 } from '../../lib/subscriptionService';
 import { useAuthStore } from '../../stores/authStore';
+import toast from 'react-hot-toast';
+import { uploadRejection } from '../../lib/uploadLimits';
 
 const STATUS_UI: Record<string, { label: string; color: string; bg: string; border: string; icon: React.ElementType; description: string }> = {
   Trial:     { label: 'Período de Prueba Gratis', color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-500/10',     border: 'border-blue-200 dark:border-blue-500/30', icon: Gift,          description: 'Estás disfrutando de tu mes de prueba gratuito. Cuando finalice, necesitarás realizar un pago para continuar.' },
@@ -715,10 +717,22 @@ export default function SubscriptionStatusPage() {
                     <input
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf,.webp"
-                      onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        const next = e.target.files?.[0] ?? null
+                        if (next) {
+                          const rejection = uploadRejection(next, ['jpg', 'jpeg', 'png', 'pdf', 'webp'])
+                          if (rejection) {
+                            toast.error(rejection)
+                            e.target.value = ''
+                            setProofFile(null)
+                            return
+                          }
+                        }
+                        setProofFile(next)
+                      }}
                       className="block w-full text-sm text-gray-700 dark:text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-sky-500 file:px-4 file:py-2 file:text-white hover:file:bg-sky-600"
                     />
-                    <p className="text-xs text-gray-500">Formatos permitidos: JPG, PNG, PDF o WEBP. Máximo 5 MB.</p>
+                    <p className="text-xs text-gray-500">Formatos permitidos: JPG, PNG, PDF o WEBP. Máximo 8MB.</p>
                     {proofFile && (
                       <p className="text-sm text-sky-700 dark:text-sky-300">Archivo seleccionado: {proofFile.name}</p>
                     )}

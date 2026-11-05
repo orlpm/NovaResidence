@@ -4,6 +4,7 @@ import { condominiumService, type UserCondominiumDto } from '../../lib/condomini
 import { documentService, type CondominiumDocumentDto } from '../../lib/operationsService'
 import { useAuthStore } from '../../stores/authStore'
 import { getApiErrorMessage } from '../../lib/apiErrors'
+import { uploadRejection } from '../../lib/uploadLimits'
 
 const documentTypes = [
   { value: 0, label: 'Contrato' },
@@ -40,6 +41,11 @@ export default function Documents() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!condominiumId || !file) return
+    const rejection = uploadRejection(file, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'txt'])
+    if (rejection) {
+      toast.error(rejection)
+      return
+    }
     setSaving(true)
     try {
       const uploaded = await documentService.upload(file)
@@ -93,6 +99,7 @@ export default function Documents() {
           <button disabled={saving} className="px-4 py-2 rounded-lg bg-sky-600 text-white font-semibold">Publicar documento</button>
         </div>
       </form>
+          <p className="mt-1 text-xs text-gray-500">PDF, PNG, JPG, WEBP o TXT. Máximo 8MB.</p>
 
       <div className="space-y-3">
         {documents.map(item => (

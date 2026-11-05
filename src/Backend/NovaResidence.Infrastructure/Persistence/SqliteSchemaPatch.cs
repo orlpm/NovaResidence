@@ -163,5 +163,22 @@ public static class SqliteSchemaPatch
 
         await context.Database.ExecuteSqlRawAsync(
             "CREATE UNIQUE INDEX IF NOT EXISTS IX_Visits_AccessCode ON Visits (AccessCode);");
+
+        await AddColumnIfMissingAsync(context, "ALTER TABLE ParkingSpots ADD COLUMN UnitId TEXT NULL;");
+        await AddColumnIfMissingAsync(context, "ALTER TABLE ParkingSpots ADD COLUMN ResidentId TEXT NULL;");
+        await AddColumnIfMissingAsync(context, "ALTER TABLE ResidentVehicles ADD COLUMN ResidentId TEXT NULL;");
+        await AddColumnIfMissingAsync(context, "ALTER TABLE Visits ADD COLUMN ResidentVehicleId TEXT NULL;");
+    }
+
+    private static async Task AddColumnIfMissingAsync(ApplicationDbContext context, string sql)
+    {
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(sql);
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            // The column is already present.
+        }
     }
 }

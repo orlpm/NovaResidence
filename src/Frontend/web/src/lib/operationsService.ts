@@ -74,6 +74,10 @@ export interface ParkingSpotDto {
   condominiumId: string
   code: string
   assignedPlate?: string | null
+  unitId?: string | null
+  residentId?: string | null
+  unitNumber?: string | null
+  residentName?: string | null
 }
 
 export interface VehicleDto {
@@ -84,6 +88,10 @@ export interface VehicleDto {
   brand: string
   color?: string | null
   spotCode?: string | null
+  residentId?: string | null
+  residentName?: string | null
+  unitNumber?: string | null
+  relatedVisits: number
 }
 
 export interface SecurityRoundDto {
@@ -116,6 +124,9 @@ export const parkingService = {
   async createSpot(condominiumId: string, code: string): Promise<void> {
     await apiClient.post('/parking/spots', { condominiumId, code })
   },
+  async assignSpot(spotId: string, residentId: string | null): Promise<void> {
+    await apiClient.put(`/parking/spots/${spotId}/assign`, { residentId })
+  },
   async getVehicles(condominiumId: string): Promise<VehicleDto[]> {
     const response = await apiClient.get<{ data: VehicleDto[] }>(`/parking/vehicles/condominium/${condominiumId}`)
     return response.data.data || []
@@ -124,7 +135,7 @@ export const parkingService = {
     const response = await apiClient.get<{ data: VehicleDto[] }>(`/parking/vehicles/unit/${unitId}`)
     return response.data.data || []
   },
-  async createVehicle(request: { condominiumId: string; unitId: string; plate: string; brand: string; color?: string; spotCode?: string }): Promise<void> {
+  async createVehicle(request: { condominiumId: string; unitId: string; plate: string; brand: string; color?: string; spotCode?: string; residentId?: string }): Promise<void> {
     await apiClient.post('/parking/vehicles', request)
   }
 }

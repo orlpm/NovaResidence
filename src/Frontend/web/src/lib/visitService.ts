@@ -95,6 +95,7 @@ export interface CreateVisitRequest {
   vehicleDescription?: string | null
   purpose?: string | null
   notes?: string | null
+  residentVehicleId?: string | null
 }
 
 export interface UpdateVisitRequest {
@@ -110,6 +111,7 @@ export interface UpdateVisitRequest {
   vehicleDescription?: string | null
   purpose?: string | null
   notes?: string | null
+  residentVehicleId?: string | null
 }
 
 export interface VisitAccessPassDto {

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { 
   Search, 
-  MoreVertical, 
   Eye,
   CheckCircle,
   XCircle,
@@ -13,6 +12,7 @@ import {
   Check,
   AlertTriangle
 } from 'lucide-react'
+import { ActionMenu } from '../../components/ActionMenu'
 import { 
   reservationService, 
   ReservationStatus,
@@ -325,15 +325,12 @@ export default function Reservations() {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="relative inline-block text-left">
-                      <button
-                        onClick={() => setOpenDropdown(openDropdown === reservation.id ? null : reservation.id)}
-                        className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        <MoreVertical className="w-5 h-5 text-gray-400" />
-                      </button>
-                      {openDropdown === reservation.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+                    <ActionMenu
+                      open={openDropdown === reservation.id}
+                      onOpenChange={(next) => setOpenDropdown(next ? reservation.id : null)}
+                      buttonClassName="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                      menuClassName="w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                    >
                           <button
                             onClick={() => { loadReservationDetail(reservation.id); setOpenDropdown(null) }}
                             className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -356,9 +353,7 @@ export default function Reservations() {
                               </button>
                             </>
                           )}
-                        </div>
-                      )}
-                    </div>
+                    </ActionMenu>
                   </td>
                 </tr>
               ))}
@@ -529,10 +524,6 @@ export default function Reservations() {
         </div>
       )}
 
-      {/* Click outside to close dropdown */}
-      {openDropdown && (
-        <div className="fixed inset-0 z-0" onClick={() => setOpenDropdown(null)} />
-      )}
     </div>
   )
 }

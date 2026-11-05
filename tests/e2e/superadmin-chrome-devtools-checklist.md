@@ -8,11 +8,20 @@ Lista manual del plano de control de la plataforma. QuÃ© hace cada servicio estÃ
 - Logged in as SuperAdmin
 
 ## Scope
+- `/superadmin/dashboard`
 - `/superadmin/monitoring`
 - `/superadmin/system`
 - `/superadmin/database`
 
 ## 1) Network Validation (DevTools > Network)
+
+### Dashboard page
+1. Open `/superadmin/dashboard`
+2. Verify requests:
+   - `GET /api/users`
+   - `GET /api/superadmin/monitoring`
+   - Status `200`
+3. Verify no hardcoded dummy metrics appear (`99.97%`, `2.4 GB`, `Backup Manual`, `Sistema Operativo`), and quick actions navigate to `/superadmin/database` and `/superadmin/monitoring`.
 
 ### Monitoring page
 1. Open `/superadmin/monitoring`

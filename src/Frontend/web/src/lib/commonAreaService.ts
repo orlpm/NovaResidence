@@ -84,6 +84,13 @@ export const commonAreaService = {
     return response.data.data
   },
 
+  async uploadImage(file: File): Promise<string> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post<{ data: string }>('/commonareas/upload-image', formData)
+    return response.data.data
+  },
+
   async create(request: CreateCommonAreaRequest): Promise<string> {
     const response = await apiClient.post<{ data: string }>('/commonareas', request)
     return response.data.data

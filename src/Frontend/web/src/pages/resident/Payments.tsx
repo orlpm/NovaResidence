@@ -133,8 +133,8 @@ function Payments() {
       toast.error('Formato no válido. Use JPG, PNG, PDF o WEBP.');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('El archivo no debe superar los 5MB.');
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('El archivo no debe superar 8MB.');
       return;
     }
 

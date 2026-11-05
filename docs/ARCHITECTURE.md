@@ -67,7 +67,7 @@ Al iniciar:
 
 1. Si hay `ConnectionStrings:Postgres` o `ConnectionStrings:Neon`, usa Npgsql. Una URI `postgresql://` se convierte a claves (`Host`, `Username`, `Password`, `Database`, `SSL Mode`) porque el proveedor de EF no acepta la URI. `Npgsql.EnableLegacyTimestampBehavior` queda activo para aceptar `DateTime` sin zona. La app usa la cadena pooled, con reintentos.
 2. Si esa base no tiene `auth."Users"`, crea las tablas del modelo. No usa `EnsureCreated`: una base Neon puede traer tablas de Neon Auth y EF creería que el esquema ya existe. No usa `Database.Migrate()`: las migraciones del repositorio son de SQL Server.
-3. Luego aplica `PostgresSchemaPatch`. Cada cambio tiene un id. La tabla `SchemaPatches` guarda los ya aplicados y no los repite. El primero agrega el folio de recibo y el código QR de la visita.
+3. Luego aplica `PostgresSchemaPatch`. Cada cambio tiene un id. La tabla `SchemaPatches` guarda los ya aplicados y no los repite. `001_payments_receipt_and_visit_access_code` agrega el folio de recibo y el código QR de la visita. `002_parking_resident_and_visit_vehicle` agrega `UnitId` y `ResidentId` en `ParkingSpots`, `ResidentId` en `ResidentVehicles` y `ResidentVehicleId` en `Visits`.
 4. Si no hay cadena de Postgres y `UseSqlite` es true, crea el directorio del archivo, ejecuta `EnsureCreated` y luego `SqliteSchemaPatch`.
 5. Si tampoco hay SQLite, aplica `Database.Migrate()` sobre SQL Server.
 6. Siembra catálogo geográfico, permisos, permisos por rol, planes y plantillas de trámites.
@@ -104,7 +104,7 @@ La campana no recibe siempre el condominio. Lo resuelve con la propiedad, con el
 
 ## Archivos
 
-Mapas, comprobantes de pago y documentos del condominio se guardan bajo `ContentRootPath/uploads` y se publican en `/uploads`. No pasan por Blob Storage. Un deploy que reemplace el contenido del sitio no garantiza conservar esa carpeta si el almacenamiento no está fuera de `wwwroot`.
+Mapas, fotos de áreas comunes, adjuntos de avisos y publicaciones del foro, incidencias, comprobantes de pago y suscripción, y documentos del condominio se guardan bajo `ContentRootPath/uploads` y se publican en `/uploads`, con límite de 8 MB por archivo. Cuando un mapa usa un enlace de Google Maps en lugar de una imagen subida, el cliente muestra el iframe de vista previa y resuelve enlaces cortos con `/api/condominiummaps/resolve-link` restringido a dominios de Google. No pasan por Blob Storage. Un deploy que reemplace el contenido del sitio no garantiza conservar esa carpeta si el almacenamiento no está fuera de `wwwroot`.
 
 ## Correo y pagos
 

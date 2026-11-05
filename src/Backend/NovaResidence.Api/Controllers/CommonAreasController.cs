@@ -15,11 +15,13 @@ public class CommonAreasController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<CommonAreasController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public CommonAreasController(ApplicationDbContext context, ILogger<CommonAreasController> logger)
+    public CommonAreasController(ApplicationDbContext context, ILogger<CommonAreasController> logger, IWebHostEnvironment environment)
     {
         _context = context;
         _logger = logger;
+        _environment = environment;
     }
 
     [HttpGet("condominium/{condominiumId:guid}")]
@@ -189,6 +191,34 @@ public class CommonAreasController : ControllerBase
             _logger.LogError(ex, "Error changing status for common area {CommonAreaId}", id);
             return StatusCode(500, ApiResponse<object>.FailureResponse("Error al cambiar estado de área común"));
         }
+    }
+
+    [HttpPost("upload-image")]
+    [Authorize(Roles = "admin,superadmin")]
+    public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<object>.FailureResponse("No se proporcionó archivo"));
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        if (!allowed.Contains(extension))
+            return BadRequest(ApiResponse<object>.FailureResponse("Formato no permitido. Usa JPG, PNG o WEBP."));
+
+        if (file.Length > 8 * 1024 * 1024)
+            return BadRequest(ApiResponse<object>.FailureResponse("El archivo no debe superar 8MB"));
+
+        var folder = Path.Combine(_environment.ContentRootPath, "uploads", "common-areas");
+        Directory.CreateDirectory(folder);
+        var storedName = $"{Guid.NewGuid()}{extension}";
+        var path = Path.Combine(folder, storedName);
+        await using (var stream = new FileStream(path, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var url = $"{Request.Scheme}://{Request.Host}/uploads/common-areas/{storedName}";
+        return Ok(ApiResponse<string>.SuccessResponse(url));
     }
 
     [HttpDelete("{id:guid}")]

@@ -91,6 +91,21 @@ export default function ResidentCommonAreas() {
                 <Trees className="w-5 h-5 text-green-500" />
               </div>
 
+              {(() => {
+                let urls: string[] = []
+                try {
+                  const parsed = JSON.parse(area.imageUrlsJson || '[]')
+                  urls = Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+                } catch {
+                  urls = []
+                }
+                return urls.length > 0 ? (
+                  <div className="mt-3 flex gap-2 overflow-x-auto">
+                    {urls.map(url => <img key={url} src={url} alt="" className="h-24 w-32 rounded-lg object-cover" />)}
+                  </div>
+                ) : null
+              })()}
+
               {area.description && <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{area.description}</p>}
 
               <div className="mt-4 space-y-1 text-xs text-gray-500 dark:text-gray-400">

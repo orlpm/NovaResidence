@@ -247,19 +247,20 @@ La cita del proveedor no es una visita de caseta. Vive en la agenda y no cambia 
 
 ## 10. Estacionamiento
 
-**Qué se vende.** El padrón de cajones y placas de quien vive ahí.
+**Qué se vende.** El padrón de cajones y placas conectado con el residente y con las visitas.
 
-**Valor.** Administración sabe qué placa corresponde a qué cajón. La placa de un visitante no se convierte en vehículo del residente.
+**Valor.** Administración asigna cajones a cada residente, sabe de quién es cada placa y la identifica también cuando aparece en una visita.
 
 ```mermaid
 flowchart TD
-    A[Administrador abre un cajón] --> B[El código se guarda en mayúsculas]
-    B --> C[Residente registra placa y marca]
-    C --> D{Elige cajón}
-    D -->|Sí| E[El cajón queda asociado a esa placa]
-    D -->|No| F[La placa queda en su padrón]
-    E --> G[Administración ve cajones y vehículos]
+    A[Administrador abre un cajón] --> B[Lo deja libre o lo asigna a un residente]
+    B --> C[Residente registra placa, marca y color]
+    C --> D{Elige un cajón libre o propio}
+    D -->|Sí| E[El cajón queda con su unidad, residente y placa]
+    D -->|No| F[El vehículo queda ligado al residente y su unidad]
+    E --> G[Al crear una visita puede elegir ese vehículo o anotar otra placa]
     F --> G
+    G --> H[Administración ve cajones, vehículos y el residente dueño en visitas]
 ```
 
 ## 11. Áreas comunes y amenidades

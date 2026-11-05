@@ -505,8 +505,8 @@ public class SubscriptionsController : ControllerBase
         if (!allowedExtensions.Contains(ext))
             return BadRequest("Formato de archivo no válido. Use JPG, PNG, PDF o WEBP.");
 
-        if (file.Length > 5 * 1024 * 1024)
-            return BadRequest("El archivo no debe superar los 5MB.");
+        if (file.Length > 8 * 1024 * 1024)
+            return BadRequest("El archivo no debe superar 8MB.");
 
         var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
         var uploadsFolder = Path.Combine(env.ContentRootPath, "uploads", "payment-proofs");

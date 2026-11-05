@@ -10,7 +10,7 @@ Terminal de la API, desde la raíz del repositorio:
 dotnet run --project src/Backend/NovaResidence.Api/NovaResidence.Api.csproj --urls http://localhost:5001
 ```
 
-Hace falta `Jwt:SecretKey` en user-secrets y la cadena de Postgres (`ConnectionStrings:Postgres` o `ConnectionStrings:Neon`). El script `scripts/set-neon-connection.ps1` guarda la cadena sin mostrarla. No hace falta SQL Server ni `dotnet ef database update`. El arranque crea las tablas si faltan, aplica los parches pendientes de `PostgresSchemaPatch` y, en Development, siembra el demo.
+Hace falta `Jwt:SecretKey` en user-secrets y la cadena de Postgres (`ConnectionStrings:Postgres` o `ConnectionStrings:Neon`). No uses `--no-launch-profile` al arrancar la API local, porque sin el perfil `Development` no carga user-secrets. El script `scripts/set-neon-connection.ps1` guarda la cadena sin mostrarla. No hace falta SQL Server ni `dotnet ef database update`. El arranque crea las tablas si faltan, aplica los parches pendientes de `PostgresSchemaPatch` (`001_payments_receipt_and_visit_access_code` y `002_parking_resident_and_visit_vehicle`) y, en Development, siembra el demo.
 
 Terminal del web:
 

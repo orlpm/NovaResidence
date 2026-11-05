@@ -187,8 +187,8 @@ function NewIncident() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen no debe superar los 5MB');
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('La imagen no debe superar 8MB');
       e.target.value = '';
       return;
     }

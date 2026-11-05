@@ -2,6 +2,8 @@ import { useState, useEffect, useId } from 'react';
 import { AlertTriangle, CreditCard, Check, Clock, Building2, ArrowRight, Shield, Star, Zap } from 'lucide-react';
 import { createOpenPayCardToken } from '../../lib/openpay';
 import { subscriptionService, type OpenPayPaymentResult, type SubscriptionPlan, type SubscriptionDetail, type PriceCalculation } from '../../lib/subscriptionService';
+import toast from 'react-hot-toast';
+import { uploadRejection } from '../../lib/uploadLimits';
 
 interface SubscriptionExpiredProps {
   subscriptionInfo?: {
@@ -564,10 +566,22 @@ export default function SubscriptionExpired({ subscriptionInfo }: SubscriptionEx
                 <input
                   type="file"
                   accept=".jpg,.jpeg,.png,.pdf,.webp"
-                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const next = e.target.files?.[0] ?? null
+                    if (next) {
+                      const rejection = uploadRejection(next, ['jpg', 'jpeg', 'png', 'pdf', 'webp'])
+                      if (rejection) {
+                        toast.error(rejection)
+                        e.target.value = ''
+                        setProofFile(null)
+                        return
+                      }
+                    }
+                    setProofFile(next)
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-white hover:file:bg-blue-700"
                 />
-                <p className="mt-1 text-xs text-gray-500">Formatos permitidos: JPG, PNG, PDF o WEBP. Máximo 5 MB.</p>
+                <p className="mt-1 text-xs text-gray-500">Formatos permitidos: JPG, PNG, PDF o WEBP. Máximo 8MB.</p>
                 {proofFile && <p className="mt-2 text-sm text-blue-600 dark:text-blue-400">Archivo seleccionado: {proofFile.name}</p>}
               </div>
               )}

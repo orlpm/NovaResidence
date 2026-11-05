@@ -3,7 +3,6 @@ import {
   Plus, 
   Search, 
   Filter, 
-  MoreVertical, 
   Edit2, 
   Trash2, 
   ToggleLeft, 
@@ -13,6 +12,7 @@ import {
   DollarSign,
   X
 } from 'lucide-react'
+import { ActionMenu } from '../../components/ActionMenu'
 import { 
   amenityService, 
   type AmenityListDto, 
@@ -250,17 +250,13 @@ export default function Amenities() {
                       <p className={`text-sm ${config.color}`}>{amenity.type}</p>
                     </div>
                   </div>
-                  <div className="relative">
-                    <button
-                      onClick={() => setOpenDropdown(openDropdown === amenity.id ? null : amenity.id)}
-                      className="p-2 hover:bg-white/50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                    >
-                      <MoreVertical className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                    </button>
-                    
-                    {/* Dropdown Menu */}
-                    {openDropdown === amenity.id && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                  <ActionMenu
+                    open={openDropdown === amenity.id}
+                    onOpenChange={(next) => setOpenDropdown(next ? amenity.id : null)}
+                    buttonClassName="p-2 hover:bg-white/50 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    iconClassName="w-5 h-5 text-gray-600 dark:text-gray-400"
+                    menuClassName="w-48 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+                  >
                         <button
                           onClick={() => {
                             setSelectedAmenity(amenity)
@@ -299,9 +295,7 @@ export default function Amenities() {
                           <Trash2 className="w-4 h-4" />
                           Eliminar
                         </button>
-                      </div>
-                    )}
-                  </div>
+                  </ActionMenu>
                 </div>
                 
                 {/* Card Body */}

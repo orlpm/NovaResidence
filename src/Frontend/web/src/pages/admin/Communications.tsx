@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { 
   Plus, 
-  MoreVertical, 
   Edit2, 
   Trash2, 
   Eye,
@@ -46,8 +45,12 @@ import {
   type MeetingQuorumDto
 } from '../../lib/communicationsService'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { ActionMenu } from '../../components/ActionMenu'
 import { residentService } from '../../lib/residentService'
 import { PERMISSIONS } from '../../config/permissions'
+import { uploadRejection } from '../../lib/uploadLimits'
+
+const attachmentExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'txt']
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -68,6 +71,7 @@ export default function Communications() {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
   const [showDeleteAnnouncementModal, setShowDeleteAnnouncementModal] = useState(false)
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementDto | null>(null)
+  const [announcementFiles, setAnnouncementFiles] = useState<File[]>([])
   const [announcementForm, setAnnouncementForm] = useState<CreateAnnouncementRequest>({
     condominiumId: '',
     title: '',
@@ -115,6 +119,7 @@ export default function Communications() {
   const [showForumModal, setShowForumModal] = useState(false)
   const [showDeleteForumModal, setShowDeleteForumModal] = useState(false)
   const [selectedForumPost, setSelectedForumPost] = useState<ForumPostDto | null>(null)
+  const [forumFiles, setForumFiles] = useState<File[]>([])
   const [forumForm, setForumForm] = useState<CreateForumPostRequest>({
     condominiumId: '',
     authorId: '',
@@ -202,16 +207,39 @@ export default function Communications() {
     setTimeout(() => setSuccessMessage(null), 3000)
   }
 
+  const chooseFiles = (list: FileList | null, current: File[], setFiles: (files: File[]) => void) => {
+    const accepted = [...current]
+    for (const file of Array.from(list ?? [])) {
+      const rejection = uploadRejection(file, attachmentExtensions)
+      if (rejection) {
+        setError(`${file.name}: ${rejection}`)
+        continue
+      }
+      accepted.push(file)
+    }
+    setFiles(accepted)
+  }
+
+  const attachFiles = async (kind: 'announcement' | 'forum', id: string, files: File[]) => {
+    for (const file of files) {
+      const uploaded = await communicationsService.uploadAttachment(file)
+      if (kind === 'announcement') {
+        await communicationsService.addAnnouncementAttachment(id, uploaded)
+      } else {
+        await communicationsService.addForumAttachment(id, uploaded)
+      }
+    }
+  }
+
   // ========== ANNOUNCEMENT HANDLERS ==========
   const handleCreateAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await communicationsService.createAnnouncement({
+      const announcementId = await communicationsService.createAnnouncement({
         ...announcementForm,
         condominiumId: selectedCondominium
       })
-      setShowAnnouncementModal(false)
-      resetAnnouncementForm()
+      await attachFiles('announcement', announcementId, announcementFiles)
       loadDataForTab()
       showSuccess('Aviso creado exitosamente')
     } catch { setError('Error al crear aviso') }
@@ -230,6 +258,9 @@ export default function Communications() {
         meetingDate: announcementForm.meetingDate,
         meetingLocation: announcementForm.meetingLocation
       })
+      setShowAnnouncementModal(false)
+      resetAnnouncementForm()
+      await attachFiles('announcement', selectedAnnouncement.id, announcementFiles)
       setShowAnnouncementModal(false)
       resetAnnouncementForm()
       loadDataForTab()
@@ -274,7 +305,7 @@ export default function Communications() {
       type: AnnouncementType.General,
       priority: AnnouncementPriority.Normal
     })
-    setSelectedAnnouncement(null)
+    setAnnouncementFiles([])
   }
 
   // ========== POLL HANDLERS ==========
@@ -503,14 +534,13 @@ export default function Communications() {
   const handleCreateForumPost = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await communicationsService.createForumPost({
+      const postId = await communicationsService.createForumPost({
         ...forumForm,
         condominiumId: selectedCondominium,
         authorId: user?.id || '',
         authorName: user?.firstName ? `${user.firstName} ${user.lastName || ''}` : 'Admin'
       })
-      setShowForumModal(false)
-      resetForumForm()
+      await attachFiles('forum', postId, forumFiles)
       loadDataForTab()
       showSuccess('Publicación creada exitosamente')
     } catch { setError('Error al crear publicación') }
@@ -526,6 +556,9 @@ export default function Communications() {
         category: forumForm.category,
         allowComments: forumForm.allowComments ?? true
       })
+      setShowForumModal(false)
+      resetForumForm()
+      await attachFiles('forum', selectedForumPost.id, forumFiles)
       setShowForumModal(false)
       resetForumForm()
       loadDataForTab()
@@ -599,7 +632,7 @@ export default function Communications() {
       category: ForumCategory.General,
       allowComments: true
     })
-    setSelectedForumPost(null)
+    setForumFiles([])
   }
 
   // ========== HELPER FUNCTIONS ==========
@@ -770,7 +803,7 @@ export default function Communications() {
                 )}
               </div>
 
-              <div className="overflow-hidden">
+              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
@@ -788,6 +821,13 @@ export default function Communications() {
                         <td className="px-6 py-4">
                           <div className="font-medium text-gray-900 dark:text-white">{announcement.title}</div>
                           <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">{announcement.content}</div>
+                          {(announcement.attachments ?? []).length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              {announcement.attachments.map(file => (
+                                <a key={file.id} href={file.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-sky-600">{file.fileName}</a>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-900 dark:text-gray-300">{announcement.typeName}</span>
@@ -809,15 +849,10 @@ export default function Communications() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           {(canEditAnnouncements || canPublishAnnouncements || canDeleteAnnouncements) && (
-                            <div className="relative">
-                              <button
-                                onClick={() => setOpenDropdown(openDropdown === announcement.id ? null : announcement.id)}
-                                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                              >
-                                <MoreVertical className="w-5 h-5 text-gray-400" />
-                              </button>
-                              {openDropdown === announcement.id && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                            <ActionMenu
+                              open={openDropdown === announcement.id}
+                              onOpenChange={(next) => setOpenDropdown(next ? announcement.id : null)}
+                            >
                                   {canEditAnnouncements && (
                                     <button
                                       onClick={() => {
@@ -868,9 +903,7 @@ export default function Communications() {
                                       <Trash2 className="w-4 h-4" /> Eliminar
                                     </button>
                                   )}
-                                </div>
-                              )}
-                            </div>
+                            </ActionMenu>
                           )}
                         </td>
                       </tr>
@@ -925,15 +958,11 @@ export default function Communications() {
                           </button>
                         )}
                         {(canViewPollResults || canManagePolls) && (
-                          <div className="relative">
-                            <button
-                              onClick={() => setOpenDropdown(openDropdown === poll.id ? null : poll.id)}
-                              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                            >
-                              <MoreVertical className="w-5 h-5 text-gray-400" />
-                            </button>
-                            {openDropdown === poll.id && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                          <ActionMenu
+                            open={openDropdown === poll.id}
+                            onOpenChange={(next) => setOpenDropdown(next ? poll.id : null)}
+                            buttonClassName="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                          >
                                 {canViewPollResults && (
                                   <button
                                     onClick={() => openPollResults(poll)}
@@ -999,9 +1028,7 @@ export default function Communications() {
                                     <Trash2 className="w-4 h-4" /> Eliminar
                                   </button>
                                 )}
-                              </div>
-                            )}
-                          </div>
+                          </ActionMenu>
                         )}
                       </div>
                     </div>
@@ -1086,21 +1113,22 @@ export default function Communications() {
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{meeting.description}</p>
                       </div>
                       {(canViewMeetings || canManageMeetings) && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setOpenDropdown(openDropdown === meeting.id ? null : meeting.id)}
-                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                          >
-                            <MoreVertical className="w-5 h-5 text-gray-400" />
-                          </button>
-                          {openDropdown === meeting.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                        <ActionMenu
+                          open={openDropdown === meeting.id}
+                          onOpenChange={(next) => setOpenDropdown(next ? meeting.id : null)}
+                          buttonClassName="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                        >
+                              {canViewMeetings && (
                               <button
-                                onClick={() => { openMeetingDetail(meeting); setOpenDropdown(null) }}
+                                onClick={() => {
+                                  openMeetingDetail(meeting)
+                                  setOpenDropdown(null)
+                                }}
                                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                               >
                                 <Eye className="w-4 h-4" /> Ver Detalle
                               </button>
+                              )}
                               {canManageMeetings && meeting.status === MeetingStatus.Scheduled && (
                               <>
                                 <button
@@ -1158,9 +1186,7 @@ export default function Communications() {
                                   <Trash2 className="w-4 h-4" /> Eliminar
                                 </button>
                               )}
-                            </div>
-                          )}
-                        </div>
+                        </ActionMenu>
                       )}
                     </div>
 
@@ -1273,15 +1299,11 @@ export default function Communications() {
                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{post.content}</p>
                       </div>
                       {(canPostForum || canModerateForum) && (
-                        <div className="relative">
-                          <button
-                            onClick={() => setOpenDropdown(openDropdown === post.id ? null : post.id)}
-                            className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                          >
-                            <MoreVertical className="w-5 h-5 text-gray-400" />
-                          </button>
-                          {openDropdown === post.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                        <ActionMenu
+                          open={openDropdown === post.id}
+                          onOpenChange={(next) => setOpenDropdown(next ? post.id : null)}
+                          buttonClassName="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                        >
                               {canPostForum && (
                                 <button
                                   onClick={() => {
@@ -1354,9 +1376,7 @@ export default function Communications() {
                                   <Trash2 className="w-4 h-4" /> Eliminar
                                 </button>
                               )}
-                            </div>
-                          )}
-                        </div>
+                        </ActionMenu>
                       )}
                     </div>
 
@@ -1498,6 +1518,28 @@ export default function Communications() {
                 )}
               </div>
               <div className="mt-6 flex justify-end gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Archivos</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+                    className="w-full text-sm"
+                    onChange={(event) => {
+                      chooseFiles(event.target.files, announcementFiles, setAnnouncementFiles)
+                      event.target.value = ''
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">PDF, JPG, PNG, WEBP o TXT. Cada archivo hasta 8MB.</p>
+                  {announcementFiles.length > 0 && <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">{announcementFiles.map(file => file.name).join(', ')}</p>}
+                  {(selectedAnnouncement?.attachments ?? []).length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {selectedAnnouncement?.attachments.map(file => (
+                        <a key={file.id} href={file.fileUrl} target="_blank" rel="noreferrer" className="block text-sm text-sky-600">{file.fileName}</a>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button type="button" onClick={() => { setShowAnnouncementModal(false); resetAnnouncementForm() }} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                   Cancelar
                 </button>
@@ -1827,6 +1869,21 @@ export default function Communications() {
                 </div>
               </div>
               <div className="mt-6 flex justify-end gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Archivos</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+                    className="w-full text-sm"
+                    onChange={(event) => {
+                      chooseFiles(event.target.files, forumFiles, setForumFiles)
+                      event.target.value = ''
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">PDF, JPG, PNG, WEBP o TXT. Cada archivo hasta 8MB.</p>
+                  {forumFiles.length > 0 && <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">{forumFiles.map(file => file.name).join(', ')}</p>}
+                </div>
                 <button type="button" onClick={() => { setShowForumModal(false); resetForumForm() }} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
                   Cancelar
                 </button>
@@ -2083,6 +2140,7 @@ export default function Communications() {
 
             <div className="mt-6 flex justify-end">
               <button onClick={() => setShowMeetingDetailModal(false)} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                Cerrar
               </button>
             </div>
           </div>

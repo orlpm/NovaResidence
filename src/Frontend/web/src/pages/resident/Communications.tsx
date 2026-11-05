@@ -29,6 +29,7 @@ import {
 } from '../../lib/communicationsService'
 import { residentService } from '../../lib/residentService'
 import { useAuthStore } from '../../stores/authStore'
+import { uploadRejection } from '../../lib/uploadLimits'
 
 type TabType = 'announcements' | 'polls' | 'meetings' | 'forum'
 
@@ -67,6 +68,7 @@ export default function ResidentCommunications() {
     category: ForumCategory.General
   })
   const [newComment, setNewComment] = useState('')
+  const [postFiles, setPostFiles] = useState<File[]>([])
 
   useEffect(() => { 
     loadResidentInfo() 
@@ -717,6 +719,13 @@ export default function ResidentCommunications() {
                 <div className="space-y-4">
                   {selectedForumPost.comments?.map((comment) => (
                     <div key={comment.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                {(selectedForumPost.attachments ?? []).length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {selectedForumPost.attachments.map(file => (
+                      <a key={file.id} href={file.fileUrl} target="_blank" rel="noreferrer" className="block text-sm text-sky-600">{file.fileName}</a>
+                    ))}
+                  </div>
+                )}
                       <p className="text-gray-700 dark:text-gray-300">{comment.content}</p>
                       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                         {comment.authorName} • {formatDate(comment.createdAt)}
@@ -813,6 +822,30 @@ export default function ResidentCommunications() {
                   type="submit" 
                   className="px-4 py-2 bg-gradient-to-r from-sky-500 to-blue-600 text-white rounded-xl font-medium shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40 transition-all"
                 >
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Archivos</label>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+                    className="w-full text-sm"
+                    onChange={(event) => {
+                      const accepted = [...postFiles]
+                      for (const file of Array.from(event.target.files ?? [])) {
+                        const rejection = uploadRejection(file, ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'txt'])
+                        if (rejection) {
+                          setError(`${file.name}: ${rejection}`)
+                          continue
+                        }
+                        accepted.push(file)
+                      }
+                      setPostFiles(accepted)
+                      event.target.value = ''
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">PDF, JPG, PNG, WEBP o TXT. Cada archivo hasta 8MB.</p>
+                  {postFiles.length > 0 && <p className="mt-1 text-sm text-sky-700 dark:text-sky-300">{postFiles.map(file => file.name).join(', ')}</p>}
+                </div>
                   Publicar
                 </button>
               </div>

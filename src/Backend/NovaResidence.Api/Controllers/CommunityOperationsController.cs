@@ -117,8 +117,81 @@ public class ParkingController : ControllerBase
             .Where(item => item.CondominiumId == condominiumId)
             .OrderBy(item => item.Code)
             .ToListAsync();
-        return Ok(ApiResponse<List<ParkingSpotDto>>.SuccessResponse(items.Select(item =>
-            new ParkingSpotDto(item.Id, item.CondominiumId, item.Code, item.AssignedPlate)).ToList()));
+        var residentIds = items.Where(item => item.ResidentId.HasValue).Select(item => item.ResidentId!.Value).Distinct().ToList();
+        var residents = await _context.Residents.AsNoTracking()
+            .Where(resident => residentIds.Contains(resident.Id))
+            .Select(resident => new { resident.Id, resident.FirstName, resident.LastName, resident.UnitId })
+            .ToListAsync();
+        var unitIds = items.Where(item => item.UnitId.HasValue).Select(item => item.UnitId!.Value)
+            .Concat(residents.Select(resident => resident.UnitId))
+            .Distinct()
+            .ToList();
+        var units = await _context.Units.AsNoTracking()
+            .Where(unit => unitIds.Contains(unit.Id))
+            .Select(unit => new { unit.Id, unit.UnitNumber })
+            .ToListAsync();
+
+        var result = items.Select(item =>
+        {
+            var resident = residents.FirstOrDefault(entry => entry.Id == item.ResidentId);
+            var unitId = item.UnitId ?? resident?.UnitId;
+            var unit = units.FirstOrDefault(entry => entry.Id == unitId);
+            var name = resident == null ? null : $"{resident.FirstName} {resident.LastName}".Trim();
+            return new ParkingSpotDto(item.Id, item.CondominiumId, item.Code, item.AssignedPlate, unitId, item.ResidentId, unit?.UnitNumber, name);
+        }).ToList();
+        return Ok(ApiResponse<List<ParkingSpotDto>>.SuccessResponse(result));
+    }
+
+    [HttpPut("spots/{id:guid}/assign")]
+    [Authorize(Roles = "admin,superadmin")]
+    public async Task<IActionResult> AssignSpot(Guid id, [FromBody] AssignSpotRequest request)
+    {
+        var spot = await _context.ParkingSpots.FirstOrDefaultAsync(item => item.Id == id);
+        if (spot == null)
+            return NotFound(ApiResponse<object>.FailureResponse("Cajón no encontrado"));
+        if (!await _tenantAccess.CanAccessCondominiumAsync(User, spot.CondominiumId))
+            return Forbid();
+
+        var parked = await _context.ResidentVehicles
+            .Where(item => item.CondominiumId == spot.CondominiumId && item.SpotCode == spot.Code)
+            .ToListAsync();
+        foreach (var parkedVehicle in parked)
+            parkedVehicle.ParkAt(null);
+
+        if (!request.ResidentId.HasValue)
+        {
+            spot.Release();
+            await _context.SaveChangesAsync();
+            return Ok(ApiResponse<object>.SuccessResponse(null!, "Cajón liberado"));
+        }
+
+        var resident = await _context.Residents.FirstOrDefaultAsync(item => item.Id == request.ResidentId && item.IsActive);
+        if (resident == null)
+            return BadRequest(ApiResponse<object>.FailureResponse("Residente no encontrado"));
+
+        var belongs = await (
+            from unit in _context.Units
+            join building in _context.Buildings on unit.BuildingId equals building.Id
+            where unit.Id == resident.UnitId && building.CondominiumId == spot.CondominiumId
+            select unit.Id).AnyAsync();
+        if (!belongs)
+            return BadRequest(ApiResponse<object>.FailureResponse("El residente no pertenece a este condominio"));
+
+        var vehicle = await _context.ResidentVehicles
+            .Where(item => item.UnitId == resident.UnitId && (item.ResidentId == resident.Id || item.ResidentId == null))
+            .OrderBy(item => item.Plate)
+            .FirstOrDefaultAsync();
+        var previousCode = vehicle?.SpotCode;
+        vehicle?.ParkAt(spot.Code);
+        if (!string.IsNullOrWhiteSpace(previousCode) && previousCode != spot.Code)
+        {
+            var previous = await _context.ParkingSpots.FirstOrDefaultAsync(item =>
+                item.CondominiumId == spot.CondominiumId && item.Code == previousCode && item.ResidentId == resident.Id);
+            previous?.Release();
+        }
+        spot.AssignToResident(resident.UnitId, resident.Id, vehicle?.Plate);
+        await _context.SaveChangesAsync();
+        return Ok(ApiResponse<object>.SuccessResponse(null!, "Cajón asignado"));
     }
 
     [HttpPost("spots")]
@@ -144,7 +217,7 @@ public class ParkingController : ControllerBase
             .Where(item => item.CondominiumId == condominiumId)
             .OrderBy(item => item.Plate)
             .ToListAsync();
-        return Ok(ApiResponse<List<VehicleDto>>.SuccessResponse(items.Select(MapVehicle).ToList()));
+        return Ok(ApiResponse<List<VehicleDto>>.SuccessResponse(await MapVehiclesAsync(items)));
     }
 
     [HttpGet("vehicles/unit/{unitId:guid}")]
@@ -157,7 +230,7 @@ public class ParkingController : ControllerBase
             .Where(item => item.UnitId == unitId)
             .OrderBy(item => item.Plate)
             .ToListAsync();
-        return Ok(ApiResponse<List<VehicleDto>>.SuccessResponse(items.Select(MapVehicle).ToList()));
+        return Ok(ApiResponse<List<VehicleDto>>.SuccessResponse(await MapVehiclesAsync(items)));
     }
 
     [HttpPost("vehicles")]
@@ -167,24 +240,89 @@ public class ParkingController : ControllerBase
             || !await _tenantAccess.CanAccessUnitAsync(User, request.UnitId))
             return Forbid();
 
+        if (request.ResidentId.HasValue)
+        {
+            var ownsUnit = await _context.Residents.AnyAsync(item =>
+                item.Id == request.ResidentId && item.UnitId == request.UnitId && item.IsActive);
+            if (!ownsUnit)
+                return BadRequest(ApiResponse<object>.FailureResponse("El residente no pertenece a la unidad"));
+        }
+
+        var residentId = request.ResidentId ?? await ResidentIdForCurrentUserAsync(request.UnitId);
         var vehicle = ResidentVehicle.Create(
-            request.CondominiumId, request.UnitId, request.Plate, request.Brand, request.Color, request.SpotCode);
+            request.CondominiumId, request.UnitId, request.Plate, request.Brand, request.Color, request.SpotCode, residentId);
         _context.ResidentVehicles.Add(vehicle);
 
-        if (!string.IsNullOrWhiteSpace(request.SpotCode))
+        if (!string.IsNullOrWhiteSpace(vehicle.SpotCode))
         {
-            var code = request.SpotCode.Trim().ToUpperInvariant();
             var spot = await _context.ParkingSpots.FirstOrDefaultAsync(item =>
-                item.CondominiumId == request.CondominiumId && item.Code == code);
-            spot?.Assign(vehicle.Plate);
+                item.CondominiumId == request.CondominiumId && item.Code == vehicle.SpotCode);
+            if (spot?.ResidentId != null && spot.ResidentId != residentId)
+                return BadRequest(ApiResponse<object>.FailureResponse("El cajón ya está asignado a otro residente"));
+            if (spot != null && residentId.HasValue)
+                spot.AssignToResident(request.UnitId, residentId.Value, vehicle.Plate);
+            else
+                spot?.Assign(vehicle.Plate);
         }
 
         await _context.SaveChangesAsync();
         return Ok(ApiResponse<Guid>.SuccessResponse(vehicle.Id, "Vehículo registrado"));
     }
 
-    private static VehicleDto MapVehicle(ResidentVehicle item) =>
-        new(item.Id, item.CondominiumId, item.UnitId, item.Plate, item.Brand, item.Color, item.SpotCode);
+    private async Task<Guid?> ResidentIdForCurrentUserAsync(Guid unitId)
+    {
+        var value = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(value, out var userId))
+            return null;
+        return await _context.Residents.AsNoTracking()
+            .Where(item => item.UnitId == unitId && item.UserId == userId && item.IsActive)
+            .Select(item => (Guid?)item.Id)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task<List<VehicleDto>> MapVehiclesAsync(List<ResidentVehicle> items)
+    {
+        if (items.Count == 0)
+            return [];
+
+        var condominiumId = items[0].CondominiumId;
+        var residentIds = items.Where(item => item.ResidentId.HasValue).Select(item => item.ResidentId!.Value).Distinct().ToList();
+        var residents = await _context.Residents.AsNoTracking()
+            .Where(resident => residentIds.Contains(resident.Id))
+            .Select(resident => new { resident.Id, resident.FirstName, resident.LastName })
+            .ToListAsync();
+        var unitIds = items.Select(item => item.UnitId).Distinct().ToList();
+        var units = await _context.Units.AsNoTracking()
+            .Where(unit => unitIds.Contains(unit.Id))
+            .Select(unit => new { unit.Id, unit.UnitNumber })
+            .ToListAsync();
+        var plates = await _context.Visits.AsNoTracking()
+            .Where(visit => visit.CondominiumId == condominiumId && visit.VehiclePlate != null)
+            .Select(visit => visit.VehiclePlate!)
+            .ToListAsync();
+        var visitCounts = plates
+            .GroupBy(plate => plate.Trim().ToUpperInvariant())
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        return items.Select(item =>
+        {
+            var resident = residents.FirstOrDefault(entry => entry.Id == item.ResidentId);
+            var unit = units.FirstOrDefault(entry => entry.Id == item.UnitId);
+            visitCounts.TryGetValue(item.Plate, out var relatedVisits);
+            return new VehicleDto(
+                item.Id,
+                item.CondominiumId,
+                item.UnitId,
+                item.Plate,
+                item.Brand,
+                item.Color,
+                item.SpotCode,
+                item.ResidentId,
+                resident == null ? null : $"{resident.FirstName} {resident.LastName}".Trim(),
+                unit?.UnitNumber,
+                relatedVisits);
+        }).ToList();
+    }
 }
 
 [ApiController]
@@ -295,10 +433,11 @@ public class FinesController : ControllerBase
 
 public record PackageDto(Guid Id, Guid CondominiumId, Guid UnitId, string UnitNumber, string Carrier, string Description, string? TrackingCode, int Status, string StatusName, DateTime ReceivedAt);
 public record CreatePackageRequest(Guid CondominiumId, Guid UnitId, string Carrier, string Description, string? TrackingCode);
-public record ParkingSpotDto(Guid Id, Guid CondominiumId, string Code, string? AssignedPlate);
+public record ParkingSpotDto(Guid Id, Guid CondominiumId, string Code, string? AssignedPlate, Guid? UnitId, Guid? ResidentId, string? UnitNumber, string? ResidentName);
 public record CreateSpotRequest(Guid CondominiumId, string Code);
-public record VehicleDto(Guid Id, Guid CondominiumId, Guid UnitId, string Plate, string Brand, string? Color, string? SpotCode);
-public record CreateVehicleRequest(Guid CondominiumId, Guid UnitId, string Plate, string Brand, string? Color, string? SpotCode);
+public record AssignSpotRequest(Guid? ResidentId);
+public record VehicleDto(Guid Id, Guid CondominiumId, Guid UnitId, string Plate, string Brand, string? Color, string? SpotCode, Guid? ResidentId, string? ResidentName, string? UnitNumber, int RelatedVisits);
+public record CreateVehicleRequest(Guid CondominiumId, Guid UnitId, string Plate, string Brand, string? Color, string? SpotCode, Guid? ResidentId = null);
 public record SecurityRoundDto(Guid Id, Guid CondominiumId, string Area, string Notes, DateTime StartedAt);
 public record CreateRoundRequest(Guid CondominiumId, string Area, string Notes);
 public record CreateFineRequest(Guid CondominiumId, Guid UnitId, string Concept, decimal Amount, string? Description);

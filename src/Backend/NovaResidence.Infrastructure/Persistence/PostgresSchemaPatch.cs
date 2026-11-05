@@ -20,6 +20,14 @@ public static class PostgresSchemaPatch
             ALTER TABLE "Payments" ADD COLUMN IF NOT EXISTS "ReceiptNumber" text NULL;
             ALTER TABLE "Visits" ADD COLUMN IF NOT EXISTS "AccessCode" character varying(12) NULL;
             CREATE UNIQUE INDEX IF NOT EXISTS "IX_Visits_AccessCode" ON "Visits" ("AccessCode");
+            """),
+        new(
+            "002_parking_resident_and_visit_vehicle",
+            """
+            ALTER TABLE "ParkingSpots" ADD COLUMN IF NOT EXISTS "UnitId" uuid NULL;
+            ALTER TABLE "ParkingSpots" ADD COLUMN IF NOT EXISTS "ResidentId" uuid NULL;
+            ALTER TABLE "ResidentVehicles" ADD COLUMN IF NOT EXISTS "ResidentId" uuid NULL;
+            ALTER TABLE "Visits" ADD COLUMN IF NOT EXISTS "ResidentVehicleId" uuid NULL;
             """)
     ];
 

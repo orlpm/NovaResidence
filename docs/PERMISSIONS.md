@@ -374,13 +374,9 @@ Configura permiso de rol para un condominio
 }
 ```
 
-## 📦 Migraciones
+## 📦 Esquema y Seeders
 
-```bash
-# Backend ya tiene la migración aplicada
-dotnet ef migrations add AddPermissionSystem --project Infrastructure --startup-project API
-dotnet ef database update --project Infrastructure --startup-project API
-```
+En Postgres (Neon), las tablas se crean en el primer arranque con `CreateTables` y los cambios posteriores entran por `PostgresSchemaPatch` (no se ejecuta `dotnet ef database update` contra Neon). Al iniciar, `PermissionSeeder` y `RolePermissionSeeder` pueblan los permisos y asignaciones por rol.
 
 ### Tablas Creadas
 - `auth.Permissions` - 66 permisos predefinidos
@@ -390,9 +386,9 @@ dotnet ef database update --project Infrastructure --startup-project API
 
 ## 🧪 Testing
 
-### Backend (Swagger)
+### Backend (Swagger en Development)
 ```
-1. Navigate to https://localhost:7001/swagger
+1. Navigate to http://localhost:5001/swagger
 2. Authorize with JWT token
 3. Test endpoints:
    - GET /api/permissions → Ver 66 permisos

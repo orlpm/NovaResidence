@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Car, FileText, Mail, Phone, Save, User, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { VisitStatus, VisitType, visitService, visitTypeNames, type VisitDetailDto } from '../../lib/visitService'
+import { parkingService, type VehicleDto } from '../../lib/operationsService'
 
 function toLocalDateTime(dateValue?: string | null): string {
   if (!dateValue) return ''
@@ -19,6 +20,8 @@ export default function EditVisit() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [visit, setVisit] = useState<VisitDetailDto | null>(null)
+  const [vehicles, setVehicles] = useState<VehicleDto[]>([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState('')
   const [formData, setFormData] = useState({
     visitorName: '',
     visitorIdentification: '',
@@ -51,6 +54,10 @@ export default function EditVisit() {
       }
 
       setVisit(data)
+      const unitVehicles = await parkingService.getUnitVehicles(data.unitId)
+      setVehicles(unitVehicles)
+      const matched = unitVehicles.find(item => item.plate.trim().toUpperCase() === (data.vehiclePlate || '').trim().toUpperCase())
+      setSelectedVehicleId(matched?.id || '')
       setFormData({
         visitorName: data.visitorName || '',
         visitorIdentification: data.visitorIdentification || '',
@@ -116,6 +123,7 @@ export default function EditVisit() {
         visitorCount: formData.visitorCount,
         vehiclePlate: formData.vehiclePlate || null,
         vehicleDescription: formData.vehicleDescription || null,
+        residentVehicleId: selectedVehicleId || null,
         purpose: formData.purpose || null,
         notes: formData.notes || null
       })
@@ -229,6 +237,29 @@ export default function EditVisit() {
             Vehículo (Opcional)
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Vehículo registrado</label>
+              <select
+                value={selectedVehicleId}
+                onChange={e => {
+                  const vehicleId = e.target.value
+                  setSelectedVehicleId(vehicleId)
+                  const vehicle = vehicles.find(item => item.id === vehicleId)
+                  if (!vehicle) return
+                  setFormData(prev => ({
+                    ...prev,
+                    vehiclePlate: vehicle.plate,
+                    vehicleDescription: [vehicle.brand, vehicle.color].filter(Boolean).join(' ')
+                  }))
+                }}
+                className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              >
+                <option value="">Otro vehículo, capturar placa</option>
+                {vehicles.map(item => (
+                  <option key={item.id} value={item.id}>{item.plate} · {item.brand}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">Placa</label>
               <input

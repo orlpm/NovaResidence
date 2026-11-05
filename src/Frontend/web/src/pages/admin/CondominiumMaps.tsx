@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Layers, Plus, Trash2, MapPin, Eye, ExternalLink } from 'lucide-react'
+import { Layers, Plus, Trash2, MapPin, Eye } from 'lucide-react'
+import { MapBackground } from '../../components/MapBackground'
+import { isGoogleMapsLink } from '../../lib/mapsPreview'
 import toast from 'react-hot-toast'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
@@ -26,18 +28,7 @@ const markerDefaults: CreateCondominiumMapMarkerRequest = {
   externalReference: ''
 }
 
-type MapBackgroundSource = 'imageUrl' | 'upload' | 'mapsLink'
-
-const isMapsLink = (url?: string | null) => {
-  if (!url) return false
-  const lower = url.toLowerCase()
-  return lower.includes('google.com/maps') || lower.includes('maps.app.goo.gl')
-}
-
-const isEmbeddableMapsUrl = (url?: string | null) => {
-  if (!url) return false
-  return url.includes('/maps/embed') || url.includes('/maps?')
-}
+type MapBackgroundSource = 'upload' | 'mapsLink'
 
 export default function CondominiumMaps() {
   const { user } = useAuthStore()
@@ -50,7 +41,7 @@ export default function CondominiumMaps() {
 
   const [showMapForm, setShowMapForm] = useState(false)
   const [showMarkerForm, setShowMarkerForm] = useState(false)
-  const [mapBackgroundSource, setMapBackgroundSource] = useState<MapBackgroundSource>('imageUrl')
+  const [mapBackgroundSource, setMapBackgroundSource] = useState<MapBackgroundSource>('upload')
   const [mapBackgroundFile, setMapBackgroundFile] = useState<File | null>(null)
   const [mapBackgroundMapsLink, setMapBackgroundMapsLink] = useState('')
   const [uploadingBackground, setUploadingBackground] = useState(false)
@@ -134,14 +125,15 @@ export default function CondominiumMaps() {
     }
 
     try {
-      let backgroundImageUrl = (mapForm.backgroundImageUrl || '').trim()
+      let backgroundImageUrl = ''
 
       if (mapBackgroundSource === 'mapsLink') {
-        if (!mapBackgroundMapsLink.trim()) {
-          toast.error('Ingresa el link de Google Maps')
+        const mapsLink = mapBackgroundMapsLink.trim()
+        if (!isGoogleMapsLink(mapsLink)) {
+          toast.error('Pega un enlace de Google Maps')
           return
         }
-        backgroundImageUrl = mapBackgroundMapsLink.trim()
+        backgroundImageUrl = mapsLink
       }
 
       if (mapBackgroundSource === 'upload') {
@@ -170,7 +162,7 @@ export default function CondominiumMaps() {
         scopeReference: '',
         backgroundImageUrl: ''
       })
-      setMapBackgroundSource('imageUrl')
+      setMapBackgroundSource('upload')
       setMapBackgroundFile(null)
       setMapBackgroundMapsLink('')
       await loadMaps(selectedCondominium)
@@ -277,22 +269,7 @@ export default function CondominiumMaps() {
 
         <div className="xl:col-span-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="relative rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 aspect-[16/9] overflow-hidden">
-            {mapDetail?.backgroundImageUrl && !isMapsLink(mapDetail.backgroundImageUrl) && (
-              <img src={mapDetail.backgroundImageUrl} alt="map" className="absolute inset-0 w-full h-full object-cover opacity-70" />
-            )}
-
-            {mapDetail?.backgroundImageUrl && isMapsLink(mapDetail.backgroundImageUrl) && (
-              isEmbeddableMapsUrl(mapDetail.backgroundImageUrl)
-                ? <iframe src={mapDetail.backgroundImageUrl} className="absolute inset-0 w-full h-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <a href={mapDetail.backgroundImageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/90 text-sky-700 font-semibold border border-sky-200 hover:bg-white">
-                      Abrir mapa en Google Maps
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </div>
-                )
-            )}
+            <MapBackground url={mapDetail?.backgroundImageUrl} />
 
             {visibleMarkers.map(marker => (
               <div
@@ -331,7 +308,7 @@ export default function CondominiumMaps() {
 
       {showMapForm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowMapForm(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-5 border-b border-gray-200 dark:border-gray-700"><h2 className="font-bold text-gray-900 dark:text-white">Nuevo mapa</h2></div>
             <div className="p-5 space-y-3">
               <input value={mapForm.name} onChange={e => setMapForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="Nombre" />
@@ -348,22 +325,36 @@ export default function CondominiumMaps() {
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Fuente del mapa</label>
                 <select value={mapBackgroundSource} onChange={e => setMapBackgroundSource(e.target.value as MapBackgroundSource)} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700">
-                  <option value="imageUrl">URL de imagen</option>
                   <option value="upload">Subir imagen</option>
                   <option value="mapsLink">Link de Google Maps</option>
                 </select>
               </div>
 
-              {mapBackgroundSource === 'imageUrl' && (
-                <input value={mapForm.backgroundImageUrl || ''} onChange={e => setMapForm(prev => ({ ...prev, backgroundImageUrl: e.target.value }))} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="URL imagen de fondo (opcional)" />
-              )}
-
               {mapBackgroundSource === 'upload' && (
-                <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={e => setMapBackgroundFile(e.target.files?.[0] || null)} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" />
+                <div className="space-y-1">
+                  <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={e => {
+                    const file = e.target.files?.[0] || null
+                    if (file && file.size > 8 * 1024 * 1024) {
+                      toast.error('El archivo no debe superar 8MB')
+                      e.target.value = ''
+                      setMapBackgroundFile(null)
+                      return
+                    }
+                    setMapBackgroundFile(file)
+                  }} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" />
+                  <p className="text-xs text-gray-500">JPG, PNG o WEBP. Máximo 8MB.</p>
+                </div>
               )}
 
               {mapBackgroundSource === 'mapsLink' && (
-                <input value={mapBackgroundMapsLink} onChange={e => setMapBackgroundMapsLink(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="https://www.google.com/maps/..." />
+                <div className="space-y-2">
+                  <input value={mapBackgroundMapsLink} onChange={e => setMapBackgroundMapsLink(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder="https://www.google.com/maps/..." />
+                  {isGoogleMapsLink(mapBackgroundMapsLink) && (
+                    <div className="relative aspect-video overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40">
+                      <MapBackground url={mapBackgroundMapsLink} />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
             <div className="p-5 border-t border-gray-200 dark:border-gray-700 flex gap-2">

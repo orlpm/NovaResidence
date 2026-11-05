@@ -132,6 +132,11 @@ export const condominiumMapService = {
     return response.data
   },
 
+  async resolveMapsLink(url: string): Promise<string> {
+    const response = await apiClient.get<{ data: string }>('/condominiummaps/resolve-link', { params: { url } })
+    return response.data.data || url
+  },
+
   async update(id: string, request: UpdateCondominiumMapRequest): Promise<void> {
     await apiClient.put(`/condominiummaps/${id}`, request)
   },

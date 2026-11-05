@@ -1,6 +1,6 @@
 # Roadmap
 
-Corte: 4 de noviembre de 2026. El mapa de servicios está en [docs/SERVICIOS-Y-PROCESOS.md](docs/SERVICIOS-Y-PROCESOS.md). Las reglas de cada proceso, en [docs/BUSINESS-PROCESSES.md](docs/BUSINESS-PROCESSES.md). Aquí solo se separa lo que ya sostiene un piloto de lo que falta para operarlo en serio.
+Corte: 5 de noviembre de 2026. El mapa de servicios está en [docs/SERVICIOS-Y-PROCESOS.md](docs/SERVICIOS-Y-PROCESOS.md). Las reglas de cada proceso, en [docs/BUSINESS-PROCESSES.md](docs/BUSINESS-PROCESSES.md). Aquí solo se separa lo que ya sostiene un piloto de lo que falta para operarlo en serio.
 
 ## Cerrado para el piloto
 
@@ -13,14 +13,16 @@ Corte: 4 de noviembre de 2026. El mapa de servicios está en [docs/SERVICIOS-Y-P
 - Visitas del día, control de acceso, pase QR y registro de caseta.
 - Rondas de vigilancia en un libro distinto.
 - Paquetería con aviso al residente.
-- Áreas comunes con reservación aprobada, y amenidades con su propio calendario.
-- Planos, marcadores y reproductor de la cámara configurada.
-- Avisos, encuestas, asambleas, asistencia y redacción de acta.
-- Documentos del condominio.
-- Vehículos del residente y cajones.
-- Campana de avisos para visita, encuesta, asamblea, incidencia, paquete y multa.
+- Áreas comunes con fotos subidas (hasta 8 MB) y reservación aprobada, y amenidades con su propio calendario.
+- Planos por imagen subida o enlace de Google Maps con vista previa embebida, marcadores y reproductor de la cámara configurada.
+- Avisos y foro con archivos adjuntos (hasta 8 MB), encuestas, asambleas, asistencia y redacción de acta.
+- Documentos del condominio con validación de 8 MB.
+- Cajones asignables a residentes, vehículos ligados a residente/unidad y selección de vehículo registrado al crear o editar visitas.
+- Tableros de superadmin, administrador y subadministrador con datos reales (cero datos dummy fuera de la landing) y enlaces desde actividad y campana hacia el recurso correspondiente.
+- Menús de acciones de tres puntos en portal (`ActionMenu`) siempre visibles y skill visual `.cursor/skills/visual-ui`.
+- Campana de avisos para visita, encuesta, asamblea, incidencia, reservación, pago por verificar, paquete y multa.
 - Demo de Pedregal con áreas, plano y cámara.
-- Playwright de esos flujos en local: 99 aprobadas y 2 omitidas el 4 de noviembre de 2026. La suite contra el App Service de ese día no se volvió a correr.
+- Playwright de esos flujos en local contra Postgres y verificación en navegador de los flujos visuales y operativos del 5 de noviembre de 2026 (deploy `a13c1d9ce67e4804b8a2125201991ffe` en Azure).
 - Correo de confirmación y restablecimiento por Brevo en Azure, desde `contacto@domuscond.com`. En local el envío está apagado y las pruebas leen el buzón capturado.
 - Postgres en Neon para local y para el sitio publicado. La clave JWT no está en el repositorio.
 - Cobro sandbox de la suscripción de la plataforma con OpenPay. La tarjeta se tokeniza en el navegador.

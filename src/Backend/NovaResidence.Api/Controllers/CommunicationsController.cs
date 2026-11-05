@@ -16,11 +16,40 @@ public class CommunicationsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ITenantAccessService _tenantAccessService;
+    private readonly IWebHostEnvironment _environment;
 
-    public CommunicationsController(IMediator mediator, ITenantAccessService tenantAccessService)
+    public CommunicationsController(IMediator mediator, ITenantAccessService tenantAccessService, IWebHostEnvironment environment)
     {
         _mediator = mediator;
         _tenantAccessService = tenantAccessService;
+        _environment = environment;
+    }
+
+    [HttpPost("upload")]
+    public async Task<IActionResult> Upload([FromForm] IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No se proporcionó archivo");
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowed = new[] { ".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt" };
+        if (!allowed.Contains(extension))
+            return BadRequest("Formato no permitido");
+
+        if (file.Length > 8 * 1024 * 1024)
+            return BadRequest("El archivo no debe superar 8MB");
+
+        var folder = Path.Combine(_environment.ContentRootPath, "uploads", "communications");
+        Directory.CreateDirectory(folder);
+        var storedName = $"{Guid.NewGuid()}{extension}";
+        var path = Path.Combine(folder, storedName);
+        await using (var stream = new FileStream(path, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var url = $"{Request.Scheme}://{Request.Host}/uploads/communications/{storedName}";
+        return Ok(new UploadedCommunicationFileDto(file.FileName, url, file.ContentType, file.Length));
     }
 
     #region Announcements
@@ -800,6 +829,28 @@ public class CommunicationsController : ControllerBase
         return CreatedAtAction(nameof(GetForumPost), new { id = result.Value }, result.Value);
     }
 
+    [HttpPost("forum/{id:guid}/attachments")]
+    public async Task<ActionResult<Guid>> AddForumPostAttachment(Guid id, [FromBody] AddForumPostAttachmentRequest request)
+    {
+        if (!await _tenantAccessService.CanAccessForumPostAsync(User, id))
+            return TenantForbidden();
+
+        var result = await _mediator.Send(new AddForumPostAttachmentCommand(
+            id,
+            request.FileName,
+            request.FileUrl,
+            request.ContentType,
+            request.FileSize
+        ));
+
+        if (!result.IsSuccess)
+            return result.Status == ResultStatus.NotFound
+                ? NotFound(result.Errors)
+                : BadRequest(result.Errors);
+
+        return Ok(result.Value);
+    }
+
     [HttpPut("forum/{id:guid}")]
     public async Task<ActionResult> UpdateForumPost(Guid id, [FromBody] UpdateForumPostRequest request)
     {
@@ -1061,6 +1112,15 @@ public record AddAnnouncementAttachmentRequest(
     string? ContentType,
     long FileSize
 );
+
+public record AddForumPostAttachmentRequest(
+    string FileName,
+    string FileUrl,
+    string? ContentType,
+    long FileSize
+);
+
+public record UploadedCommunicationFileDto(string FileName, string FileUrl, string? ContentType, long FileSize);
 
 public record MarkReadRequest(Guid UnitId, Guid ResidentId);
 

@@ -50,6 +50,8 @@ public class ParkingSpot : BaseEntity
     public Guid CondominiumId { get; private set; }
     public string Code { get; private set; } = string.Empty;
     public string? AssignedPlate { get; private set; }
+    public Guid? UnitId { get; private set; }
+    public Guid? ResidentId { get; private set; }
 
     private ParkingSpot() { }
 
@@ -69,12 +71,29 @@ public class ParkingSpot : BaseEntity
         AssignedPlate = plate.Trim().ToUpperInvariant();
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void AssignToResident(Guid unitId, Guid residentId, string? plate)
+    {
+        UnitId = unitId;
+        ResidentId = residentId;
+        AssignedPlate = string.IsNullOrWhiteSpace(plate) ? null : plate.Trim().ToUpperInvariant();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Release()
+    {
+        UnitId = null;
+        ResidentId = null;
+        AssignedPlate = null;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }
 
 public class ResidentVehicle : BaseEntity
 {
     public Guid CondominiumId { get; private set; }
     public Guid UnitId { get; private set; }
+    public Guid? ResidentId { get; private set; }
     public string Plate { get; private set; } = string.Empty;
     public string Brand { get; private set; } = string.Empty;
     public string? Color { get; private set; }
@@ -88,19 +107,27 @@ public class ResidentVehicle : BaseEntity
         string plate,
         string brand,
         string? color,
-        string? spotCode)
+        string? spotCode,
+        Guid? residentId)
     {
         return new ResidentVehicle
         {
             Id = Guid.NewGuid(),
             CondominiumId = condominiumId,
             UnitId = unitId,
+            ResidentId = residentId,
             Plate = plate.Trim().ToUpperInvariant(),
             Brand = brand.Trim(),
             Color = string.IsNullOrWhiteSpace(color) ? null : color.Trim(),
             SpotCode = string.IsNullOrWhiteSpace(spotCode) ? null : spotCode.Trim().ToUpperInvariant(),
             CreatedAt = DateTime.UtcNow
         };
+    }
+
+    public void ParkAt(string? spotCode)
+    {
+        SpotCode = string.IsNullOrWhiteSpace(spotCode) ? null : spotCode.Trim().ToUpperInvariant();
+        UpdatedAt = DateTime.UtcNow;
     }
 }
 

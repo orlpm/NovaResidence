@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { 
   Plus, 
   Search, 
-  MoreVertical, 
   Edit2, 
   Trash2, 
   Eye,
@@ -18,6 +17,7 @@ import {
   Paperclip,
   Image as ImageIcon
 } from 'lucide-react'
+import { ActionMenu } from '../../components/ActionMenu'
 import { 
   incidentService, 
   IncidentType,
@@ -545,10 +545,10 @@ export default function Incidents() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap"><div className="flex items-center gap-2"><Clock className="w-4 h-4 text-gray-400" /><span className="text-sm text-gray-600 dark:text-gray-300">{new Date(incident.createdAt).toLocaleDateString()}</span></div></td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="relative">
-                        <button onClick={() => setOpenDropdown(openDropdown === incident.id ? null : incident.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"><MoreVertical className="w-5 h-5 text-gray-400" /></button>
-                        {openDropdown === incident.id && (
-                          <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                      <ActionMenu
+                        open={openDropdown === incident.id}
+                        onOpenChange={(next) => setOpenDropdown(next ? incident.id : null)}
+                      >
                             <button onClick={() => { loadIncidentDetail(incident.id, incident); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
                             {incident.status === IncidentStatus.Open && <button onClick={() => handleAcknowledge(incident)} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Recibir</button>}
                             {(incident.status === IncidentStatus.Open || incident.status === IncidentStatus.Acknowledged || incident.status === IncidentStatus.InProgress || incident.status === IncidentStatus.Reopened) && (
@@ -564,9 +564,7 @@ export default function Incidents() {
                                 <button onClick={() => { setSelectedIncident(incident); setShowDeleteModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Eliminar</button>
                               </>
                             )}
-                          </div>
-                        )}
-                      </div>
+                      </ActionMenu>
                     </td>
                   </tr>
                 ))}

@@ -142,8 +142,8 @@ public class IncidentsController : ControllerBase
         if (!allowedExtensions.Contains(ext))
             return BadRequest("Formato de archivo no válido. Use JPG, PNG o WEBP.");
 
-        if (file.Length > 5 * 1024 * 1024)
-            return BadRequest("La imagen no debe superar los 5MB.");
+        if (file.Length > 8 * 1024 * 1024)
+            return BadRequest("La imagen no debe superar 8MB.");
 
         var uploadsFolder = Path.Combine(_env.ContentRootPath, "uploads", "incident-photos");
         Directory.CreateDirectory(uploadsFolder);

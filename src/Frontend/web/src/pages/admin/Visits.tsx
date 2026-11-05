@@ -13,12 +13,14 @@ import {
   type VisitDetailDto
 } from '../../lib/visitService'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
+import { parkingService, type VehicleDto } from '../../lib/operationsService'
 import { useAuthStore } from '../../stores/authStore'
 import toast from 'react-hot-toast'
 
 export default function AdminVisits() {
   const { user } = useAuthStore()
   const [visits, setVisits] = useState<VisitListDto[]>([])
+  const [vehicles, setVehicles] = useState<VehicleDto[]>([])
   const [condominiums, setCondominiums] = useState<UserCondominiumDto[]>([])
   const [selectedCondominium, setSelectedCondominium] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -56,11 +58,15 @@ export default function AdminVisits() {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await visitService.getByCondominium(selectedCondominium, {
-        type: filterType ?? undefined,
-        status: filterStatus ?? undefined
-      })
+      const [data, vehicleList] = await Promise.all([
+        visitService.getByCondominium(selectedCondominium, {
+          type: filterType ?? undefined,
+          status: filterStatus ?? undefined
+        }),
+        parkingService.getVehicles(selectedCondominium)
+      ])
       setVisits(data)
+      setVehicles(vehicleList)
     } catch { setError('Error al cargar visitas') }
     finally { setIsLoading(false) }
   }
@@ -298,6 +304,10 @@ export default function AdminVisits() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                       {visit.vehiclePlate || '—'}
+                      {(() => {
+                        const owner = vehicles.find(item => item.plate.trim().toUpperCase() === (visit.vehiclePlate || '').trim().toUpperCase())
+                        return owner?.residentName ? <span className="block text-xs text-gray-500">{owner.residentName}</span> : null
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 flex-wrap">

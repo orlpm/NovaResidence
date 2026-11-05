@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom'
 import { 
   Plus, 
   Search, 
-  MoreVertical, 
   Eye,
   AlertCircle,
   CheckCircle,
@@ -22,6 +21,7 @@ import {
   ImageIcon,
   ShieldCheck
 } from 'lucide-react'
+import { ActionMenu } from '../../components/ActionMenu'
 import { 
   billingService, 
   FeeType,
@@ -715,10 +715,10 @@ export default function Billing() {
                                 {new Date(charge.dueDate).toLocaleDateString()}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <div className="relative">
-                                  <button onClick={() => setOpenDropdown(openDropdown === charge.id ? null : charge.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><MoreVertical className="w-5 h-5 text-gray-400" /></button>
-                                  {openDropdown === charge.id && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
+                                <ActionMenu
+                                  open={openDropdown === charge.id}
+                                  onOpenChange={(next) => setOpenDropdown(next ? charge.id : null)}
+                                >
                                       <button onClick={() => { loadChargeDetail(charge.id); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Eye className="w-4 h-4" /> Ver Detalle</button>
                                       {(charge.status === ChargeStatus.Pending || charge.status === ChargeStatus.PartiallyPaid || charge.status === ChargeStatus.Overdue || charge.isOverdue) && (
                                         <button onClick={() => openPaymentModal(charge)} className="w-full px-4 py-2 text-left text-sm text-green-600 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Registrar Pago</button>
@@ -730,9 +730,7 @@ export default function Billing() {
                                         </>
                                       )}
                                       <button onClick={() => { setSelectedCharge(charge); setShowDeleteModal(true); setOpenDropdown(null); }} className="w-full px-4 py-2 text-left text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Eliminar</button>
-                                    </div>
-                                  )}
-                                </div>
+                                </ActionMenu>
                               </td>
                             </tr>
                           ))}

@@ -6,16 +6,16 @@ import {
   Eye, ChevronRight
 } from 'lucide-react';
 import { userManagementService, UserListItem } from '../../lib/userManagementService';
+import { superAdminService, type MonitoringSummaryDto } from '../../lib/superAdminService';
 
 interface PlatformStats {
   totalCondominiums: number;
   totalUsers: number;
-  totalRevenue: number;
-  activeIncidents: number;
-  serverUptime: string;
-  databaseSize: string;
-  activeConnections: number;
-  apiRequests: number;
+  openIncidents: number;
+  uptimeMinutes: number;
+  processMemoryMb: number;
+  activeUsers: number;
+  databaseConnected: boolean;
 }
 
 interface RecentActivity {
@@ -34,12 +34,11 @@ export default function SuperAdminDashboard() {
   const [stats, setStats] = useState<PlatformStats>({
     totalCondominiums: 0,
     totalUsers: 0,
-    totalRevenue: 0,
-    activeIncidents: 0,
-    serverUptime: '99.97%',
-    databaseSize: '2.4 GB',
-    activeConnections: 0,
-    apiRequests: 0
+    openIncidents: 0,
+    uptimeMinutes: 0,
+    processMemoryMb: 0,
+    activeUsers: 0,
+    databaseConnected: false
   });
 
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -52,17 +51,21 @@ export default function SuperAdminDashboard() {
     setLoading(true);
     try {
       // Cargar usuarios reales desde la API
-      const usersData = await userManagementService.getUsers();
+      const [usersData, monitoring] = await Promise.all([
+        userManagementService.getUsers(),
+        superAdminService.getMonitoring().catch(() => null as MonitoringSummaryDto | null)
+      ]);
       setUsers(usersData);
 
-      // Calcular estadísticas reales
-      const activeUsers = usersData.filter(u => u.isActive).length;
-      
-      setStats(prev => ({
-        ...prev,
-        totalUsers: usersData.length,
-        activeConnections: activeUsers
-      }));
+      setStats({
+        totalCondominiums: monitoring?.totalCondominiums ?? 0,
+        totalUsers: monitoring?.totalUsers ?? usersData.length,
+        openIncidents: monitoring?.openIncidents ?? 0,
+        uptimeMinutes: monitoring?.uptimeMinutes ?? 0,
+        processMemoryMb: monitoring?.processMemoryMb ?? 0,
+        activeUsers: monitoring?.activeUsers ?? usersData.filter(u => u.isActive).length,
+        databaseConnected: monitoring?.databaseConnected ?? false
+      });
 
       // Generar actividad reciente basada en usuarios reales
       const activities: RecentActivity[] = [];
@@ -124,11 +127,12 @@ export default function SuperAdminDashboard() {
   };
 
   // Estadísticas de usuarios por rol
+  const roleOf = (role?: string) => (role || '').toLowerCase();
   const usersByRole = {
-    superAdmins: users.filter(u => u.defaultRole === 'SuperAdmin').length,
-    admins: users.filter(u => u.defaultRole === 'Admin').length,
-    residents: users.filter(u => u.defaultRole === 'Resident').length,
-    others: users.filter(u => !['SuperAdmin', 'Admin', 'Resident'].includes(u.defaultRole)).length
+    superAdmins: users.filter(u => roleOf(u.defaultRole) === 'superadmin').length,
+    admins: users.filter(u => roleOf(u.defaultRole) === 'admin').length,
+    residents: users.filter(u => roleOf(u.defaultRole) === 'resident').length,
+    others: users.filter(u => !['superadmin', 'admin', 'resident'].includes(roleOf(u.defaultRole))).length
   };
 
   const mainStats = [
@@ -166,11 +170,18 @@ export default function SuperAdminDashboard() {
     }
   ];
 
+  const formatUptime = (minutes: number) => {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+  };
+
   const systemStats = [
-    { name: 'Server Uptime', value: stats.serverUptime, icon: Server, color: 'text-green-400' },
-    { name: 'Database Size', value: stats.databaseSize, icon: Database, color: 'text-blue-400' },
-    { name: 'Usuarios Activos', value: users.filter(u => u.isActive).length, icon: Globe, color: 'text-purple-400' },
-    { name: 'Último Login', value: recentActivity.find(a => a.action.includes('Login'))?.time || 'N/A', icon: Activity, color: 'text-yellow-400' }
+    { name: 'Tiempo en línea', value: formatUptime(stats.uptimeMinutes), icon: Server, color: 'text-green-400' },
+    { name: 'Memoria del proceso', value: `${stats.processMemoryMb} MB`, icon: Database, color: 'text-blue-400' },
+    { name: 'Usuarios activos', value: stats.activeUsers, icon: Globe, color: 'text-purple-400' },
+    { name: 'Incidencias abiertas', value: stats.openIncidents, icon: Activity, color: 'text-yellow-400' }
   ];
 
   const getActivityColor = (type: string) => {
@@ -183,10 +194,10 @@ export default function SuperAdminDashboard() {
   };
 
   const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'SuperAdmin': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'Admin': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'Resident': return 'bg-green-500/20 text-green-400 border-green-500/30';
+    switch (roleOf(role)) {
+      case 'superadmin': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'admin': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'resident': return 'bg-green-500/20 text-green-400 border-green-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
@@ -220,9 +231,11 @@ export default function SuperAdminDashboard() {
             <RefreshCw className="w-4 h-4" />
             Actualizar
           </button>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500/10 border border-green-500/30">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-green-400 text-sm font-medium">Sistema Operativo</span>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${stats.databaseConnected ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+            <div className={`w-2 h-2 rounded-full ${stats.databaseConnected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+            <span className={`text-sm font-medium ${stats.databaseConnected ? 'text-green-400' : 'text-red-400'}`}>
+              {stats.databaseConnected ? 'Base de datos conectada' : 'Base de datos sin conexión'}
+            </span>
           </div>
         </div>
       </div>
@@ -326,13 +339,19 @@ export default function SuperAdminDashboard() {
               <Users className="w-5 h-5" />
               <span>Gestionar Usuarios</span>
             </button>
-            <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors">
+            <button
+              onClick={() => navigate('/superadmin/database')}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors"
+            >
               <Database className="w-5 h-5" />
-              <span>Backup Manual</span>
+              <span>Base de datos</span>
             </button>
-            <button className="w-full flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 transition-colors">
+            <button
+              onClick={() => navigate('/superadmin/monitoring')}
+              className="w-full flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 transition-colors"
+            >
               <Server className="w-5 h-5" />
-              <span>Ver Logs del Sistema</span>
+              <span>Monitoreo</span>
             </button>
           </div>
         </div>

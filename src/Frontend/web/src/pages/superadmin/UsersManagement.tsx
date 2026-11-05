@@ -3,10 +3,11 @@ import {
   Users, Search, Edit, Trash2, Eye, 
   Building2, UserCheck, UserX, 
   Crown, Home,
-  MoreVertical, Mail, Key, X, RefreshCw,
+  Mail, Key, X, RefreshCw,
   CheckCircle, AlertCircle
 } from 'lucide-react';
 import { userManagementService, UserListItem } from '../../lib/userManagementService';
+import { ActionMenu } from '../../components/ActionMenu';
 
 const ROLE_ICONS: Record<string, React.ElementType> = {
   'SuperAdmin': Crown,
@@ -327,15 +328,13 @@ export default function UsersManagement() {
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <div className="relative">
-                            <button 
-                              onClick={() => setShowUserMenu(showUserMenu === user.id ? null : user.id)}
-                              className="p-2 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {showUserMenu === user.id && (
-                              <div className="absolute right-0 top-full mt-1 w-52 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10">
+                          <ActionMenu
+                            open={showUserMenu === user.id}
+                            onOpenChange={(next) => setShowUserMenu(next ? user.id : null)}
+                            buttonClassName="p-2 hover:bg-gray-700 rounded-lg text-gray-400 transition-colors"
+                            iconClassName="w-4 h-4"
+                            menuClassName="w-52 rounded-lg border border-gray-700 bg-gray-800 shadow-xl"
+                          >
                                 <button 
                                   onClick={() => handleToggleUserStatus(user)}
                                   className="w-full px-4 py-2 text-left text-sm hover:bg-gray-700 flex items-center gap-2 text-gray-300"
@@ -373,9 +372,7 @@ export default function UsersManagement() {
                                   <Trash2 className="w-4 h-4" />
                                   Eliminar usuario
                                 </button>
-                              </div>
-                            )}
-                          </div>
+                          </ActionMenu>
                         </div>
                       </td>
                     </tr>

@@ -169,8 +169,8 @@ public class CondominiumMapsController : ControllerBase
         if (!allowedExtensions.Contains(ext))
             return BadRequest("Formato de archivo no válido. Use JPG, PNG o WEBP.");
 
-        if (file.Length > 5 * 1024 * 1024)
-            return BadRequest("El archivo no debe superar los 5MB.");
+        if (file.Length > 8 * 1024 * 1024)
+            return BadRequest("El archivo no debe superar 8MB.");
 
         var uploadsFolder = Path.Combine(_env.ContentRootPath, "uploads", "map-backgrounds");
         Directory.CreateDirectory(uploadsFolder);
@@ -185,6 +185,70 @@ public class CondominiumMapsController : ControllerBase
 
         var fileUrl = $"{Request.Scheme}://{Request.Host}/uploads/map-backgrounds/{uniqueFileName}";
         return Ok(fileUrl);
+    }
+
+    [HttpGet("resolve-link")]
+    public async Task<IActionResult> ResolveLink([FromQuery] string url, CancellationToken cancellationToken)
+    {
+        if (!TryCreateAllowedMapsUri(url, out var current))
+            return BadRequest(ApiResponse<string>.FailureResponse("Enlace de Google Maps no válido"));
+
+        try
+        {
+            using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
+
+            for (var hop = 0; hop < 5; hop++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, current);
+                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                if ((int)response.StatusCode is < 300 or >= 400 || response.Headers.Location is null)
+                    break;
+
+                var next = response.Headers.Location.IsAbsoluteUri
+                    ? response.Headers.Location
+                    : new Uri(current, response.Headers.Location);
+                if (!IsAllowedMapsHost(next))
+                    break;
+                current = next;
+            }
+
+            return Ok(ApiResponse<string>.SuccessResponse(current.ToString()));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "No se pudo resolver un enlace de Google Maps");
+            return Ok(ApiResponse<string>.SuccessResponse(url.Trim()));
+        }
+    }
+
+    private static bool TryCreateAllowedMapsUri(string? url, out Uri uri)
+    {
+        uri = null!;
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var parsed) || !IsAllowedMapsHost(parsed))
+            return false;
+
+        var host = parsed.Host.ToLowerInvariant();
+        var path = parsed.AbsolutePath.ToLowerInvariant();
+        var isShortLink = host == "maps.app.goo.gl" || (host == "goo.gl" && path.StartsWith("/maps"));
+        var isMapsPage = path.Contains("/maps") || parsed.Query.Contains("q=", StringComparison.OrdinalIgnoreCase);
+        if (!isShortLink && !isMapsPage)
+            return false;
+
+        uri = parsed;
+        return true;
+    }
+
+    private static bool IsAllowedMapsHost(Uri uri)
+    {
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var host = uri.Host.ToLowerInvariant();
+        return host is "maps.app.goo.gl" or "goo.gl" or "maps.google.com" or "www.google.com" or "google.com"
+            || host.EndsWith(".google.com", StringComparison.Ordinal)
+            || host.EndsWith(".google.com.mx", StringComparison.Ordinal);
     }
 
     [HttpPut("{id:guid}")]

@@ -3,6 +3,19 @@ import { Plus, Pencil, Trash2, MapPin, Building2, CheckCircle, XCircle } from 'l
 import toast from 'react-hot-toast'
 import { condominiumService, type UserCondominiumDto } from '../../lib/condominiumService'
 import { useAuthStore } from '../../stores/authStore'
+import { uploadRejection } from '../../lib/uploadLimits'
+
+const imageExtensions = ['jpg', 'jpeg', 'png', 'webp']
+
+function parseImageUrls(value?: string | null): string[] {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string' && item.length > 0) : []
+  } catch {
+    return []
+  }
+}
 import {
   commonAreaService,
   CommonAreaType,
@@ -34,6 +47,9 @@ export default function CommonAreas() {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<CommonAreaListDto | null>(null)
   const [formData, setFormData] = useState<CreateCommonAreaRequest>(defaultForm)
+  const [keptImageUrls, setKeptImageUrls] = useState<string[]>([])
+  const [newImages, setNewImages] = useState<File[]>([])
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([])
 
   useEffect(() => {
     loadCondominiums()
@@ -75,9 +91,17 @@ export default function CommonAreas() {
     }
   }
 
+  const clearNewImages = () => {
+    newImagePreviews.forEach(url => URL.revokeObjectURL(url))
+    setNewImages([])
+    setNewImagePreviews([])
+  }
+
   const handleOpenCreate = () => {
     setEditing(null)
     setFormData({ ...defaultForm, condominiumId: selectedCondominium })
+    setKeptImageUrls([])
+    clearNewImages()
     setShowForm(true)
   }
 
@@ -104,6 +128,13 @@ export default function CommonAreas() {
     }
 
     try {
+      const uploadedUrls: string[] = []
+      for (const file of newImages) {
+        uploadedUrls.push(await commonAreaService.uploadImage(file))
+      }
+      const existing = keptImageUrls.length > 0 ? keptImageUrls : parseImageUrls(formData.imageUrlsJson)
+      const imageUrlsJson = JSON.stringify([...existing, ...uploadedUrls])
+
       if (editing) {
         const updatePayload: UpdateCommonAreaRequest = {
           name: formData.name,
@@ -113,13 +144,13 @@ export default function CommonAreas() {
           level: formData.level,
           coordinateX: formData.coordinateX,
           coordinateY: formData.coordinateY,
-          imageUrlsJson: formData.imageUrlsJson,
+          imageUrlsJson,
           isActive: editing.isActive
         }
         await commonAreaService.update(editing.id, updatePayload)
         toast.success('Área común actualizada')
       } else {
-        await commonAreaService.create({ ...formData, condominiumId: selectedCondominium })
+        await commonAreaService.create({ ...formData, condominiumId: selectedCondominium, imageUrlsJson })
         toast.success('Área común creada')
       }
 
@@ -133,11 +164,20 @@ export default function CommonAreas() {
 
   const handleToggleStatus = async (area: CommonAreaListDto) => {
     try {
-      await commonAreaService.setStatus(area.id, !area.isActive)
-      toast.success(!area.isActive ? 'Área activada' : 'Área desactivada')
+      await commonAreaService.update(area.id, {
+        name: area.name,
+        description: area.description || '',
+        type: area.type,
+        buildingId: area.buildingId,
+        level: area.level || '',
+        coordinateX: area.coordinateX,
+        coordinateY: area.coordinateY,
+        imageUrlsJson: area.imageUrlsJson,
+        isActive: !area.isActive
+      })
       await loadAreas(selectedCondominium)
     } catch {
-      toast.error('No se pudo actualizar el estado')
+      toast.error('No se pudo cambiar el estado')
     }
   }
 
@@ -247,6 +287,14 @@ export default function CommonAreas() {
                   {area.isActive ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />} {area.isActive ? 'Desactivar' : 'Activar'}
                 </button>
                 <button onClick={() => handleDelete(area.id)} className="ml-auto px-3 py-1.5 text-xs rounded-lg bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300 inline-flex items-center gap-1"><Trash2 className="w-3 h-3" /> Eliminar</button>
+              {parseImageUrls(area.imageUrlsJson).length > 0 && (
+                <div className="mt-3 flex gap-2 overflow-x-auto">
+                  {parseImageUrls(area.imageUrlsJson).map(url => (
+                    <img key={url} src={url} alt="" className="h-20 w-28 rounded-lg object-cover border border-gray-200 dark:border-gray-700" />
+                  ))}
+                </div>
+              )}
+
               </div>
             </div>
           ))}
@@ -305,8 +353,25 @@ export default function CommonAreas() {
               </div>
 
               <div>
-                <label className="text-sm text-gray-600 dark:text-gray-300">Imágenes (JSON array)</label>
-                <input value={formData.imageUrlsJson || ''} onChange={e => setFormData(prev => ({ ...prev, imageUrlsJson: e.target.value }))} className="mt-1 w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700" placeholder='["https://..."]' />
+                <label className="text-sm text-gray-600 dark:text-gray-300">Fotos</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  multiple
+                  className="mt-1 w-full"
+                  onChange={event => {
+                    const accepted: File[] = []
+                    for (const file of Array.from(event.target.files ?? [])) {
+                      const rejection = uploadRejection(file, imageExtensions)
+                      if (rejection) {
+                        toast.error(`${file.name}: ${rejection}`)
+                        continue
+                      }
+                      accepted.push(file)
+                    }
+                    setNewImages(accepted)
+                  }}
+                />
               </div>
             </div>
             <div className="p-5 border-t border-gray-200 dark:border-gray-700 flex gap-2">

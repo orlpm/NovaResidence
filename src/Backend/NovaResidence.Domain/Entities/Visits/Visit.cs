@@ -24,6 +24,7 @@ public class Visit : BaseEntity
     // Vehicle info (optional)
     public string? VehiclePlate { get; private set; }
     public string? VehicleDescription { get; private set; }
+    public Guid? ResidentVehicleId { get; private set; }
     
     // Visit details
     public VisitType Type { get; private set; }
@@ -186,6 +187,19 @@ public class Visit : BaseEntity
         VehicleDescription = vehicleDescription;
         Purpose = purpose;
         Notes = notes;
+    }
+
+    public void LinkResidentVehicle(Guid residentVehicleId, string plate, string? description)
+    {
+        ResidentVehicleId = residentVehicleId;
+        VehiclePlate = plate.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(description))
+            VehicleDescription = description.Trim();
+    }
+
+    public void UnlinkResidentVehicle()
+    {
+        ResidentVehicleId = null;
     }
 
     public void Approve(Guid approvedById)

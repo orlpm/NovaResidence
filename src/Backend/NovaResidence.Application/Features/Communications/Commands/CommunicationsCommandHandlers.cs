@@ -204,6 +204,31 @@ public class AddAnnouncementAttachmentCommandHandler : IRequestHandler<AddAnnoun
     }
 }
 
+public class AddForumPostAttachmentCommandHandler : IRequestHandler<AddForumPostAttachmentCommand, Result<Guid>>
+{
+    private readonly IApplicationDbContext _context;
+
+    public AddForumPostAttachmentCommandHandler(IApplicationDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<Result<Guid>> Handle(AddForumPostAttachmentCommand request, CancellationToken cancellationToken)
+    {
+        var attachment = ForumPostAttachment.Create(
+            request.ForumPostId,
+            request.FileName,
+            request.FileUrl,
+            request.ContentType,
+            request.FileSize
+        );
+
+        _context.ForumPostAttachments.Add(attachment);
+        await _context.SaveChangesAsync(cancellationToken);
+        return Result.Success(attachment.Id);
+    }
+}
+
 #endregion
 
 #region Poll Handlers

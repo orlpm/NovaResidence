@@ -470,6 +470,21 @@ export const communicationsService = {
     return response.data
   },
 
+  uploadAttachment: async (file: File): Promise<{ fileName: string; fileUrl: string; contentType: string; fileSize: number }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await apiClient.post<{ fileName: string; fileUrl: string; contentType: string; fileSize: number }>('/communications/upload', formData)
+    return response.data
+  },
+
+  addAnnouncementAttachment: async (id: string, file: { fileName: string; fileUrl: string; contentType?: string; fileSize: number }): Promise<void> => {
+    await apiClient.post(`/communications/announcements/${id}/attachments`, file)
+  },
+
+  addForumAttachment: async (id: string, file: { fileName: string; fileUrl: string; contentType?: string; fileSize: number }): Promise<void> => {
+    await apiClient.post(`/communications/forum/${id}/attachments`, file)
+  },
+
   createAnnouncement: async (request: CreateAnnouncementRequest): Promise<string> => {
     const response = await apiClient.post<string>('/communications/announcements', request)
     return response.data

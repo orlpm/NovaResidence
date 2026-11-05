@@ -178,6 +178,14 @@ public record DeleteForumPostCommand(Guid ForumPostId) : IRequest<Result>;
 
 public record IncrementForumPostViewsCommand(Guid ForumPostId) : IRequest<Result>;
 
+public record AddForumPostAttachmentCommand(
+    Guid ForumPostId,
+    string FileName,
+    string FileUrl,
+    string? ContentType,
+    long FileSize
+) : IRequest<Result<Guid>>;
+
 public record AddForumCommentCommand(
     Guid ForumPostId,
     Guid AuthorId,

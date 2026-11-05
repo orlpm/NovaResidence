@@ -34,12 +34,13 @@ Dos dineros conviven y no se mezclan:
 | Multas | Cargo de tipo multa dentro del mismo estado de cuenta. |
 | Incidencias | Asignación a mantenimiento, limpieza o proveedor, y cierre con notas. |
 | Agenda | El administrador cita al proveedor; el panel deja de mostrar cero fijo. |
-| Áreas | Alta, baja lógica y reservación aprobada por administración. |
+| Áreas | Alta con fotos (hasta 8 MB), baja lógica y reservación aprobada por administración. |
 | Amenidades | Reservación propia, distinta de las áreas comunes. |
-| Gobierno | Aviso, encuesta, voto, asamblea, asistencia y acta. |
-| Documentos | Contrato, recibo, identificación y reglamento, publicados y consultables. |
-| Vehículos | Cajón del condominio y placa del residente. |
-| Plataforma | Cambio de plan, cancelación y condonación de la suscripción. |
+| Mapas | Plano como archivo de imagen o enlace de Google Maps con vista previa embebida y marcadores. |
+| Gobierno | Aviso, encuesta, voto, asamblea, asistencia, acta y adjuntos en avisos y foro. |
+| Documentos | Contrato, recibo, identificación y reglamento (hasta 8 MB), publicados y consultables. |
+| Vehículos | Cajón asignable a un residente, vehículo ligado a unidad/residente y uso directo al registrar visitas. |
+| Plataforma | Cambio de plan, cancelación, condonación de suscripción y tablero de superadmin con monitoreo real (sin datos dummy). |
 
 El recorrido de cada servicio está en [docs/SERVICIOS-Y-PROCESOS.md](docs/SERVICIOS-Y-PROCESOS.md). Los estados y las excepciones, en [docs/BUSINESS-PROCESSES.md](docs/BUSINESS-PROCESSES.md).
 
@@ -75,7 +76,7 @@ Residencial Pedregal Demo. Contraseña de todas las cuentas: `Pass123.` Correos 
 
 ## Pruebas
 
-Playwright está en `tests/e2e`, un worker, Chromium. Local levanta la API en 5001 y Vite en 3001. Contra Azure se definen `E2E_BASE_URL` y `E2E_API_BASE`, y no se levantan servidores. El pase local del 4 de noviembre de 2026 dejó 99 pruebas aprobadas y 2 omitidas: `record-demo` y la entrega Brevo, que solo corre contra Azure. Los comandos están en [QUICKSTART.md](QUICKSTART.md).
+Playwright está en `tests/e2e`, un worker, Chromium. Local levanta la API en 5001 y Vite en 3001. Contra Azure se definen `E2E_BASE_URL` y `E2E_API_BASE`, y no se levantan servidores. El sitio publicado en Azure lleva el deploy del 5 de noviembre de 2026 (`a13c1d9ce67e4804b8a2125201991ffe`). Los comandos están en [QUICKSTART.md](QUICKSTART.md).
 
 ## Documentos
 
