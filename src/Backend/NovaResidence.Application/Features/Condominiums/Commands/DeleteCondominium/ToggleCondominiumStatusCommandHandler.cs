@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -21,7 +21,7 @@ public class ToggleCondominiumStatusCommandHandler : IRequestHandler<ToggleCondo
         _logger = logger;
     }
 
-    public async Task<Result> Handle(ToggleCondominiumStatusCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ToggleCondominiumStatusCommand request, CancellationToken cancellationToken)
     {
         var condominium = await _condominiumRepository.GetByIdAsync(request.CondominiumId, cancellationToken);
 

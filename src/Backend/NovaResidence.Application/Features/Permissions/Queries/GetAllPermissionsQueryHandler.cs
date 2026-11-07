@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 
@@ -14,7 +14,7 @@ public class GetAllPermissionsQueryHandler : IRequestHandler<GetAllPermissionsQu
         _context = context;
     }
 
-    public async Task<Result<List<PermissionDto>>> Handle(GetAllPermissionsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<PermissionDto>>> Handle(GetAllPermissionsQuery request, CancellationToken cancellationToken)
     {
         var permissions = await _context.Permissions
             .OrderBy(p => p.Category)

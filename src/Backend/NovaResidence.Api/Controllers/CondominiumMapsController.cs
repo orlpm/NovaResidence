@@ -158,7 +158,7 @@ public class CondominiumMapsController : ControllerBase
 
     [HttpPost("upload-background")]
     [Authorize(Roles = "admin,superadmin")]
-    public async Task<ActionResult<string>> UploadBackgroundImage([FromForm] IFormFile file)
+    public async Task<ActionResult<string>> UploadBackgroundImage(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest("No se proporcionó archivo");

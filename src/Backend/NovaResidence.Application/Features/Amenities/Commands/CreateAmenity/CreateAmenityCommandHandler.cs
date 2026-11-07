@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Condominiums;
@@ -15,7 +15,7 @@ public class CreateAmenityCommandHandler : IRequestHandler<CreateAmenityCommand,
         _context = context;
     }
 
-    public async Task<Result<CreateAmenityResponse>> Handle(CreateAmenityCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<CreateAmenityResponse>> Handle(CreateAmenityCommand request, CancellationToken cancellationToken)
     {
         // Verify condominium exists
         var condominium = await _context.Condominiums

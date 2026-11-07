@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 
@@ -14,7 +14,7 @@ public class GetRolePermissionsQueryHandler : IRequestHandler<GetRolePermissions
         _context = context;
     }
 
-    public async Task<Result<List<string>>> Handle(GetRolePermissionsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<string>>> Handle(GetRolePermissionsQuery request, CancellationToken cancellationToken)
     {
         var permissions = await _context.RolePermissions
             .Where(rp => rp.Role == request.Role)

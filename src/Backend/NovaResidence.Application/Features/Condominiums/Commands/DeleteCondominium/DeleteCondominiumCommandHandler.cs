@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -22,7 +22,7 @@ public class DeleteCondominiumCommandHandler : IRequestHandler<DeleteCondominium
         _logger = logger;
     }
 
-    public async Task<Result> Handle(DeleteCondominiumCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteCondominiumCommand request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Deleting condominium {CondominiumId} and ALL associated data", request.CondominiumId);
 

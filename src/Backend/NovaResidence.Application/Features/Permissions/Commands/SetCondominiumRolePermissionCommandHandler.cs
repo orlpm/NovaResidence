@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Authentication;
@@ -15,7 +15,7 @@ public class SetCondominiumRolePermissionCommandHandler : IRequestHandler<SetCon
         _context = context;
     }
 
-    public async Task<Result> Handle(SetCondominiumRolePermissionCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(SetCondominiumRolePermissionCommand request, CancellationToken cancellationToken)
     {
         var condominium = await _context.Condominiums
             .FirstOrDefaultAsync(c => c.Id == request.CondominiumId, cancellationToken);

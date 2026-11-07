@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -48,7 +48,7 @@ public class GetDashboardStatsQueryHandler : IRequestHandler<GetDashboardStatsQu
         _context = context;
     }
 
-    public async Task<Result<DashboardStatsDto>> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<DashboardStatsDto>> Handle(GetDashboardStatsQuery request, CancellationToken cancellationToken)
     {
         var scopedIds = request.CondominiumId.HasValue
             ? new List<Guid> { request.CondominiumId.Value }

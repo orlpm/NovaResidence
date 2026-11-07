@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -15,7 +15,7 @@ public class GetReservationQueryHandler : IRequestHandler<GetReservationQuery, R
         _context = context;
     }
 
-    public async Task<Result<ReservationDetailDto>> Handle(GetReservationQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<ReservationDetailDto>> Handle(GetReservationQuery request, CancellationToken cancellationToken)
     {
         var reservation = await _context.Reservations
             .Include(r => r.Amenity)
@@ -64,7 +64,7 @@ public class GetUnitReservationsQueryHandler : IRequestHandler<GetUnitReservatio
         _context = context;
     }
 
-    public async Task<Result<List<ReservationListDto>>> Handle(GetUnitReservationsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<ReservationListDto>>> Handle(GetUnitReservationsQuery request, CancellationToken cancellationToken)
     {
         var reservations = await (
             from r in _context.Reservations
@@ -116,7 +116,7 @@ public class GetCondominiumReservationsQueryHandler : IRequestHandler<GetCondomi
         _context = context;
     }
 
-    public async Task<Result<List<ReservationListDto>>> Handle(GetCondominiumReservationsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<ReservationListDto>>> Handle(GetCondominiumReservationsQuery request, CancellationToken cancellationToken)
     {
         var reservations = await (
             from r in _context.Reservations

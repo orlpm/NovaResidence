@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -95,7 +95,7 @@ public class GetChargeQueryHandler : IRequestHandler<GetChargeQuery, Result<Char
         _context = context;
     }
 
-    public async Task<Result<ChargeDetailDto>> Handle(GetChargeQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<ChargeDetailDto>> Handle(GetChargeQuery request, CancellationToken cancellationToken)
     {
         var charge = await _context.Charges
             .Include(c => c.Unit)
@@ -163,7 +163,7 @@ public class GetCondominiumChargesQueryHandler : IRequestHandler<GetCondominiumC
         _context = context;
     }
 
-    public async Task<Result<List<ChargeListDto>>> Handle(GetCondominiumChargesQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<ChargeListDto>>> Handle(GetCondominiumChargesQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Charges
             .Include(c => c.Unit)
@@ -233,7 +233,7 @@ public class GetUnitChargesQueryHandler : IRequestHandler<GetUnitChargesQuery, R
         _context = context;
     }
 
-    public async Task<Result<List<ChargeListDto>>> Handle(GetUnitChargesQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<ChargeListDto>>> Handle(GetUnitChargesQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Charges
             .Include(c => c.Unit)
@@ -299,7 +299,7 @@ public class GetUnitBalanceQueryHandler : IRequestHandler<GetUnitBalanceQuery, R
         _context = context;
     }
 
-    public async Task<Result<UnitBalanceDto>> Handle(GetUnitBalanceQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<UnitBalanceDto>> Handle(GetUnitBalanceQuery request, CancellationToken cancellationToken)
     {
         var unit = await _context.Units
             .Include(u => u.Building)
@@ -347,7 +347,7 @@ public class GetCondominiumBalancesQueryHandler : IRequestHandler<GetCondominium
         _context = context;
     }
 
-    public async Task<Result<List<UnitBalanceDto>>> Handle(GetCondominiumBalancesQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<UnitBalanceDto>>> Handle(GetCondominiumBalancesQuery request, CancellationToken cancellationToken)
     {
         var units = await _context.Units
             .Include(u => u.Building)
@@ -395,7 +395,7 @@ public class GetFeeConfigurationsQueryHandler : IRequestHandler<GetFeeConfigurat
         _context = context;
     }
 
-    public async Task<Result<List<FeeConfigurationDto>>> Handle(GetFeeConfigurationsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<FeeConfigurationDto>>> Handle(GetFeeConfigurationsQuery request, CancellationToken cancellationToken)
     {
         var configs = await _context.FeeConfigurations
             .Where(f => f.CondominiumId == request.CondominiumId && !f.IsDeleted)
@@ -429,7 +429,7 @@ public class GetBillingSummaryQueryHandler : IRequestHandler<GetBillingSummaryQu
         _context = context;
     }
 
-    public async Task<Result<BillingSummaryDto>> Handle(GetBillingSummaryQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<BillingSummaryDto>> Handle(GetBillingSummaryQuery request, CancellationToken cancellationToken)
     {
         var charges = await _context.Charges
             .Where(c => c.CondominiumId == request.CondominiumId 
@@ -488,7 +488,7 @@ public class GetOverdueChargesQueryHandler : IRequestHandler<GetOverdueChargesQu
         _context = context;
     }
 
-    public async Task<Result<List<ChargeListDto>>> Handle(GetOverdueChargesQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<ChargeListDto>>> Handle(GetOverdueChargesQuery request, CancellationToken cancellationToken)
     {
         // Get charges that are either marked as overdue OR are past due date with balance > 0
         var now = DateTime.UtcNow.Date;
@@ -551,7 +551,7 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
         _context = context;
     }
 
-    public async Task<Result<List<PaymentDto>>> Handle(GetPendingPaymentsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<PaymentDto>>> Handle(GetPendingPaymentsQuery request, CancellationToken cancellationToken)
     {
         var payments = await _context.Payments
             .Include(p => p.Charge)

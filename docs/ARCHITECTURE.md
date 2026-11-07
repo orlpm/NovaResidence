@@ -2,7 +2,7 @@
 
 ## Contexto
 
-NovaResidence es un monolito modular. Un App Service de Windows con .NET 8 hospeda la API y el SPA. El navegador habla solo con `/api`. No hay API Gateway, ni bus, ni almacenamiento de objetos en el entorno actual: Blob Storage, Service Bus, Key Vault y Application Insights están previstos en configuración y vacíos.
+NovaResidence es un monolito modular. Un App Service de Windows con .NET 10 hospeda la API y el SPA. El navegador habla solo con `/api`. No hay API Gateway, ni bus, ni almacenamiento de objetos en el entorno actual: Blob Storage, Service Bus, Key Vault y Application Insights están previstos en configuración y vacíos.
 
 ```
 Navegador
@@ -27,13 +27,15 @@ La dependencia apunta hacia el dominio.
 | Proyecto | Responsabilidad |
 | --- | --- |
 | `NovaResidence.Domain` | Entidades, enums, objetos de valor. Sin EF ni HTTP. |
-| `NovaResidence.Application` | Casos de uso CQRS con MediatR, validadores, contratos. |
+| `NovaResidence.Application` | Casos de uso CQRS con Mediator (source generator), validadores, contratos. |
 | `NovaResidence.Infrastructure` | EF Core, JWT, correo, OpenPay, permisos, notificador, seeders. |
 | `NovaResidence.Api` | Controladores, tenant access, arranque, archivos estáticos. |
 | `NovaResidence.Shared` | `ApiResponse` y modelos compartidos. |
 | `src/Frontend/web` | React 18, TypeScript, Vite, Tailwind, Zustand, Axios. |
 
-Hay dos estilos de escritura conviviendo. Facturación, comunicaciones, incidencias y condominios pasan por comandos MediatR. Paquetería, cajones, rondas, documentos, citas de proveedor y reservaciones de área escriben el `DbContext` desde el controlador. Un cambio nuevo debe seguir el estilo del módulo que toca, no mezclar los dos en el mismo flujo.
+Hay dos estilos de escritura conviviendo. Facturación, comunicaciones, incidencias y condominios pasan por comandos de Mediator. Paquetería, cajones, rondas, documentos, citas de proveedor y reservaciones de área escriben el `DbContext` desde el controlador. Un cambio nuevo debe seguir el estilo del módulo que toca, no mezclar los dos en el mismo flujo.
+
+Mediator genera el despacho en compilación. Los handlers devuelven `ValueTask<T>` y se registran como Scoped porque dependen del `DbContext`; como Singleton capturarían un contexto ya liberado. `ValidationBehavior` y luego `LoggingBehavior` envuelven cada request, en el orden de `AddApplication`. Los mapeos nuevos se escriben con Mapperly (`[Mapper]`), que también genera el código en compilación; hoy no hay ninguno.
 
 `IApplicationDbContext` es el contrato que ven los handlers. Los controladores nuevos reciben `ApplicationDbContext` y `ITenantAccessService`.
 
@@ -114,7 +116,7 @@ OpenPay cobra la suscripción de la plataforma en sandbox. Las llaves están vac
 
 ## Despliegue
 
-El artefacto es un zip del `dotnet publish` más el `dist` de Vite dentro de `wwwroot`. `UseDefaultFiles`, `UseStaticFiles` y el fallback a `index.html` hacen que el mismo host sirva la aplicación. Desde el 4 nov 2026 el sitio usa Neon por `ConnectionStrings__Neon`. `UseSqlite` sigue en true en App Settings, pero la cadena de Postgres gana. El archivo `D:\home\data\novaresidence.db` ya no lo lee este código.
+El artefacto es un zip del `dotnet publish` en .NET 10 más el `dist` de Vite dentro de `wwwroot`. El App Service tiene que tener `netFrameworkVersion` en `v10.0`; con `v8.0` el proceso no arranca. `UseDefaultFiles`, `UseStaticFiles` y el fallback a `index.html` hacen que el mismo host sirva la aplicación. Desde el 4 nov 2026 el sitio usa Neon por `ConnectionStrings__Neon`. `UseSqlite` sigue en true en App Settings, pero la cadena de Postgres gana. El archivo `D:\home\data\novaresidence.db` ya no lo lee este código.
 
 El plan actual es F1. No escala, se suspende por inactividad y el techo de CPU vuelve inútiles las suites largas.
 

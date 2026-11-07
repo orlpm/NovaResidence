@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Condominiums;
@@ -15,7 +15,7 @@ public class GetCondominiumAmenitiesQueryHandler : IRequestHandler<GetCondominiu
         _context = context;
     }
 
-    public async Task<Result<List<AmenityListDto>>> Handle(GetCondominiumAmenitiesQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<AmenityListDto>>> Handle(GetCondominiumAmenitiesQuery request, CancellationToken cancellationToken)
     {
         var amenities = await _context.Amenities
             .AsNoTracking()

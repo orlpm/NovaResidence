@@ -7,14 +7,14 @@ El mapa de servicios, con un diagrama por proceso, está en [docs/SERVICIOS-Y-PR
 ## Forma del sistema
 
 ```
-Navegador  -->  App Service (.NET 8)
+Navegador  -->  App Service (.NET 10)
                  |-- /api          Clean Architecture, CQRS donde el módulo ya lo usa
                  |-- wwwroot       React 18 + Vite + TypeScript
                  |-- /uploads      mapas, comprobantes, documentos
                  +-- Postgres      Neon, compartida por local y Azure
 ```
 
-Capas del backend: `Domain`, `Application`, `Infrastructure`, `Api`, `Shared`. El dominio no referencia a EF ni a HTTP. La tenencia es el condominio. Cada request de datos pasa por `ITenantAccessService` y, en las pantallas ya protegidas, por permisos de rol.
+Capas del backend: `Domain`, `Application`, `Infrastructure`, `Api`, `Shared`. El dominio no referencia a EF ni a HTTP. El backend corre en .NET 10 LTS con EF Core 10 y Npgsql. Los casos de uso pasan por Mediator, que genera el despacho en compilación, y se validan con FluentValidation. No usa dependencias con licencia comercial: AutoMapper, MediatR y FluentAssertions se reemplazaron por Mapperly, Mediator y AwesomeAssertions. La tenencia es el condominio. Cada request de datos pasa por `ITenantAccessService` y, en las pantallas ya protegidas, por permisos de rol.
 
 Dos dineros conviven y no se mezclan:
 
@@ -76,7 +76,9 @@ Residencial Pedregal Demo. Contraseña de todas las cuentas: `Pass123.` Correos 
 
 ## Pruebas
 
-Playwright está en `tests/e2e`, un worker, Chromium. Local levanta la API en 5001 y Vite en 3001. Contra Azure se definen `E2E_BASE_URL` y `E2E_API_BASE`, y no se levantan servidores. El sitio publicado en Azure lleva el deploy del 5 de noviembre de 2026 (`a13c1d9ce67e4804b8a2125201991ffe`). Los comandos están en [QUICKSTART.md](QUICKSTART.md).
+Playwright está en `tests/e2e`, un worker, Chromium. Local levanta la API en 5001 y Vite en 3001. Contra Azure se definen `E2E_BASE_URL` y `E2E_API_BASE`, y no se levantan servidores. La última corrida local completa, del 5 de noviembre de 2026 sobre .NET 10, dejó 114 aprobadas y 2 omitidas. No hay proyecto de pruebas unitarias .NET. Los comandos están en [QUICKSTART.md](QUICKSTART.md).
+
+El sitio publicado en Azure lleva el deploy del 5 de noviembre de 2026 (`a13c1d9ce67e4804b8a2125201991ffe`), que todavía es el código en .NET 8. La migración a .NET 10 no está publicada.
 
 ## Documentos
 

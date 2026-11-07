@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Authentication;
@@ -25,7 +25,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         _passwordHasher = passwordHasher;
     }
 
-    public async Task<Result<RegisterUserResponse>> Handle(
+    public async ValueTask<Result<RegisterUserResponse>> Handle(
         RegisterUserCommand request,
         CancellationToken cancellationToken)
     {

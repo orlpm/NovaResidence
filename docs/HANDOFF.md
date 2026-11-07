@@ -16,12 +16,12 @@ Lee, en este orden:
 4. [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) para las reglas y excepciones de cada proceso.
 5. [PERMISSIONS.md](PERMISSIONS.md) solo si el cambio toca roles o pantallas protegidas.
 
-La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) y el sitio publicado en Azure comparten el corte del 5 de noviembre de 2026 (deploy `a13c1d9ce67e4804b8a2125201991ffe`).
+La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) y el sitio publicado en Azure comparten el corte del 5 de noviembre de 2026 (deploy `a13c1d9ce67e4804b8a2125201991ffe`), todavía en .NET 8. Encima de ese corte, ya en `main` pero sin deploy, está la migración a .NET 10 LTS con el cambio de dependencias.
 
 ## Entorno de desarrollo
 
 - Node.js 24.22.1 LTS y npm 11, instalados con winget (`OpenJS.NodeJS.LTS`). `winget upgrade` ofrecerá Node 26; no hace falta.
-- .NET 8 SDK. El frontend es un workspace de npm: instalar dependencias desde `src/Frontend` con `--workspace=web`.
+- .NET 10 SDK 10.0.403, instalado con winget (`Microsoft.DotNet.SDK.10`). También queda el SDK 9.0.102, pero el repositorio apunta a `net10.0` y necesita el 10. El frontend es un workspace de npm: instalar dependencias desde `src/Frontend` con `--workspace=web`.
 - Los skills de Neon están en `.agents/skills` del repositorio. La base del producto es Postgres y hoy apunta a Neon, tanto en local como en Azure.
 
 ## Reglas que no se negocian
@@ -43,10 +43,11 @@ La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) 
 | Local | Postgres. La app usa la cadena pooled (`ConnectionStrings:Postgres` o, si no existe, `ConnectionStrings:Neon`). Las pruebas usan la directa. Para que cargue user-secrets (`Jwt:SecretKey`), arrancar sin `--no-launch-profile`: `dotnet run --project "./src/Backend/NovaResidence.Api/NovaResidence.Api.csproj" --urls "http://localhost:5001"`. |
 | Azure | App `novaresidence-api`, grupo `NovaResidence-RG`, región `mexicocentral`, plan `novaresidence-plan` SKU F1. URL `https://novaresidence-api.azurewebsites.net`. Una sola app sirve API y SPA desde `wwwroot`. Desde el 4 nov 2026 el sitio usa la misma Postgres de Neon que local, porque `ConnectionStrings__Neon` ya estaba en App Settings y gana sobre `UseSqlite`. |
 | Último deploy | 5 nov 2026, id `a13c1d9ce67e4804b8a2125201991ffe`, `provisioningState` Succeeded. Incluye tableros y campana por condominio (`cc8aa39`), subida de archivos y fotos de hasta 8 MB, vista previa de Google Maps en mapas, menús de tres puntos por portal, skill `.cursor/skills/visual-ui`, tablero de superadmin sin datos dummy, y cajones/vehículos relacionados con residentes y visitas (parche `002_parking_resident_and_visit_vehicle`). La raíz respondió 200. |
-| Git | Cambios comiteados en la rama local `main` (excluyendo `playwright-report/index.html`). |
+| Git | En `main` y en GitHub, sin deploy: la migración a .NET 10, el cambio de AutoMapper, MediatR y FluentAssertions por Mapperly, Mediator y AwesomeAssertions, el aviso de activar o desactivar áreas comunes y la corrección de `vehicles-parking.spec.ts`. `playwright-report/index.html` y `test-results` no se comitean. |
+| Runtime de Azure | El App Service sigue en `netFrameworkVersion` `v8.0`. Hay que pasarlo a `v10.0` antes de publicar este código. |
 | Pruebas contra Azure | La suite no se volvió a correr después de pasar a Postgres ni después de sacar la clave JWT del paquete. El pase anterior, todavía sobre el código de SQLite, dejó 98 aprobadas, 1 omitida (`record-demo`) y 1 intermitente en `polls-meetings`, que pasó al repetirla. |
 | Pruebas de correo | En local, confirmación y restablecimiento abren el enlace real del mensaje capturado. En Azure, Brevo entregó el correo de DomusCond a `contacto@domuscond.com`. |
-| Pruebas locales | 99 aprobadas y 2 omitidas el 4 nov 2026, contra Postgres. Omitidas: `record-demo` y la entrega Brevo, que solo corre con `E2E_TARGET=azure`. |
+| Pruebas locales | 114 aprobadas y 2 omitidas el 5 nov 2026, sobre .NET 10 y Mediator, contra Postgres. Omitidas: `record-demo` y la entrega Brevo, que solo corre con `E2E_TARGET=azure`. No hay proyecto de pruebas unitarias .NET. |
 
 El plan F1 se duerme y tiene unos 60 minutos de CPU al día. Un arranque en frío más una suite grande agota la cuota.
 
@@ -54,6 +55,7 @@ El plan F1 se duerme y tiene unos 60 minutos de CPU al día. Un arranque en frí
 
 Desde la raíz del repositorio, con la CLI de Azure ya autenticada:
 
+0. Solo la primera vez después de la migración: `az webapp config set --resource-group NovaResidence-RG --name novaresidence-api --net-framework-version v10.0`. Con `v8.0` el paquete no arranca.
 1. `npm run build` en `src/Frontend/web`. El build de producción apunta a `https://novaresidence-api.azurewebsites.net/api` por `.env.production`.
 2. `dotnet publish` en Release hacia una carpeta temporal.
 3. Copiar `src/Frontend/web/dist` dentro de `wwwroot` de esa carpeta. El SPA no vive en el `wwwroot` del repositorio.
@@ -122,6 +124,9 @@ En Azure, `Demo:SeedOnStartup` está activo. En un sitio real hay que apagarlo: 
 - Los menús de acciones de tres puntos usan `ActionMenu.tsx` con portal a `document.body` y `position: fixed`, para que ningún contenedor con `overflow` los recorte. Las reglas visuales y las clases por familia de panel viven en `.cursor/skills/visual-ui/SKILL.md`.
 - Ninguna pantalla autenticada muestra métricas inventadas. Los datos de demostración solo viven en la landing (`Home.tsx`). El tablero de superadmin consume `/api/superadmin/monitoring` y la lista real de usuarios.
 - La campana resuelve el condominio por la prop, por `user.condominiumId` o por `getUserCondominiums`. Los tableros de admin y subadmin filtran por `CondominiumId` o `CondominiumIds`, y cada actividad o notificación abre su recurso.
+- El backend no vuelve a AutoMapper, MediatR ni FluentAssertions: cambiaron a licencia comercial. Los casos de uso usan Mediator (`Mediator.Abstractions` y `Mediator.SourceGenerator`), con handlers que devuelven `ValueTask<T>` y registro Scoped en `AddApplication`; como Singleton capturarían un `DbContext` ya liberado. Un mapeo nuevo se escribe con Mapperly (`[Mapper]`). Las pruebas unitarias, si se agregan, usan AwesomeAssertions.
+- Swagger usa Swashbuckle 10 sobre Microsoft.OpenApi 2. Un parámetro `IFormFile` va sin `[FromForm]`: `[ApiController]` ya lo lee del formulario, y con el atributo Swashbuckle no genera `swagger.json`.
+- Toda acción que cambia estado en una pantalla confirma con `toast.success` y avisa el fallo con `toast.error`. Las pruebas buscan esos textos, por ejemplo «Área desactivada» y «Área activada».
 - El cargo de cuota del residente ya existía. Lo que se agregó es el folio de recibo `REC-yyyyMMdd-XXXXXXXX` en `Payment.ReceiptNumber`.
 - La multa no es una entidad aparte: es un `Charge` con `FeeType.Fine` y un aviso al residente.
 - Cajones, vehículos, residentes y visitas están relacionados: `ParkingSpot` guarda `UnitId`, `ResidentId` y `AssignedPlate` (`PUT /api/parking/spots/{id}/assign`); `ResidentVehicle` guarda `ResidentId`, `UnitId`, placa, marca, color y `SpotCode`; `Visit` guarda `ResidentVehicleId` opcional y, si se elige un vehículo registrado de la unidad al crear o editar la visita, toma su placa y descripción. También se puede seguir capturando la placa libre de un visitante externo. En la lista de visitas del administrador, si la placa coincide con un vehículo del condominio, se muestra el nombre del residente dueño.
@@ -136,8 +141,8 @@ El correo de Azure y el sandbox de OpenPay ya están conectados. Aun así, el pr
 - `Jwt:SecretKey` no vive en el repositorio. Producción la lee de App Settings (`Jwt__SecretKey`). Local la lee de user-secrets. Si falta o tiene menos de 32 caracteres, el proceso no arranca. No la copies a chats ni a documentos.
 - Application Insights está vacío.
 - El seed demo no puede quedar encendido.
-- .NET 8 deja de recibir parches de seguridad el 10 de noviembre de 2026. Hay que migrar a .NET 10 LTS.
-- `dotnet list package --vulnerable --include-transitive` reporta paquetes con vulnerabilidades altas (entre ellos `AutoMapper`, `System.Text.Json`, `System.Security.Cryptography.Xml`, `SQLitePCLRaw`, `Microsoft.Data.SqlClient`) y `MailKit` moderada. `npm audit` en el frontend reporta altas en `form-data`, `follow-redirects` y `zod`. Varias se cierran con la migración a .NET 10 y con `npm audit fix`; `zod` requiere cambio de versión mayor.
+- El código ya compila contra .NET 10 LTS. El App Service tiene que usar el stack .NET 10; con el runtime de .NET 8 el deploy no arranca.
+- `dotnet list package --vulnerable --include-transitive` no reporta paquetes vulnerables. AutoMapper, MediatR y FluentAssertions se retiraron por su cambio a licencia comercial; los reemplazan Mapperly, Mediator y AwesomeAssertions. `npm audit` en el frontend reporta altas en `form-data`, `follow-redirects` y `zod`. Las dos primeras se cierran con `npm audit fix`; `zod` requiere cambio de versión mayor.
 - No hay rate limiting en login ni en la validación de códigos QR. El código QR tiene 60 bits de entropía, pero conviene limitar intentos por usuario.
 
 ## Trabajo explícitamente no hecho

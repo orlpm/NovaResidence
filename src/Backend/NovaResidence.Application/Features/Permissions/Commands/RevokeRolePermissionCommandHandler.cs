@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 
@@ -14,7 +14,7 @@ public class RevokeRolePermissionCommandHandler : IRequestHandler<RevokeRolePerm
         _context = context;
     }
 
-    public async Task<Result> Handle(RevokeRolePermissionCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(RevokeRolePermissionCommand request, CancellationToken cancellationToken)
     {
         var permission = await _context.Permissions
             .FirstOrDefaultAsync(p => p.Code == request.PermissionCode, cancellationToken);

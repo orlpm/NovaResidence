@@ -46,7 +46,7 @@ public class DocumentsController : ControllerBase
 
     [HttpPost("upload")]
     [Authorize(Roles = "admin,superadmin")]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file)
+    public async Task<IActionResult> Upload(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse<object>.FailureResponse("No se proporcionó archivo"));

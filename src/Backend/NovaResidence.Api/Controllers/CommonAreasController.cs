@@ -195,7 +195,7 @@ public class CommonAreasController : ControllerBase
 
     [HttpPost("upload-image")]
     [Authorize(Roles = "admin,superadmin")]
-    public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+    public async Task<IActionResult> UploadImage(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse<object>.FailureResponse("No se proporcionó archivo"));

@@ -29,13 +29,13 @@ test.describe('Vehículos y cajones', () => {
     await page.locator('select').selectOption(spot.toUpperCase())
     await page.getByRole('button', { name: 'Registrar vehículo' }).click()
     await expect(page.getByText('Vehículo registrado')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText(plate)).toBeVisible()
+    await expect(page.getByText(`${plate} · Nissan`)).toBeVisible()
 
     await loginUI(page, scenario.adminEmail, scenario.adminPassword, /\/admin(\/|$)/)
     await page.goto('/admin/parking')
     await page.locator('select').first().selectOption(scenario.condominiumId)
-    await expect(page.getByText(`${plate} · Nissan`)).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText(`${spot.toUpperCase()} · ${plate}`)).toBeVisible()
+    await expect(page.getByRole('row', { name: new RegExp(`^${plate} Nissan`) })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('row', { name: new RegExp(`^${spot.toUpperCase()} .*${plate}`) })).toBeVisible()
   })
 
   test('registra una placa sin cajón y la placa de una visita no entra al padrón', async ({ request, page }) => {

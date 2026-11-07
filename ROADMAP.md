@@ -26,6 +26,7 @@ Corte: 5 de noviembre de 2026. El mapa de servicios está en [docs/SERVICIOS-Y-P
 - Correo de confirmación y restablecimiento por Brevo en Azure, desde `contacto@domuscond.com`. En local el envío está apagado y las pruebas leen el buzón capturado.
 - Postgres en Neon para local y para el sitio publicado. La clave JWT no está en el repositorio.
 - Cobro sandbox de la suscripción de la plataforma con OpenPay. La tarjeta se tokeniza en el navegador.
+- Backend en .NET 10 LTS, sin dependencias con licencia comercial y sin paquetes vulnerables según NuGet. Mediator y Mapperly generan su código en compilación. Falta publicarlo.
 
 ## Fuera del piloto, a propósito
 
@@ -46,6 +47,8 @@ El orden importa. Las pantallas no son el bloqueo.
 4. Vaciar Application Insights no sustituye tener telemetría. La clave JWT ya salió del repositorio: producción la lee de App Settings y local de user-secrets.
 5. Apagar `Demo:SeedOnStartup` y cambiar las cuentas de demostración.
 6. Cada columna nueva de Postgres entra como un id en `PostgresSchemaPatch`. Las migraciones de SQL Server no se ejecutan contra Neon.
+7. Pasar el App Service a .NET 10 (`netFrameworkVersion` `v10.0`) y publicar la migración. El sitio sigue en .NET 8, que deja de recibir parches el 10 de noviembre de 2026.
+8. Cerrar las vulnerabilidades altas de `npm audit` en el frontend (`form-data`, `follow-redirects` y `zod`).
 
 ## Después del primer condominio real
 

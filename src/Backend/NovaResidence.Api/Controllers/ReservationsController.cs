@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Microsoft.AspNetCore.Mvc;
 using NovaResidence.Shared.Models;
 using NovaResidence.Application.Features.Reservations.Commands;

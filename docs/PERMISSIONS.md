@@ -17,7 +17,7 @@ Hay un décimo rol, `Cleaning` (valor 9). El token lo colapsa junto con mantenim
 
 ## 🏗️ Arquitectura
 
-### Backend (.NET 8)
+### Backend (.NET 10)
 
 ```
 NovaResidence.Domain

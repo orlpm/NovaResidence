@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Features.Reports.Queries;
 
 namespace NovaResidence.Api.Controllers;

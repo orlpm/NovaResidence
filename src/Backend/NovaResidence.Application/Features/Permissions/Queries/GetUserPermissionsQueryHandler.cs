@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Common.Interfaces;
 
 namespace NovaResidence.Application.Features.Permissions.Queries;
@@ -13,7 +13,7 @@ public class GetUserPermissionsQueryHandler : IRequestHandler<GetUserPermissions
         _permissionService = permissionService;
     }
 
-    public async Task<Result<List<string>>> Handle(GetUserPermissionsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<string>>> Handle(GetUserPermissionsQuery request, CancellationToken cancellationToken)
     {
         var permissions = await _permissionService.GetUserPermissionsAsync(
             request.UserId,

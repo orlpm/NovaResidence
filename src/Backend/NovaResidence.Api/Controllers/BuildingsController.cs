@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Condominiums;
 using NovaResidence.Shared.Models;

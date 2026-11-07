@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Authentication;
@@ -15,7 +15,7 @@ public class GrantRolePermissionCommandHandler : IRequestHandler<GrantRolePermis
         _context = context;
     }
 
-    public async Task<Result> Handle(GrantRolePermissionCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(GrantRolePermissionCommand request, CancellationToken cancellationToken)
     {
         var permission = await _context.Permissions
             .FirstOrDefaultAsync(p => p.Code == request.PermissionCode, cancellationToken);

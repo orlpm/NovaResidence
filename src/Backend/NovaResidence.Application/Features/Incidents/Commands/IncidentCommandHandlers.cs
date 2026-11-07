@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -21,7 +21,7 @@ public class CreateIncidentCommandHandler : IRequestHandler<CreateIncidentComman
         _notifier = notifier;
     }
 
-    public async Task<Result<Guid>> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -67,7 +67,7 @@ public class UpdateIncidentCommandHandler : IRequestHandler<UpdateIncidentComman
         _context = context;
     }
 
-    public async Task<Result> Handle(UpdateIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateIncidentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -91,7 +91,7 @@ public class AssignIncidentCommandHandler : IRequestHandler<AssignIncidentComman
         _notifier = notifier;
     }
 
-    public async Task<Result> Handle(AssignIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(AssignIncidentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -140,7 +140,7 @@ public class AcknowledgeIncidentCommandHandler : IRequestHandler<AcknowledgeInci
         _context = context;
     }
 
-    public async Task<Result> Handle(AcknowledgeIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(AcknowledgeIncidentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -168,7 +168,7 @@ public class StartIncidentProgressCommandHandler : IRequestHandler<StartIncident
         _context = context;
     }
 
-    public async Task<Result> Handle(StartIncidentProgressCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(StartIncidentProgressCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -198,7 +198,7 @@ public class ResolveIncidentCommandHandler : IRequestHandler<ResolveIncidentComm
         _notifier = notifier;
     }
 
-    public async Task<Result> Handle(ResolveIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ResolveIncidentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -230,7 +230,7 @@ public class CloseIncidentCommandHandler : IRequestHandler<CloseIncidentCommand,
         _context = context;
     }
 
-    public async Task<Result> Handle(CloseIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(CloseIncidentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -258,7 +258,7 @@ public class ReopenIncidentCommandHandler : IRequestHandler<ReopenIncidentComman
         _context = context;
     }
 
-    public async Task<Result> Handle(ReopenIncidentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ReopenIncidentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents.FindAsync(new object[] { request.IncidentId }, cancellationToken);
         if (incident == null)
@@ -286,7 +286,7 @@ public class AddIncidentCommentCommandHandler : IRequestHandler<AddIncidentComme
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(AddIncidentCommentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(AddIncidentCommentCommand request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents
             .Include(i => i.Comments)

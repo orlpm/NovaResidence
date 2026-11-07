@@ -2,6 +2,11 @@
 
 Qué hace la plataforma está en [docs/SERVICIOS-Y-PROCESOS.md](docs/SERVICIOS-Y-PROCESOS.md). El estado para retomar el trabajo, en [docs/HANDOFF.md](docs/HANDOFF.md). Esta página solo dice cómo levantarlo y cómo probarlo.
 
+## Requisitos
+
+- .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`). El repositorio apunta a `net10.0` desde `Directory.Build.props`; con un SDK anterior no compila.
+- Node.js 24 LTS y npm 11.
+
 ## Local
 
 Terminal de la API, desde la raíz del repositorio:
@@ -30,7 +35,13 @@ En local el envío está apagado y `Email:CaptureOutbox` guarda el mensaje en `d
 
 ## Pruebas de extremo a extremo
 
-Desde la raíz, con los puertos 5001 y 3001 libres para que Playwright no reutilice un API viejo:
+Desde la raíz, con los puertos 5001 y 3001 libres para que Playwright no reutilice un API viejo. La suite completa, con resumen de causas probables si algo falla:
+
+```bash
+npm run test:e2e:guarded
+```
+
+Solo los flujos operativos:
 
 ```bash
 npx playwright test tests/e2e/notifications-events.spec.ts tests/e2e/documents.spec.ts tests/e2e/common-areas-maps.spec.ts tests/e2e/cleaning-provider-work.spec.ts tests/e2e/polls-meetings.spec.ts tests/e2e/packages.spec.ts tests/e2e/vehicles-parking.spec.ts tests/e2e/resident-fee-payment.spec.ts tests/e2e/security-rounds.spec.ts tests/e2e/fines.spec.ts tests/e2e/demo-pedregal-showcase.spec.ts
@@ -50,6 +61,12 @@ npx playwright test tests/e2e/<spec>.spec.ts
 En PowerShell se asignan con `$env:`. El sitio F1 puede tardar en despertar. No reactivar `tests/record-demo.spec.ts`.
 
 ## Publicar
+
+Antes del primer deploy en .NET 10, el App Service tiene que usar ese stack. Con el runtime de .NET 8 la app no arranca:
+
+```bash
+az webapp config set --resource-group NovaResidence-RG --name novaresidence-api --net-framework-version v10.0
+```
 
 1. `npm run build` en `src/Frontend/web`.
 2. `dotnet publish` en Release a una carpeta temporal.

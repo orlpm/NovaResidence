@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using Ardalis.Result;
@@ -14,7 +14,7 @@ public class UpdateAmenityCommandHandler : IRequestHandler<UpdateAmenityCommand,
         _context = context;
     }
 
-    public async Task<Result<UpdateAmenityResponse>> Handle(UpdateAmenityCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<UpdateAmenityResponse>> Handle(UpdateAmenityCommand request, CancellationToken cancellationToken)
     {
         var amenity = await _context.Amenities
             .FirstOrDefaultAsync(a => a.Id == request.AmenityId, cancellationToken);

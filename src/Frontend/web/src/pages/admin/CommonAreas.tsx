@@ -175,6 +175,7 @@ export default function CommonAreas() {
         imageUrlsJson: area.imageUrlsJson,
         isActive: !area.isActive
       })
+      toast.success(area.isActive ? 'Área desactivada' : 'Área activada')
       await loadAreas(selectedCondominium)
     } catch {
       toast.error('No se pudo cambiar el estado')

@@ -88,7 +88,7 @@ Cajones, vehículos, residentes y visitas están conectados sin perder la opció
 
 ## Áreas comunes y reservación
 
-Hay dos catálogos históricos. Las pantallas usan el catálogo nuevo. El administrador crea el área, sube fotos (JPG, PNG o WEBP de hasta 8 MB) y puede desactivarla. El residente ve las fotos y no ve las áreas inactivas.
+Hay dos catálogos históricos. Las pantallas usan el catálogo nuevo. El administrador crea el área, sube fotos (JPG, PNG o WEBP de hasta 8 MB) y puede desactivarla o volver a activarla. La pantalla confirma con «Área desactivada» o «Área activada». El residente ve las fotos y no ve las áreas inactivas.
 
 Reservar un área no es reservar una amenidad. La amenidad tiene su propio calendario, cupo y aprobación. El área común se solicita con fecha, hora de inicio, hora de fin y motivo. Nace pendiente. El administrador la aprueba y el residente pasa a verla aprobada. La aprobación también deja un aviso de reservación.
 

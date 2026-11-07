@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Application.Common.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -19,7 +19,7 @@ public class GetAllCondominiumsQueryHandler : IRequestHandler<GetAllCondominiums
         _logger = logger;
     }
 
-    public async Task<Result<List<CondominiumListDto>>> Handle(
+    public async ValueTask<Result<List<CondominiumListDto>>> Handle(
         GetAllCondominiumsQuery request,
         CancellationToken cancellationToken)
     {

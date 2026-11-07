@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Condominiums;
@@ -23,7 +23,7 @@ public class GetCondominiumQueryHandler : IRequestHandler<GetCondominiumQuery, R
         _logger = logger;
     }
 
-    public async Task<Result<CondominiumDetailDto>> Handle(
+    public async ValueTask<Result<CondominiumDetailDto>> Handle(
         GetCondominiumQuery request,
         CancellationToken cancellationToken)
     {

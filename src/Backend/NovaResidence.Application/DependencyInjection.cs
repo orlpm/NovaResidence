@@ -1,7 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Common.Behaviors;
 
 namespace NovaResidence.Application;
@@ -12,18 +12,19 @@ public static class DependencyInjection
     {
         var assembly = Assembly.GetExecutingAssembly();
 
-        // MediatR
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(assembly));
+        // Mediator: handlers depend on the scoped DbContext, so they cannot be singletons.
+        services.AddMediator(options =>
+        {
+            options.ServiceLifetime = ServiceLifetime.Scoped;
+            options.PipelineBehaviors =
+            [
+                typeof(ValidationBehavior<,>),
+                typeof(LoggingBehavior<,>)
+            ];
+        });
 
         // FluentValidation
         services.AddValidatorsFromAssembly(assembly);
-
-        // AutoMapper
-        services.AddAutoMapper(assembly);
-
-        // Behaviors
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 
         return services;
     }

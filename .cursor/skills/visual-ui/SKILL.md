@@ -56,6 +56,7 @@ El layout ya da el margen. Admin: `main` con `py-4 sm:py-8 px-2 sm:px-6 lg:px-8`
 - Tablas: `min-w-full` dentro de `overflow-x-auto`. En `xs` el encabezado de sección no se aplasta contra el botón.
 - Diálogos: overlay `fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4`. Panel `w-full max-w-xl max-h-[90vh] overflow-y-auto`. Formularios cortos no pasan de `max-w-xl`; un detalle ancho usa `max-w-2xl`.
 - Estados: vacío con borde punteado, carga con el spinner `border-sky-500`, error con fondo rojo suave. Están en la referencia.
+- Toda acción que cambia estado (crear, editar, activar, desactivar, eliminar, aprobar) confirma con `toast.success` y un texto corto en participio, como «Área desactivada». El fallo va con `toast.error`. No dejes una acción que solo cambia la tarjeta sin aviso.
 - Cada clase de color en admin y residente tiene su par `dark:`. Superadmin es oscuro fijo: no le agregues pares `dark:` de una pantalla clara.
 - Respeta `prefers-reduced-motion` si agregas animación. Las transiciones existentes son `transition-all` o `transition-colors`.
 

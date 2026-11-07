@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -21,7 +21,7 @@ public class CreateAnnouncementCommandHandler : IRequestHandler<CreateAnnounceme
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(CreateAnnouncementCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateAnnouncementCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -66,7 +66,7 @@ public class UpdateAnnouncementCommandHandler : IRequestHandler<UpdateAnnounceme
         _logger = logger;
     }
 
-    public async Task<Result> Handle(UpdateAnnouncementCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateAnnouncementCommand request, CancellationToken cancellationToken)
     {
         var announcement = await _context.Announcements.FindAsync(request.AnnouncementId);
         if (announcement == null)
@@ -96,7 +96,7 @@ public class PublishAnnouncementCommandHandler : IRequestHandler<PublishAnnounce
         _context = context;
     }
 
-    public async Task<Result> Handle(PublishAnnouncementCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(PublishAnnouncementCommand request, CancellationToken cancellationToken)
     {
         var announcement = await _context.Announcements.FindAsync(request.AnnouncementId);
         if (announcement == null)
@@ -117,7 +117,7 @@ public class UnpublishAnnouncementCommandHandler : IRequestHandler<UnpublishAnno
         _context = context;
     }
 
-    public async Task<Result> Handle(UnpublishAnnouncementCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UnpublishAnnouncementCommand request, CancellationToken cancellationToken)
     {
         var announcement = await _context.Announcements.FindAsync(request.AnnouncementId);
         if (announcement == null)
@@ -138,7 +138,7 @@ public class DeleteAnnouncementCommandHandler : IRequestHandler<DeleteAnnounceme
         _context = context;
     }
 
-    public async Task<Result> Handle(DeleteAnnouncementCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteAnnouncementCommand request, CancellationToken cancellationToken)
     {
         var announcement = await _context.Announcements.FindAsync(request.AnnouncementId);
         if (announcement == null)
@@ -160,7 +160,7 @@ public class MarkAnnouncementAsReadCommandHandler : IRequestHandler<MarkAnnounce
         _context = context;
     }
 
-    public async Task<Result> Handle(MarkAnnouncementAsReadCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(MarkAnnouncementAsReadCommand request, CancellationToken cancellationToken)
     {
         var recipient = await _context.AnnouncementRecipients
             .FirstOrDefaultAsync(r => r.AnnouncementId == request.AnnouncementId 
@@ -188,7 +188,7 @@ public class AddAnnouncementAttachmentCommandHandler : IRequestHandler<AddAnnoun
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(AddAnnouncementAttachmentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(AddAnnouncementAttachmentCommand request, CancellationToken cancellationToken)
     {
         var attachment = AnnouncementAttachment.Create(
             request.AnnouncementId,
@@ -213,7 +213,7 @@ public class AddForumPostAttachmentCommandHandler : IRequestHandler<AddForumPost
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(AddForumPostAttachmentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(AddForumPostAttachmentCommand request, CancellationToken cancellationToken)
     {
         var attachment = ForumPostAttachment.Create(
             request.ForumPostId,
@@ -244,7 +244,7 @@ public class CreatePollCommandHandler : IRequestHandler<CreatePollCommand, Resul
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(CreatePollCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreatePollCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -292,7 +292,7 @@ public class UpdatePollCommandHandler : IRequestHandler<UpdatePollCommand, Resul
         _context = context;
     }
 
-    public async Task<Result> Handle(UpdatePollCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdatePollCommand request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls.FindAsync(request.PollId);
         if (poll == null)
@@ -315,7 +315,7 @@ public class PublishPollCommandHandler : IRequestHandler<PublishPollCommand, Res
         _notifier = notifier;
     }
 
-    public async Task<Result> Handle(PublishPollCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(PublishPollCommand request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls.FindAsync(request.PollId);
         if (poll == null)
@@ -345,7 +345,7 @@ public class ClosePollCommandHandler : IRequestHandler<ClosePollCommand, Result>
         _context = context;
     }
 
-    public async Task<Result> Handle(ClosePollCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ClosePollCommand request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls.FindAsync(request.PollId);
         if (poll == null)
@@ -366,7 +366,7 @@ public class CancelPollCommandHandler : IRequestHandler<CancelPollCommand, Resul
         _context = context;
     }
 
-    public async Task<Result> Handle(CancelPollCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(CancelPollCommand request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls.FindAsync(request.PollId);
         if (poll == null)
@@ -387,7 +387,7 @@ public class DeletePollCommandHandler : IRequestHandler<DeletePollCommand, Resul
         _context = context;
     }
 
-    public async Task<Result> Handle(DeletePollCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeletePollCommand request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls.FindAsync(request.PollId);
         if (poll == null)
@@ -411,7 +411,7 @@ public class CastVoteCommandHandler : IRequestHandler<CastVoteCommand, Result<Gu
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(CastVoteCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CastVoteCommand request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls
             .Include(p => p.Votes)
@@ -454,7 +454,7 @@ public class AddPollOptionCommandHandler : IRequestHandler<AddPollOptionCommand,
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(AddPollOptionCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(AddPollOptionCommand request, CancellationToken cancellationToken)
     {
         var maxOrder = await _context.PollOptions
             .Where(o => o.PollId == request.PollId)
@@ -476,7 +476,7 @@ public class RemovePollOptionCommandHandler : IRequestHandler<RemovePollOptionCo
         _context = context;
     }
 
-    public async Task<Result> Handle(RemovePollOptionCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(RemovePollOptionCommand request, CancellationToken cancellationToken)
     {
         var option = await _context.PollOptions.FindAsync(request.PollOptionId);
         if (option == null)
@@ -504,7 +504,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(CreateMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateMeetingCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -543,7 +543,7 @@ public class UpdateMeetingCommandHandler : IRequestHandler<UpdateMeetingCommand,
         _context = context;
     }
 
-    public async Task<Result> Handle(UpdateMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(request.MeetingId);
         if (meeting == null)
@@ -572,7 +572,7 @@ public class StartMeetingCommandHandler : IRequestHandler<StartMeetingCommand, R
         _context = context;
     }
 
-    public async Task<Result> Handle(StartMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(StartMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(request.MeetingId);
         if (meeting == null)
@@ -593,7 +593,7 @@ public class EndMeetingCommandHandler : IRequestHandler<EndMeetingCommand, Resul
         _context = context;
     }
 
-    public async Task<Result> Handle(EndMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(EndMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(request.MeetingId);
         if (meeting == null)
@@ -614,7 +614,7 @@ public class CancelMeetingCommandHandler : IRequestHandler<CancelMeetingCommand,
         _context = context;
     }
 
-    public async Task<Result> Handle(CancelMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(CancelMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(request.MeetingId);
         if (meeting == null)
@@ -635,7 +635,7 @@ public class DeleteMeetingCommandHandler : IRequestHandler<DeleteMeetingCommand,
         _context = context;
     }
 
-    public async Task<Result> Handle(DeleteMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(request.MeetingId);
         if (meeting == null)
@@ -657,7 +657,7 @@ public class SetMeetingMinutesCommandHandler : IRequestHandler<SetMeetingMinutes
         _context = context;
     }
 
-    public async Task<Result> Handle(SetMeetingMinutesCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(SetMeetingMinutesCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(request.MeetingId);
         if (meeting == null)
@@ -680,7 +680,7 @@ public class InviteToMeetingCommandHandler : IRequestHandler<InviteToMeetingComm
         _notifier = notifier;
     }
 
-    public async Task<Result<Guid>> Handle(InviteToMeetingCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(InviteToMeetingCommand request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings.FindAsync(new object[] { request.MeetingId }, cancellationToken);
         if (meeting == null)
@@ -728,7 +728,7 @@ public class ConfirmMeetingAttendanceCommandHandler : IRequestHandler<ConfirmMee
         _context = context;
     }
 
-    public async Task<Result> Handle(ConfirmMeetingAttendanceCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ConfirmMeetingAttendanceCommand request, CancellationToken cancellationToken)
     {
         var attendee = await _context.MeetingAttendees
             .FirstOrDefaultAsync(a => a.MeetingId == request.MeetingId && a.Id == request.AttendeeId, cancellationToken);
@@ -751,7 +751,7 @@ public class DeclineMeetingAttendanceCommandHandler : IRequestHandler<DeclineMee
         _context = context;
     }
 
-    public async Task<Result> Handle(DeclineMeetingAttendanceCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeclineMeetingAttendanceCommand request, CancellationToken cancellationToken)
     {
         var attendee = await _context.MeetingAttendees
             .FirstOrDefaultAsync(a => a.MeetingId == request.MeetingId && a.Id == request.AttendeeId, cancellationToken);
@@ -774,7 +774,7 @@ public class MarkAttendeeArrivedCommandHandler : IRequestHandler<MarkAttendeeArr
         _context = context;
     }
 
-    public async Task<Result> Handle(MarkAttendeeArrivedCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(MarkAttendeeArrivedCommand request, CancellationToken cancellationToken)
     {
         var attendee = await _context.MeetingAttendees
             .FirstOrDefaultAsync(a => a.MeetingId == request.MeetingId && a.Id == request.AttendeeId, cancellationToken);
@@ -797,7 +797,7 @@ public class SetMeetingProxyCommandHandler : IRequestHandler<SetMeetingProxyComm
         _context = context;
     }
 
-    public async Task<Result> Handle(SetMeetingProxyCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(SetMeetingProxyCommand request, CancellationToken cancellationToken)
     {
         var attendee = await _context.MeetingAttendees
             .FirstOrDefaultAsync(a => a.MeetingId == request.MeetingId && a.Id == request.AttendeeId, cancellationToken);
@@ -826,7 +826,7 @@ public class CreateForumPostCommandHandler : IRequestHandler<CreateForumPostComm
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(CreateForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateForumPostCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -864,7 +864,7 @@ public class UpdateForumPostCommandHandler : IRequestHandler<UpdateForumPostComm
         _context = context;
     }
 
-    public async Task<Result> Handle(UpdateForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -885,7 +885,7 @@ public class PinForumPostCommandHandler : IRequestHandler<PinForumPostCommand, R
         _context = context;
     }
 
-    public async Task<Result> Handle(PinForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(PinForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -906,7 +906,7 @@ public class UnpinForumPostCommandHandler : IRequestHandler<UnpinForumPostComman
         _context = context;
     }
 
-    public async Task<Result> Handle(UnpinForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UnpinForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -927,7 +927,7 @@ public class ArchiveForumPostCommandHandler : IRequestHandler<ArchiveForumPostCo
         _context = context;
     }
 
-    public async Task<Result> Handle(ArchiveForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ArchiveForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -948,7 +948,7 @@ public class HideForumPostCommandHandler : IRequestHandler<HideForumPostCommand,
         _context = context;
     }
 
-    public async Task<Result> Handle(HideForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(HideForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -969,7 +969,7 @@ public class RestoreForumPostCommandHandler : IRequestHandler<RestoreForumPostCo
         _context = context;
     }
 
-    public async Task<Result> Handle(RestoreForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(RestoreForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -990,7 +990,7 @@ public class DeleteForumPostCommandHandler : IRequestHandler<DeleteForumPostComm
         _context = context;
     }
 
-    public async Task<Result> Handle(DeleteForumPostCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteForumPostCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -1012,7 +1012,7 @@ public class IncrementForumPostViewsCommandHandler : IRequestHandler<IncrementFo
         _context = context;
     }
 
-    public async Task<Result> Handle(IncrementForumPostViewsCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(IncrementForumPostViewsCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -1033,7 +1033,7 @@ public class AddForumCommentCommandHandler : IRequestHandler<AddForumCommentComm
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(AddForumCommentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(AddForumCommentCommand request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts.FindAsync(request.ForumPostId);
         if (post == null)
@@ -1065,7 +1065,7 @@ public class UpdateForumCommentCommandHandler : IRequestHandler<UpdateForumComme
         _context = context;
     }
 
-    public async Task<Result> Handle(UpdateForumCommentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateForumCommentCommand request, CancellationToken cancellationToken)
     {
         var comment = await _context.ForumComments.FindAsync(request.CommentId);
         if (comment == null)
@@ -1086,7 +1086,7 @@ public class HideForumCommentCommandHandler : IRequestHandler<HideForumCommentCo
         _context = context;
     }
 
-    public async Task<Result> Handle(HideForumCommentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(HideForumCommentCommand request, CancellationToken cancellationToken)
     {
         var comment = await _context.ForumComments.FindAsync(request.CommentId);
         if (comment == null)
@@ -1107,7 +1107,7 @@ public class ShowForumCommentCommandHandler : IRequestHandler<ShowForumCommentCo
         _context = context;
     }
 
-    public async Task<Result> Handle(ShowForumCommentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ShowForumCommentCommand request, CancellationToken cancellationToken)
     {
         var comment = await _context.ForumComments.FindAsync(request.CommentId);
         if (comment == null)
@@ -1128,7 +1128,7 @@ public class DeleteForumCommentCommandHandler : IRequestHandler<DeleteForumComme
         _context = context;
     }
 
-    public async Task<Result> Handle(DeleteForumCommentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteForumCommentCommand request, CancellationToken cancellationToken)
     {
         var comment = await _context.ForumComments.FindAsync(request.CommentId);
         if (comment == null)

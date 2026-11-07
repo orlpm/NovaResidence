@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Api.Security;
 using NovaResidence.Application.Features.Incidents.Commands;
@@ -132,7 +132,7 @@ public class IncidentsController : ControllerBase
     }
 
     [HttpPost("upload-photo")]
-    public async Task<ActionResult<string>> UploadIncidentPhoto([FromForm] IFormFile file)
+    public async Task<ActionResult<string>> UploadIncidentPhoto(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest("No se proporcionó archivo");

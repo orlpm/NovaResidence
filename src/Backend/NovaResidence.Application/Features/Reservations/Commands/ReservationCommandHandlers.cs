@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -16,7 +16,7 @@ public class CreateReservationCommandHandler : IRequestHandler<CreateReservation
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(CreateReservationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateReservationCommand request, CancellationToken cancellationToken)
     {
         // Validate amenity exists and is active
         var amenity = await _context.Amenities
@@ -117,7 +117,7 @@ public class CancelReservationCommandHandler : IRequestHandler<CancelReservation
         _context = context;
     }
 
-    public async Task<Result> Handle(CancelReservationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(CancelReservationCommand request, CancellationToken cancellationToken)
     {
         var reservation = await _context.Reservations
             .FirstOrDefaultAsync(r => r.Id == request.ReservationId, cancellationToken);
@@ -148,7 +148,7 @@ public class ApproveReservationCommandHandler : IRequestHandler<ApproveReservati
         _context = context;
     }
 
-    public async Task<Result> Handle(ApproveReservationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ApproveReservationCommand request, CancellationToken cancellationToken)
     {
         var reservation = await _context.Reservations
             .FirstOrDefaultAsync(r => r.Id == request.ReservationId, cancellationToken);
@@ -176,7 +176,7 @@ public class RejectReservationCommandHandler : IRequestHandler<RejectReservation
         _context = context;
     }
 
-    public async Task<Result> Handle(RejectReservationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(RejectReservationCommand request, CancellationToken cancellationToken)
     {
         var reservation = await _context.Reservations
             .FirstOrDefaultAsync(r => r.Id == request.ReservationId, cancellationToken);

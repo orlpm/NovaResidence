@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 
 namespace NovaResidence.Application.Features.Condominiums.Queries.GetAllCondominiums;

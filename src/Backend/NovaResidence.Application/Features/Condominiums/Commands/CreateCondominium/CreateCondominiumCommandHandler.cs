@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -26,7 +26,7 @@ public class CreateCondominiumCommandHandler : IRequestHandler<CreateCondominium
         _logger = logger;
     }
 
-    public async Task<Result<CreateCondominiumResponse>> Handle(
+    public async ValueTask<Result<CreateCondominiumResponse>> Handle(
         CreateCondominiumCommand request,
         CancellationToken cancellationToken)
     {

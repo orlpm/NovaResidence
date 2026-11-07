@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using NovaResidence.Domain.Enums;
 
 namespace NovaResidence.Application.Features.Permissions.Commands;

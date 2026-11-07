@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Features.Condominiums.Queries.GetCondominium;
 using NovaResidence.Application.Features.Condominiums.Queries.GetUserCondominiums;
 using NovaResidence.Application.Features.Condominiums.Queries.GetAllCondominiums;

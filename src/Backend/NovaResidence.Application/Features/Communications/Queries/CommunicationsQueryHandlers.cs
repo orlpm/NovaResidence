@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -17,7 +17,7 @@ public class GetAnnouncementsQueryHandler : IRequestHandler<GetAnnouncementsQuer
         _context = context;
     }
 
-    public async Task<Result<PagedList<AnnouncementDto>>> Handle(GetAnnouncementsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<AnnouncementDto>>> Handle(GetAnnouncementsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Announcements
             .Where(a => a.CondominiumId == request.CondominiumId);
@@ -91,7 +91,7 @@ public class GetAnnouncementByIdQueryHandler : IRequestHandler<GetAnnouncementBy
         _context = context;
     }
 
-    public async Task<Result<AnnouncementDto>> Handle(GetAnnouncementByIdQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<AnnouncementDto>> Handle(GetAnnouncementByIdQuery request, CancellationToken cancellationToken)
     {
         var announcement = await _context.Announcements
             .Include(a => a.Attachments)
@@ -157,7 +157,7 @@ public class GetPublishedAnnouncementsQueryHandler : IRequestHandler<GetPublishe
         _context = context;
     }
 
-    public async Task<Result<PagedList<AnnouncementDto>>> Handle(GetPublishedAnnouncementsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<AnnouncementDto>>> Handle(GetPublishedAnnouncementsQuery request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         var query = _context.Announcements
@@ -233,7 +233,7 @@ public class GetPollsQueryHandler : IRequestHandler<GetPollsQuery, Result<PagedL
         _context = context;
     }
 
-    public async Task<Result<PagedList<PollDto>>> Handle(GetPollsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<PollDto>>> Handle(GetPollsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Polls
             .Include(p => p.Options)
@@ -312,7 +312,7 @@ public class GetPollByIdQueryHandler : IRequestHandler<GetPollByIdQuery, Result<
         _context = context;
     }
 
-    public async Task<Result<PollDto>> Handle(GetPollByIdQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PollDto>> Handle(GetPollByIdQuery request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls
             .Include(p => p.Options)
@@ -380,7 +380,7 @@ public class GetActivePollsQueryHandler : IRequestHandler<GetActivePollsQuery, R
         _context = context;
     }
 
-    public async Task<Result<List<PollDto>>> Handle(GetActivePollsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<PollDto>>> Handle(GetActivePollsQuery request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         var polls = await _context.Polls
@@ -453,7 +453,7 @@ public class GetPollResultsQueryHandler : IRequestHandler<GetPollResultsQuery, R
         _context = context;
     }
 
-    public async Task<Result<PollResultsDto>> Handle(GetPollResultsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PollResultsDto>> Handle(GetPollResultsQuery request, CancellationToken cancellationToken)
     {
         var poll = await _context.Polls
             .Include(p => p.Options)
@@ -503,7 +503,7 @@ public class HasUnitVotedQueryHandler : IRequestHandler<HasUnitVotedQuery, Resul
         _context = context;
     }
 
-    public async Task<Result<bool>> Handle(HasUnitVotedQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<bool>> Handle(HasUnitVotedQuery request, CancellationToken cancellationToken)
     {
         var hasVoted = await _context.PollVotes
             .AnyAsync(v => v.PollId == request.PollId && v.UnitId == request.UnitId, cancellationToken);
@@ -525,7 +525,7 @@ public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, Result<
         _context = context;
     }
 
-    public async Task<Result<PagedList<MeetingDto>>> Handle(GetMeetingsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<MeetingDto>>> Handle(GetMeetingsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Meetings
             .Include(m => m.Attendees)
@@ -625,7 +625,7 @@ public class GetMeetingByIdQueryHandler : IRequestHandler<GetMeetingByIdQuery, R
         _context = context;
     }
 
-    public async Task<Result<MeetingDto>> Handle(GetMeetingByIdQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<MeetingDto>> Handle(GetMeetingByIdQuery request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
             .Include(m => m.Attendees)
@@ -719,7 +719,7 @@ public class GetUpcomingMeetingsQueryHandler : IRequestHandler<GetUpcomingMeetin
         _context = context;
     }
 
-    public async Task<Result<List<MeetingDto>>> Handle(GetUpcomingMeetingsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<MeetingDto>>> Handle(GetUpcomingMeetingsQuery request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         var meetings = await _context.Meetings
@@ -813,7 +813,7 @@ public class GetMeetingQuorumQueryHandler : IRequestHandler<GetMeetingQuorumQuer
         _context = context;
     }
 
-    public async Task<Result<MeetingQuorumDto>> Handle(GetMeetingQuorumQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<MeetingQuorumDto>> Handle(GetMeetingQuorumQuery request, CancellationToken cancellationToken)
     {
         var meeting = await _context.Meetings
             .Include(m => m.Attendees)
@@ -853,7 +853,7 @@ public class GetForumPostsQueryHandler : IRequestHandler<GetForumPostsQuery, Res
         _context = context;
     }
 
-    public async Task<Result<PagedList<ForumPostDto>>> Handle(GetForumPostsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<ForumPostDto>>> Handle(GetForumPostsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.ForumPosts
             .Include(p => p.Comments)
@@ -928,7 +928,7 @@ public class GetForumPostByIdQueryHandler : IRequestHandler<GetForumPostByIdQuer
         _context = context;
     }
 
-    public async Task<Result<ForumPostDetailDto>> Handle(GetForumPostByIdQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<ForumPostDetailDto>> Handle(GetForumPostByIdQuery request, CancellationToken cancellationToken)
     {
         var post = await _context.ForumPosts
             .Include(p => p.Comments)
@@ -1009,7 +1009,7 @@ public class GetPinnedForumPostsQueryHandler : IRequestHandler<GetPinnedForumPos
         _context = context;
     }
 
-    public async Task<Result<List<ForumPostDto>>> Handle(GetPinnedForumPostsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<ForumPostDto>>> Handle(GetPinnedForumPostsQuery request, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         var items = await _context.ForumPosts
@@ -1075,7 +1075,7 @@ public class GetForumPostsByAuthorQueryHandler : IRequestHandler<GetForumPostsBy
         _context = context;
     }
 
-    public async Task<Result<PagedList<ForumPostDto>>> Handle(GetForumPostsByAuthorQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<ForumPostDto>>> Handle(GetForumPostsByAuthorQuery request, CancellationToken cancellationToken)
     {
         var query = _context.ForumPosts
             .Include(p => p.Comments)

@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -73,7 +73,7 @@ public class GetFinancialReportQueryHandler : IRequestHandler<GetFinancialReport
     private readonly IApplicationDbContext _context;
     public GetFinancialReportQueryHandler(IApplicationDbContext context) => _context = context;
 
-    public async Task<Result<FinancialReportDto>> Handle(GetFinancialReportQuery request, CancellationToken ct)
+    public async ValueTask<Result<FinancialReportDto>> Handle(GetFinancialReportQuery request, CancellationToken ct)
     {
         var charges = await _context.Charges
             .Include(c => c.Unit).ThenInclude(u => u.Building)
@@ -162,7 +162,7 @@ public class GetOperationalReportQueryHandler : IRequestHandler<GetOperationalRe
     private readonly IApplicationDbContext _context;
     public GetOperationalReportQueryHandler(IApplicationDbContext context) => _context = context;
 
-    public async Task<Result<OperationalReportDto>> Handle(GetOperationalReportQuery request, CancellationToken ct)
+    public async ValueTask<Result<OperationalReportDto>> Handle(GetOperationalReportQuery request, CancellationToken ct)
     {
         var buildings = await _context.Buildings
             .Where(b => b.CondominiumId == request.CondominiumId && !b.IsDeleted)
@@ -239,7 +239,7 @@ public class GetResidentReportQueryHandler : IRequestHandler<GetResidentReportQu
     private readonly IApplicationDbContext _context;
     public GetResidentReportQueryHandler(IApplicationDbContext context) => _context = context;
 
-    public async Task<Result<ResidentReportDto>> Handle(GetResidentReportQuery request, CancellationToken ct)
+    public async ValueTask<Result<ResidentReportDto>> Handle(GetResidentReportQuery request, CancellationToken ct)
     {
         var buildingIds = await _context.Buildings
             .Where(b => b.CondominiumId == request.CondominiumId && !b.IsDeleted)
@@ -314,7 +314,7 @@ public class GetIncidentReportQueryHandler : IRequestHandler<GetIncidentReportQu
     private readonly IApplicationDbContext _context;
     public GetIncidentReportQueryHandler(IApplicationDbContext context) => _context = context;
 
-    public async Task<Result<IncidentReportDto>> Handle(GetIncidentReportQuery request, CancellationToken ct)
+    public async ValueTask<Result<IncidentReportDto>> Handle(GetIncidentReportQuery request, CancellationToken ct)
     {
         var incidents = await _context.Incidents
             .Where(i => i.CondominiumId == request.CondominiumId
@@ -386,7 +386,7 @@ public class GetCommunicationsReportQueryHandler : IRequestHandler<GetCommunicat
     private readonly IApplicationDbContext _context;
     public GetCommunicationsReportQueryHandler(IApplicationDbContext context) => _context = context;
 
-    public async Task<Result<CommunicationsReportDto>> Handle(GetCommunicationsReportQuery request, CancellationToken ct)
+    public async ValueTask<Result<CommunicationsReportDto>> Handle(GetCommunicationsReportQuery request, CancellationToken ct)
     {
         var announcements = await _context.Announcements
             .Where(a => a.CondominiumId == request.CondominiumId && !a.IsDeleted

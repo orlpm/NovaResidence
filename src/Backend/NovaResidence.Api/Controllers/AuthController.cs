@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Features.Authentication.Commands.Register;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Enums;

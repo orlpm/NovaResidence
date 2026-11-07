@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using NovaResidence.Application.Features.Amenities.Commands.CreateAmenity;
 using NovaResidence.Application.Features.Amenities.Commands.UpdateAmenity;
 using NovaResidence.Application.Features.Amenities.Commands.DeleteAmenity;

@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -42,7 +42,7 @@ public class GetIncidentQueryHandler : IRequestHandler<GetIncidentQuery, Result<
         _context = context;
     }
 
-    public async Task<Result<IncidentDetailDto>> Handle(GetIncidentQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<IncidentDetailDto>> Handle(GetIncidentQuery request, CancellationToken cancellationToken)
     {
         var incident = await _context.Incidents
             .Include(i => i.Comments)
@@ -126,7 +126,7 @@ public class GetCondominiumIncidentsQueryHandler : IRequestHandler<GetCondominiu
         _context = context;
     }
 
-    public async Task<Result<List<IncidentListDto>>> Handle(GetCondominiumIncidentsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<IncidentListDto>>> Handle(GetCondominiumIncidentsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Incidents
             .Where(i => i.CondominiumId == request.CondominiumId);
@@ -192,7 +192,7 @@ public class GetUnitIncidentsQueryHandler : IRequestHandler<GetUnitIncidentsQuer
         _context = context;
     }
 
-    public async Task<Result<List<IncidentListDto>>> Handle(GetUnitIncidentsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<IncidentListDto>>> Handle(GetUnitIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _context.Incidents
             .Include(i => i.Attachments)
@@ -244,7 +244,7 @@ public class GetMyIncidentsQueryHandler : IRequestHandler<GetMyIncidentsQuery, R
         _context = context;
     }
 
-    public async Task<Result<List<IncidentListDto>>> Handle(GetMyIncidentsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<IncidentListDto>>> Handle(GetMyIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _context.Incidents
             .Include(i => i.Attachments)
@@ -299,7 +299,7 @@ public class GetAssignedIncidentsQueryHandler : IRequestHandler<GetAssignedIncid
         _context = context;
     }
 
-    public async Task<Result<List<IncidentListDto>>> Handle(GetAssignedIncidentsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<List<IncidentListDto>>> Handle(GetAssignedIncidentsQuery request, CancellationToken cancellationToken)
     {
         var incidents = await _context.Incidents
             .Include(i => i.Attachments)

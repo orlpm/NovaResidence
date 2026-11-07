@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Api.Security;
 using NovaResidence.Application.Features.Communications.Commands;
@@ -26,7 +26,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpPost("upload")]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file)
+    public async Task<IActionResult> Upload(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest("No se proporcionó archivo");

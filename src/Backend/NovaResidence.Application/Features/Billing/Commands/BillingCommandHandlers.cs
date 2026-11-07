@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -22,7 +22,7 @@ public class CreateChargeCommandHandler : IRequestHandler<CreateChargeCommand, R
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(CreateChargeCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateChargeCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -118,7 +118,7 @@ public class CreateBulkChargesCommandHandler : IRequestHandler<CreateBulkCharges
         _logger = logger;
     }
 
-    public async Task<Result<int>> Handle(CreateBulkChargesCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(CreateBulkChargesCommand request, CancellationToken cancellationToken)
     {
         try
         {
@@ -212,7 +212,7 @@ public class CancelChargeCommandHandler : IRequestHandler<CancelChargeCommand, R
         _mediator = mediator;
     }
 
-    public async Task<Result> Handle(CancelChargeCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(CancelChargeCommand request, CancellationToken cancellationToken)
     {
         var charge = await _context.Charges
             .Include(c => c.Unit)
@@ -274,7 +274,7 @@ public class ForgiveChargeCommandHandler : IRequestHandler<ForgiveChargeCommand,
         _mediator = mediator;
     }
 
-    public async Task<Result> Handle(ForgiveChargeCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ForgiveChargeCommand request, CancellationToken cancellationToken)
     {
         var charge = await _context.Charges
             .Include(c => c.Unit)
@@ -327,7 +327,7 @@ public class ApplyLateFeeCommandHandler : IRequestHandler<ApplyLateFeeCommand, R
         _context = context;
     }
 
-    public async Task<Result> Handle(ApplyLateFeeCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ApplyLateFeeCommand request, CancellationToken cancellationToken)
     {
         var charge = await _context.Charges.FindAsync(new object[] { request.ChargeId }, cancellationToken);
         if (charge == null)
@@ -362,7 +362,7 @@ public class DeleteChargeCommandHandler : IRequestHandler<DeleteChargeCommand, R
         _logger = logger;
     }
 
-    public async Task<Result> Handle(DeleteChargeCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteChargeCommand request, CancellationToken cancellationToken)
     {
         var charge = await _context.Charges.FindAsync(new object[] { request.ChargeId }, cancellationToken);
         if (charge == null)
@@ -388,7 +388,7 @@ public class DeleteChargesByCondominiumCommandHandler : IRequestHandler<DeleteCh
         _logger = logger;
     }
 
-    public async Task<Result<int>> Handle(DeleteChargesByCondominiumCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(DeleteChargesByCondominiumCommand request, CancellationToken cancellationToken)
     {
         var query = _context.Charges.Where(c => c.CondominiumId == request.CondominiumId);
         
@@ -428,7 +428,7 @@ public class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentCommand,
         _logger = logger;
     }
 
-    public async Task<Result<Guid>> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
         var charge = await _context.Charges
             .Include(c => c.Payments)
@@ -520,7 +520,7 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
         _mediator = mediator;
     }
 
-    public async Task<Result> Handle(VerifyPaymentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(VerifyPaymentCommand request, CancellationToken cancellationToken)
     {
         var payment = await _context.Payments
             .Include(p => p.Charge)
@@ -572,7 +572,7 @@ public class RefundPaymentCommandHandler : IRequestHandler<RefundPaymentCommand,
         _context = context;
     }
 
-    public async Task<Result> Handle(RefundPaymentCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(RefundPaymentCommand request, CancellationToken cancellationToken)
     {
         var payment = await _context.Payments
             .Include(p => p.Charge)
@@ -609,7 +609,7 @@ public class CreateFeeConfigurationCommandHandler : IRequestHandler<CreateFeeCon
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(CreateFeeConfigurationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateFeeConfigurationCommand request, CancellationToken cancellationToken)
     {
         var feeConfig = FeeConfiguration.Create(
             request.CondominiumId,
@@ -641,7 +641,7 @@ public class UpdateFeeConfigurationCommandHandler : IRequestHandler<UpdateFeeCon
         _context = context;
     }
 
-    public async Task<Result> Handle(UpdateFeeConfigurationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateFeeConfigurationCommand request, CancellationToken cancellationToken)
     {
         var feeConfig = await _context.FeeConfigurations.FindAsync(new object[] { request.FeeConfigurationId }, cancellationToken);
         if (feeConfig == null)
@@ -672,7 +672,7 @@ public class ToggleFeeConfigurationCommandHandler : IRequestHandler<ToggleFeeCon
         _context = context;
     }
 
-    public async Task<Result> Handle(ToggleFeeConfigurationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(ToggleFeeConfigurationCommand request, CancellationToken cancellationToken)
     {
         var feeConfig = await _context.FeeConfigurations.FindAsync(new object[] { request.FeeConfigurationId }, cancellationToken);
         if (feeConfig == null)
@@ -699,7 +699,7 @@ public class DeleteFeeConfigurationCommandHandler : IRequestHandler<DeleteFeeCon
         _logger = logger;
     }
 
-    public async Task<Result> Handle(DeleteFeeConfigurationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteFeeConfigurationCommand request, CancellationToken cancellationToken)
     {
         var feeConfig = await _context.FeeConfigurations.FindAsync(new object[] { request.FeeConfigurationId }, cancellationToken);
         if (feeConfig == null)
@@ -724,7 +724,7 @@ public class DeleteAllFeeConfigurationsCommandHandler : IRequestHandler<DeleteAl
         _logger = logger;
     }
 
-    public async Task<Result<int>> Handle(DeleteAllFeeConfigurationsCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(DeleteAllFeeConfigurationsCommand request, CancellationToken cancellationToken)
     {
         var feeConfigs = await _context.FeeConfigurations
             .Where(f => f.CondominiumId == request.CondominiumId)
@@ -753,7 +753,7 @@ public class GenerateMonthlyChargesCommandHandler : IRequestHandler<GenerateMont
         _logger = logger;
     }
 
-    public async Task<Result<int>> Handle(GenerateMonthlyChargesCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(GenerateMonthlyChargesCommand request, CancellationToken cancellationToken)
     {
         try
         {

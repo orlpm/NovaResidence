@@ -495,7 +495,7 @@ public class SubscriptionsController : ControllerBase
     }
 
     [HttpPost("payments/upload-proof")]
-    public async Task<ActionResult<string>> UploadPaymentProof([FromForm] IFormFile file)
+    public async Task<ActionResult<string>> UploadPaymentProof(IFormFile file)
     {
         if (file == null || file.Length == 0)
             return BadRequest("No se proporcionó archivo");

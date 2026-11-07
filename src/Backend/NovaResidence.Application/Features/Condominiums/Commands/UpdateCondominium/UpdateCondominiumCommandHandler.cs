@@ -1,4 +1,4 @@
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
@@ -26,7 +26,7 @@ public class UpdateCondominiumCommandHandler : IRequestHandler<UpdateCondominium
         _logger = logger;
     }
 
-    public async Task<Result> Handle(UpdateCondominiumCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(UpdateCondominiumCommand request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Updating condominium {Id}", request.CondominiumId);
 

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Api.Security;
 using NovaResidence.Application.Features.Billing.Commands;

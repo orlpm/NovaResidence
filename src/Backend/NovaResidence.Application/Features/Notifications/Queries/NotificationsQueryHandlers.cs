@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 
@@ -14,7 +14,7 @@ public class GetUserNotificationsQueryHandler : IRequestHandler<GetUserNotificat
         _context = context;
     }
 
-    public async Task<Result<PagedList<NotificationDto>>> Handle(GetUserNotificationsQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<PagedList<NotificationDto>>> Handle(GetUserNotificationsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Notifications
             .Where(n => n.UserId == request.UserId && n.CondominiumId == request.CondominiumId)
@@ -70,7 +70,7 @@ public class GetNotificationSummaryQueryHandler : IRequestHandler<GetNotificatio
         _context = context;
     }
 
-    public async Task<Result<NotificationSummaryDto>> Handle(GetNotificationSummaryQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<NotificationSummaryDto>> Handle(GetNotificationSummaryQuery request, CancellationToken cancellationToken)
     {
         var baseQuery = _context.Notifications
             .Where(n => n.UserId == request.UserId && n.CondominiumId == request.CondominiumId)
@@ -118,7 +118,7 @@ public class GetUnreadNotificationCountQueryHandler : IRequestHandler<GetUnreadN
         _context = context;
     }
 
-    public async Task<Result<int>> Handle(GetUnreadNotificationCountQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(GetUnreadNotificationCountQuery request, CancellationToken cancellationToken)
     {
         var count = await _context.Notifications
             .Where(n => n.UserId == request.UserId && n.CondominiumId == request.CondominiumId)
@@ -138,7 +138,7 @@ public class GetNotificationByIdQueryHandler : IRequestHandler<GetNotificationBy
         _context = context;
     }
 
-    public async Task<Result<NotificationDto>> Handle(GetNotificationByIdQuery request, CancellationToken cancellationToken)
+    public async ValueTask<Result<NotificationDto>> Handle(GetNotificationByIdQuery request, CancellationToken cancellationToken)
     {
         var notification = await _context.Notifications
             .Where(n => n.Id == request.Id && n.UserId == request.UserId)

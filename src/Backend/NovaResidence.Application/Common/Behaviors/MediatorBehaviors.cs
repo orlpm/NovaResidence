@@ -1,11 +1,11 @@
-using MediatR;
+using Mediator;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 
 namespace NovaResidence.Application.Common.Behaviors;
 
 /// <summary>
-/// MediatR pipeline behavior for automatic validation
+/// Mediator pipeline behavior for automatic validation
 /// </summary>
 public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
@@ -21,14 +21,14 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
         _logger = logger;
     }
 
-    public async Task<TResponse> Handle(
+    public async ValueTask<TResponse> Handle(
         TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+        MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {
         if (!_validators.Any())
         {
-            return await next();
+            return await next(request, cancellationToken);
         }
 
         var context = new ValidationContext<TRequest>(request);
@@ -52,12 +52,12 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
                     .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray()));
         }
 
-        return await next();
+        return await next(request, cancellationToken);
     }
 }
 
 /// <summary>
-/// MediatR pipeline behavior for logging
+/// Mediator pipeline behavior for logging
 /// </summary>
 public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : IRequest<TResponse>
@@ -69,9 +69,9 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         _logger = logger;
     }
 
-    public async Task<TResponse> Handle(
+    public async ValueTask<TResponse> Handle(
         TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+        MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {
         var requestName = typeof(TRequest).Name;
@@ -80,7 +80,7 @@ public class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
         try
         {
-            var response = await next();
+            var response = await next(request, cancellationToken);
             
             _logger.LogInformation("Handled {RequestName}", requestName);
             

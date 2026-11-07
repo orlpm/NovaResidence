@@ -1,5 +1,5 @@
 using Ardalis.Result;
-using MediatR;
+using Mediator;
 using Microsoft.EntityFrameworkCore;
 using NovaResidence.Application.Common.Interfaces;
 using NovaResidence.Domain.Entities.Notifications;
@@ -15,7 +15,7 @@ public class CreateNotificationCommandHandler : IRequestHandler<CreateNotificati
         _context = context;
     }
 
-    public async Task<Result<Guid>> Handle(CreateNotificationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<Guid>> Handle(CreateNotificationCommand request, CancellationToken cancellationToken)
     {
         var notification = Notification.Create(
             request.CondominiumId,
@@ -47,7 +47,7 @@ public class CreateBulkNotificationsCommandHandler : IRequestHandler<CreateBulkN
         _context = context;
     }
 
-    public async Task<Result<int>> Handle(CreateBulkNotificationsCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(CreateBulkNotificationsCommand request, CancellationToken cancellationToken)
     {
         var notifications = request.UserIds.Select(userId => 
             Notification.Create(
@@ -81,7 +81,7 @@ public class MarkNotificationAsReadCommandHandler : IRequestHandler<MarkNotifica
         _context = context;
     }
 
-    public async Task<Result> Handle(MarkNotificationAsReadCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(MarkNotificationAsReadCommand request, CancellationToken cancellationToken)
     {
         var notification = await _context.Notifications
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId && n.UserId == request.UserId, cancellationToken);
@@ -105,7 +105,7 @@ public class MarkAllNotificationsAsReadCommandHandler : IRequestHandler<MarkAllN
         _context = context;
     }
 
-    public async Task<Result<int>> Handle(MarkAllNotificationsAsReadCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(MarkAllNotificationsAsReadCommand request, CancellationToken cancellationToken)
     {
         var notifications = await _context.Notifications
             .Where(n => n.UserId == request.UserId && n.CondominiumId == request.CondominiumId && !n.IsRead)
@@ -131,7 +131,7 @@ public class DeleteNotificationCommandHandler : IRequestHandler<DeleteNotificati
         _context = context;
     }
 
-    public async Task<Result> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result> Handle(DeleteNotificationCommand request, CancellationToken cancellationToken)
     {
         var notification = await _context.Notifications
             .FirstOrDefaultAsync(n => n.Id == request.NotificationId && n.UserId == request.UserId, cancellationToken);
@@ -155,7 +155,7 @@ public class DeleteAllReadNotificationsCommandHandler : IRequestHandler<DeleteAl
         _context = context;
     }
 
-    public async Task<Result<int>> Handle(DeleteAllReadNotificationsCommand request, CancellationToken cancellationToken)
+    public async ValueTask<Result<int>> Handle(DeleteAllReadNotificationsCommand request, CancellationToken cancellationToken)
     {
         var notifications = await _context.Notifications
             .Where(n => n.UserId == request.UserId && n.CondominiumId == request.CondominiumId && n.IsRead)

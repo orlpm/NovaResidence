@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using MediatR;
+using Mediator;
 using Ardalis.Result;
 using NovaResidence.Application.Features.Notifications.Commands;
 using NovaResidence.Application.Features.Notifications.Queries;
