@@ -78,7 +78,7 @@ Residencial Pedregal Demo. Contraseña de todas las cuentas: `Pass123.` Correos 
 
 Playwright está en `tests/e2e`, un worker, Chromium. Local levanta la API en 5001 y Vite en 3001. Contra Azure se definen `E2E_BASE_URL` y `E2E_API_BASE`, y no se levantan servidores. La última corrida local completa, del 5 de noviembre de 2026 sobre .NET 10, dejó 114 aprobadas y 2 omitidas. No hay proyecto de pruebas unitarias .NET. Los comandos están en [QUICKSTART.md](QUICKSTART.md).
 
-El sitio publicado en Azure lleva el deploy del 5 de noviembre de 2026 (`a13c1d9ce67e4804b8a2125201991ffe`), que todavía es el código en .NET 8. La migración a .NET 10 no está publicada.
+El sitio publicado en Azure lleva el deploy del 6 de noviembre de 2026 (`30a5d17c9db54445a749e9b7b76f9c17`), ya en .NET 10.
 
 ## Documentos
 

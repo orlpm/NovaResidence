@@ -1,6 +1,6 @@
 # Handoff de NovaResidence
 
-Documento para continuar el trabajo en otro chat sin depender del historial. Fecha de corte: 5 de noviembre de 2026. El sitio publicado ese día es el deploy `a13c1d9ce67e4804b8a2125201991ffe`.
+Documento para continuar el trabajo en otro chat sin depender del historial. Fecha de corte: 6 de noviembre de 2026. El sitio publicado ese día es el deploy `30a5d17c9db54445a749e9b7b76f9c17`, en .NET 10.
 
 ## Qué es el producto
 
@@ -16,7 +16,7 @@ Lee, en este orden:
 4. [BUSINESS-PROCESSES.md](BUSINESS-PROCESSES.md) para las reglas y excepciones de cada proceso.
 5. [PERMISSIONS.md](PERMISSIONS.md) solo si el cambio toca roles o pantallas protegidas.
 
-La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) y el sitio publicado en Azure comparten el corte del 5 de noviembre de 2026 (deploy `a13c1d9ce67e4804b8a2125201991ffe`), todavía en .NET 8. Encima de ese corte, ya en `main` pero sin deploy, está la migración a .NET 10 LTS con el cambio de dependencias.
+La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) y el sitio publicado en Azure comparten el corte del 6 de noviembre de 2026 (deploy `30a5d17c9db54445a749e9b7b76f9c17`): .NET 10 LTS, Mediator y Mapperly.
 
 ## Entorno de desarrollo
 
@@ -42,9 +42,9 @@ La rama `main` de [orlpm/NovaResidence](https://github.com/orlpm/NovaResidence) 
 | --- | --- |
 | Local | Postgres. La app usa la cadena pooled (`ConnectionStrings:Postgres` o, si no existe, `ConnectionStrings:Neon`). Las pruebas usan la directa. Para que cargue user-secrets (`Jwt:SecretKey`), arrancar sin `--no-launch-profile`: `dotnet run --project "./src/Backend/NovaResidence.Api/NovaResidence.Api.csproj" --urls "http://localhost:5001"`. |
 | Azure | App `novaresidence-api`, grupo `NovaResidence-RG`, región `mexicocentral`, plan `novaresidence-plan` SKU F1. URL `https://novaresidence-api.azurewebsites.net`. Una sola app sirve API y SPA desde `wwwroot`. Desde el 4 nov 2026 el sitio usa la misma Postgres de Neon que local, porque `ConnectionStrings__Neon` ya estaba en App Settings y gana sobre `UseSqlite`. |
-| Último deploy | 5 nov 2026, id `a13c1d9ce67e4804b8a2125201991ffe`, `provisioningState` Succeeded. Incluye tableros y campana por condominio (`cc8aa39`), subida de archivos y fotos de hasta 8 MB, vista previa de Google Maps en mapas, menús de tres puntos por portal, skill `.cursor/skills/visual-ui`, tablero de superadmin sin datos dummy, y cajones/vehículos relacionados con residentes y visitas (parche `002_parking_resident_and_visit_vehicle`). La raíz respondió 200. |
-| Git | En `main` y en GitHub, sin deploy: la migración a .NET 10, el cambio de AutoMapper, MediatR y FluentAssertions por Mapperly, Mediator y AwesomeAssertions, el aviso de activar o desactivar áreas comunes y la corrección de `vehicles-parking.spec.ts`. `playwright-report/index.html` y `test-results` no se comitean. |
-| Runtime de Azure | El App Service sigue en `netFrameworkVersion` `v8.0`. Hay que pasarlo a `v10.0` antes de publicar este código. |
+| Último deploy | 6 nov 2026, id `30a5d17c9db54445a749e9b7b76f9c17`, Succeeded. Migración a .NET 10 LTS, cambio de AutoMapper, MediatR y FluentAssertions por Mapperly, Mediator y AwesomeAssertions, y aviso al activar o desactivar áreas comunes. Después del deploy respondieron 200 la raíz, `/health` (Healthy, con Neon) y el login del residente demo. El deploy anterior, `a13c1d9ce67e4804b8a2125201991ffe` del 5 nov 2026 en .NET 8, incluía tableros y campana por condominio (`cc8aa39`), subida de archivos y fotos de hasta 8 MB, vista previa de Google Maps en mapas, menús de tres puntos por portal, skill `.cursor/skills/visual-ui`, tablero de superadmin sin datos dummy, y cajones/vehículos relacionados con residentes y visitas (parche `002_parking_resident_and_visit_vehicle`). La raíz respondió 200. |
+| Git | `main` en GitHub coincide con el deploy. `playwright-report/index.html` y `test-results` no se comitean. |
+| Runtime de Azure | `netFrameworkVersion` `v10.0`, worker de 32 bits (F1). |
 | Pruebas contra Azure | La suite no se volvió a correr después de pasar a Postgres ni después de sacar la clave JWT del paquete. El pase anterior, todavía sobre el código de SQLite, dejó 98 aprobadas, 1 omitida (`record-demo`) y 1 intermitente en `polls-meetings`, que pasó al repetirla. |
 | Pruebas de correo | En local, confirmación y restablecimiento abren el enlace real del mensaje capturado. En Azure, Brevo entregó el correo de DomusCond a `contacto@domuscond.com`. |
 | Pruebas locales | 114 aprobadas y 2 omitidas el 5 nov 2026, sobre .NET 10 y Mediator, contra Postgres. Omitidas: `record-demo` y la entrega Brevo, que solo corre con `E2E_TARGET=azure`. No hay proyecto de pruebas unitarias .NET. |
@@ -55,11 +55,12 @@ El plan F1 se duerme y tiene unos 60 minutos de CPU al día. Un arranque en frí
 
 Desde la raíz del repositorio, con la CLI de Azure ya autenticada:
 
-0. Solo la primera vez después de la migración: `az webapp config set --resource-group NovaResidence-RG --name novaresidence-api --net-framework-version v10.0`. Con `v8.0` el paquete no arranca.
 1. `npm run build` en `src/Frontend/web`. El build de producción apunta a `https://novaresidence-api.azurewebsites.net/api` por `.env.production`.
 2. `dotnet publish` en Release hacia una carpeta temporal.
 3. Copiar `src/Frontend/web/dist` dentro de `wwwroot` de esa carpeta. El SPA no vive en el `wwwroot` del repositorio.
-4. Comprimir el contenido de la publicación y desplegar con `az webapp deploy --resource-group NovaResidence-RG --name novaresidence-api --src-path <zip> --type zip`.
+4. Comprimir el contenido de la publicación y desplegar con `az webapp deploy --resource-group NovaResidence-RG --name novaresidence-api --src-path <zip> --type zip --clean false`. Sin `--clean false`, el deploy borra `uploads` del servidor con los archivos de los usuarios.
+
+El App Service ya corre .NET 10 (`netFrameworkVersion` `v10.0`). El proyecto de la API excluye `data/` de la publicación para que no viaje el buzón de correo capturado en local.
 
 Swagger no existe fuera de Development. La raíz del sitio debe responder 200.
 
@@ -141,7 +142,7 @@ El correo de Azure y el sandbox de OpenPay ya están conectados. Aun así, el pr
 - `Jwt:SecretKey` no vive en el repositorio. Producción la lee de App Settings (`Jwt__SecretKey`). Local la lee de user-secrets. Si falta o tiene menos de 32 caracteres, el proceso no arranca. No la copies a chats ni a documentos.
 - Application Insights está vacío.
 - El seed demo no puede quedar encendido.
-- El código ya compila contra .NET 10 LTS. El App Service tiene que usar el stack .NET 10; con el runtime de .NET 8 el deploy no arranca.
+- 11 de los 26 controladores no tienen `[Authorize]`. Entre ellos, `GET /api/condominiums` responde sin token con la lista completa de condominios. Hay que revisar controlador por controlador qué endpoint debe ser público (registro, catálogos) y cerrar el resto sin romper el alta pública.
 - `dotnet list package --vulnerable --include-transitive` no reporta paquetes vulnerables. AutoMapper, MediatR y FluentAssertions se retiraron por su cambio a licencia comercial; los reemplazan Mapperly, Mediator y AwesomeAssertions. `npm audit` en el frontend reporta altas en `form-data`, `follow-redirects` y `zod`. Las dos primeras se cierran con `npm audit fix`; `zod` requiere cambio de versión mayor.
 - No hay rate limiting en login ni en la validación de códigos QR. El código QR tiene 60 bits de entropía, pero conviene limitar intentos por usuario.
 

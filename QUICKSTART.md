@@ -62,16 +62,12 @@ En PowerShell se asignan con `$env:`. El sitio F1 puede tardar en despertar. No 
 
 ## Publicar
 
-Antes del primer deploy en .NET 10, el App Service tiene que usar ese stack. Con el runtime de .NET 8 la app no arranca:
-
-```bash
-az webapp config set --resource-group NovaResidence-RG --name novaresidence-api --net-framework-version v10.0
-```
+El App Service ya usa .NET 10 (`netFrameworkVersion` `v10.0`). Si alguna vez vuelve a `v8.0`, el paquete no arranca.
 
 1. `npm run build` en `src/Frontend/web`.
 2. `dotnet publish` en Release a una carpeta temporal.
 3. Copiar `dist` dentro del `wwwroot` de esa carpeta.
-4. `az webapp deploy --resource-group NovaResidence-RG --name novaresidence-api --src-path <zip> --type zip`.
+4. `az webapp deploy --resource-group NovaResidence-RG --name novaresidence-api --src-path <zip> --type zip --clean false`. Sin `--clean false` se borra `uploads` del servidor.
 
 La raíz del sitio debe responder 200. Swagger en Azure responde 404 y eso es esperado.
 
